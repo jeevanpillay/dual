@@ -1,3 +1,0 @@
-[submodule "examples/env-remapping"]
-	path = examples/env-remapping
-	url = https://github.com/lightfastai/dual-env-remapping-example.git
