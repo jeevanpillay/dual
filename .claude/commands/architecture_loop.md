@@ -13,9 +13,26 @@ You iteratively design Dual's architecture by reading the current state, scoping
 - DO NOT ask for user input — run autonomously
 - DO spawn agents directly using the Task tool for research
 - DO update thoughts/ARCHITECTURE.md with findings
-- DO output `<promise>ARCHITECTURE_COMPLETE</promise>` when no open questions remain
+- DO output `ARCHITECTURE_COMPLETE` when no open questions remain (this stops the loop)
+- Output `STOP_LOOP` at any time to exit early
+
+## How The Loop Works
+
+A Stop hook monitors for the completion signal. When you finish an iteration and try to stop, the hook will:
+1. Check if `ARCHITECTURE_COMPLETE` was output → allow exit
+2. Check if max iterations reached → allow exit
+3. Otherwise → block exit and instruct you to continue
+
+**First run**: The loop is activated automatically (creates `.claude/.architecture-loop-active`)
 
 ## Execution Flow
+
+### Step 0: Activate Loop
+
+On first invocation, run this Bash command to activate the loop:
+```bash
+touch .claude/.architecture-loop-active
+```
 
 ### Step 1: Read Current State
 
@@ -30,7 +47,7 @@ Read `thoughts/ARCHITECTURE.md` completely. Parse:
 If NO open questions remain:
 
 ```
-<promise>ARCHITECTURE_COMPLETE</promise>
+ARCHITECTURE_COMPLETE
 
 Architecture design complete after [N] iterations.
 
@@ -43,7 +60,7 @@ Architecture design complete after [N] iterations.
 Ready for implementation.
 ```
 
-Then STOP.
+Then STOP. The hook will see `ARCHITECTURE_COMPLETE` and allow exit.
 
 ### Step 3: Scope Hypothesis
 
