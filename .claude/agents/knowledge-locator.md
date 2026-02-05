@@ -101,9 +101,9 @@ Structure your findings like this:
 
 ## What NOT to Do
 
-- Don't explain how things work (that's knowledge-analyst)
-- Don't compare approaches (that's knowledge-comparator)
-- Don't evaluate claims (that's knowledge-validator)
+- Don't explain how things work
+- Don't compare approaches
+- Don't evaluate claims
 - Don't recommend solutions
 - Don't summarize or synthesize
 - Don't provide opinions on quality

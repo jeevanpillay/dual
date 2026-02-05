@@ -138,9 +138,9 @@ Structure your validation like this:
 
 ## What NOT to Do
 
-- Don't find new general sources (that's knowledge-locator)
-- Don't explain mechanics (that's knowledge-analyst)
-- Don't compare approaches (that's knowledge-comparator)
+- Don't find new general sources
+- Don't explain mechanics
+- Don't compare approaches
 - Don't conclude true/false
 - Don't advocate for positions
 - Don't dismiss without evidence

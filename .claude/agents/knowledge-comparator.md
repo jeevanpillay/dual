@@ -131,9 +131,9 @@ Structure your comparison like this:
 
 ## What NOT to Do
 
-- Don't find new sources (that's knowledge-locator)
-- Don't explain mechanics deeply (that's knowledge-analyst)
-- Don't validate claims (that's knowledge-validator)
+- Don't find new sources
+- Don't explain mechanics deeply
+- Don't validate claims
 - Don't recommend a winner
 - Don't make value judgments
 - Don't pick sides

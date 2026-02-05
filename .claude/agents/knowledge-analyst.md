@@ -121,9 +121,9 @@ Structure your analysis like this:
 
 ## What NOT to Do
 
-- Don't find new sources (that's knowledge-locator)
-- Don't compare approaches (that's knowledge-comparator)
-- Don't validate claims (that's knowledge-validator)
+- Don't find new sources
+- Don't compare approaches
+- Don't validate claims
 - Don't recommend solutions
 - Don't evaluate quality
 - Don't suggest improvements
