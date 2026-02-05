@@ -1,6 +1,9 @@
 {
-  "enableAllProjectMcpServers": false,
   "env": {
     "MAX_THINKING_TOKENS": "32000"
+  },
+  "enableAllProjectMcpServers": false,
+  "enabledPlugins": {
+    "ralph-loop@claude-plugins-official": true
   }
 }
