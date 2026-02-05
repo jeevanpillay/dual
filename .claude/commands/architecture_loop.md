@@ -5,15 +5,15 @@ model: opus
 
 # Architecture Loop
 
-You iteratively design Dual's architecture by reading the current state, scoping a hypothesis, researching it, experimenting, and updating the architecture document.
+You validate Dual's architecture by reading the unvalidated SPEC.md, extracting testable claims, researching and experimenting on each, and building up a validated ARCHITECTURE.md.
 
 ## CRITICAL RULES
 
-- DO NOT use slash commands (/research_experiment, /create_experiment, etc.) — do the work directly
 - DO NOT ask for user input — run autonomously
-- DO spawn agents directly using the Task tool for research
-- DO update thoughts/ARCHITECTURE.md with findings
-- DO output `ARCHITECTURE_COMPLETE` when no open questions remain (this stops the loop)
+- DO reference `.claude/commands/` for guidance (research_experiment.md, create_experiment.md, run_experiment.md, validate_experiment.md)
+- DO extract testable claims from SPEC.md automatically
+- DO update thoughts/ARCHITECTURE.md with validated/rejected decisions
+- DO output `ARCHITECTURE_COMPLETE` when all spec claims are validated (this stops the loop)
 - Output `STOP_LOOP` at any time to exit early
 
 ## How The Loop Works
@@ -36,220 +36,252 @@ touch .claude/.architecture-loop-active
 
 ### Step 1: Read Current State
 
-Read `thoughts/ARCHITECTURE.md` completely. Parse:
-- Iteration number (count entries in Iteration Log, add 1)
-- Confirmed decisions (what's already decided)
-- Open questions (what needs answering)
-- Rejected approaches (what didn't work)
+Read both documents completely:
 
-### Step 2: Check Exit Condition
+**SPEC.md** (the unvalidated specification):
+- Parse the frontmatter for validation status
+- Identify all architectural claims (explicit and implicit)
+- Note the critical invariants and constraints
 
-If NO open questions remain:
+**thoughts/ARCHITECTURE.md** (the validated decisions):
+- Parse confirmed decisions (what's already validated)
+- Parse rejected approaches (what didn't work)
+- Count iteration log entries
 
-```
-ARCHITECTURE_COMPLETE
+If `thoughts/ARCHITECTURE.md` doesn't exist, create it with the initial template (see Step 1a).
 
-Architecture design complete after [N] iterations.
+### Step 1a: Initialize ARCHITECTURE.md (First Run Only)
 
-## Final Architecture
-[Summary of confirmed decisions]
+If the file doesn't exist, create `thoughts/ARCHITECTURE.md`:
+
+```markdown
+---
+spec_source: SPEC.md
+date_started: [ISO date]
+status: in_progress
+---
+
+# Dual Architecture Validation
+
+This document tracks the validation of architectural claims from SPEC.md through hypothesis-driven experimentation.
+
+## Spec Reference
+
+Source: `SPEC.md`
+Status: Validating
+
+## Confirmed Decisions
+
+[Decisions validated through experimentation]
 
 ## Rejected Approaches
-[Summary of what didn't work]
 
-Ready for implementation.
+[Approaches that failed validation]
+
+## Open Claims
+
+[Claims from SPEC.md not yet validated - auto-populated]
+
+## Iteration Log
+
+[Record of each validation iteration]
 ```
 
-Then STOP. The hook will see `ARCHITECTURE_COMPLETE` and allow exit.
+### Step 2: Extract Testable Claims from SPEC.md
 
-### Step 3: Scope Hypothesis
+Analyze SPEC.md and extract all testable architectural claims. Claims are statements that can be empirically validated or invalidated.
 
-For the FIRST open question, analyze it and generate:
+**Types of claims to extract**:
 
-1. **Testable Hypothesis**: A specific, falsifiable statement
-   - Example: "A shell wrapper can transparently intercept runtime commands and route them to containers"
+1. **Mechanism Claims** — "X can do Y"
+   - "Shell wrapper can transparently intercept commands"
+   - "Docker exec preserves exit codes"
+   - "Bind mount makes edits immediately visible"
 
-2. **Assumptions**: What must be true for this to work
-   - Example: "Docker exec preserves exit codes", "TTY passthrough works"
+2. **Performance Claims** — "X meets threshold Y"
+   - "Hot reload picks up changes instantly" (what's instant? <500ms?)
+   - "15 containers can all bind :3000 simultaneously"
 
-3. **Success Criteria**: How we'll know it works
-   - Example: "Commands run in container, exit codes preserved, interactive mode works"
+3. **Integration Claims** — "X works with Y"
+   - "WebSocket support through reverse proxy"
+   - "*.localhost resolves natively in browsers"
 
-4. **Failure Criteria**: What would disprove it
-   - Example: "Latency >100ms per command", "Breaks existing shell features"
+4. **Constraint Claims** — "X does NOT leak/expose Y"
+   - "Container abstractions don't leak through error messages"
+   - "Claude never sees docker exec"
 
-### Step 4: Research (Spawn Agents in Parallel)
+For each claim, note:
+- The exact quote from SPEC.md
+- The section it came from
+- What would validate it
+- What would invalidate it
 
-Spawn these agents using the Task tool, ALL IN PARALLEL:
+### Step 3: Compare Claims vs Validated Decisions
 
-**Task 1 - knowledge-locator**:
-```
-Find information about [hypothesis topic]:
-- Prior art: existing tools that do similar things
-- Documentation: official docs for relevant technologies
-- Implementations: open source examples
-- Return specific URLs and code references
-```
+Cross-reference:
+- Claims extracted from SPEC.md
+- Confirmed decisions in ARCHITECTURE.md
+- Rejected approaches in ARCHITECTURE.md
 
-**Task 2 - knowledge-analyst**:
-```
-Analyze the mechanics of [hypothesis approach]:
-- How does this technically work?
-- What are the constraints and limitations?
-- What are the failure modes and edge cases?
-- Return technical explanation with specifics
-```
+Identify **unvalidated claims** — claims not yet confirmed or rejected.
 
-**Task 3 - knowledge-prober**:
-```
-Verify prerequisites and probe actual behavior:
-- Check required tools exist (docker, shell, etc.)
-- Run quick probes to see how things actually work
-- Discover any missing dependencies
-- Return probe results with exact commands and outputs
-```
+### Step 4: Check Exit Condition
 
-**Task 4 - knowledge-validator**:
-```
-Research evidence for and against [hypothesis]:
-- What supports this approach?
-- What argues against it?
-- What are the risks and tradeoffs?
-- Return evidence with sources
-```
+If NO unvalidated claims remain:
 
-**WAIT for all 4 agents to complete before proceeding.**
+1. Update SPEC.md frontmatter:
+   ```yaml
+   status: validated
+   validation_progress: X/X
+   last_validated: [ISO date]
+   last_validated_by: Claude
+   ```
 
-### Step 5: Synthesize Research
+2. Output completion:
+   ```
+   ARCHITECTURE_COMPLETE
 
-Combine agent findings into a research summary:
-- What we learned
-- Key constraints discovered
-- Unknowns that remain
-- Recommendation: proceed with experiment or pivot?
+   Architecture validation complete after [N] iterations.
 
-Write to: `thoughts/shared/research/[date]-ARCH-[slug].md`
+   ## Validation Summary
+   - Claims validated: [X]
+   - Claims rejected: [Y]
+   - Spec status: [validated/partially_validated]
 
-Format:
+   ## Confirmed Architecture
+   [Summary of confirmed decisions]
+
+   ## Rejected Approaches
+   [Summary of what didn't work]
+
+   ## Spec Changes Needed
+   [If any claims were rejected, what needs updating in SPEC.md]
+
+   Ready for implementation.
+   ```
+
+3. Then STOP. The hook will see `ARCHITECTURE_COMPLETE` and allow exit.
+
+### Step 5: Select Next Claim
+
+From the unvalidated claims, select the next one to validate. Prioritize:
+
+1. **Foundation claims first** — claims that other claims depend on
+2. **Critical invariants** — claims marked as CRITICAL in SPEC.md
+3. **Mechanism before performance** — prove it works before measuring how well
+
+Generate a **slug** for this claim:
+- "Shell wrapper can intercept commands" → `shell-interception`
+- "Docker exec preserves exit codes" → `docker-exec-exitcodes`
+- "Bind mount provides instant visibility" → `bind-mount-latency`
+
+### Step 6: Formulate Hypothesis
+
+Convert the spec claim into a testable hypothesis:
+
+1. **Testable Hypothesis**: Restate the claim as a falsifiable statement
+   - Spec: "Claude never sees containers"
+   - Hypothesis: "A shell wrapper can intercept runtime commands and route them to docker exec without Claude Code detecting any difference in behavior"
+
+2. **Assumptions**: What must be true for the spec claim to hold
+   - "Docker exec preserves exit codes"
+   - "TTY passthrough works"
+
+3. **Success Criteria**: What would validate the spec claim
+   - "Commands run in container, exit codes match, output matches"
+
+4. **Failure Criteria**: What would invalidate the spec claim
+   - "Detectable latency >100ms"
+   - "Error messages mention docker"
+
+### Step 7: Research
+
+Read `.claude/commands/research_experiment.md` for guidance.
+
+Follow the research workflow:
+1. Spawn parallel knowledge agents (locator, analyst, prober, validator)
+2. Research the specific claim and its dependencies
+3. Identify what's known vs unknown
+4. Write research document
+
+Output: `thoughts/shared/research/[date]-ARCH-[slug].md`
+
+### Step 8: Design Experiment
+
+Read `.claude/commands/create_experiment.md` for guidance.
+
+Design tests that validate or invalidate the spec claim:
+- Core tests: Does the mechanism work?
+- Assumption tests: Are dependencies valid?
+- Edge case tests: Does it hold at boundaries?
+
+Output: `experiments/arch-[slug]/experiment.md`
+
+### Step 9: Run Experiment
+
+Read `.claude/commands/run_experiment.md` for guidance.
+
+Execute all tests, capture results.
+
+Output: `experiments/arch-[slug]/findings.md`
+
+### Step 10: Validate Results
+
+Read `.claude/commands/validate_experiment.md` for guidance.
+
+Compare results against the spec claim:
+- Does the evidence support the claim?
+- Are there caveats or constraints discovered?
+- Does the spec need adjustment?
+
+Output: `experiments/arch-[slug]/validation.md`
+
+Determine verdict:
+- **CONFIRMED**: Spec claim is valid as written
+- **CONFIRMED_WITH_CAVEATS**: Spec claim is valid with modifications
+- **REJECTED**: Spec claim is invalid
+
+### Step 11: Update Documents
+
+**Update ARCHITECTURE.md**:
+
+If **CONFIRMED**:
 ```markdown
----
-date: [ISO date]
-hypothesis: "[The hypothesis]"
-status: research_complete
----
-
-# Research: [Hypothesis Title]
-
-## Hypothesis
-[The testable statement]
-
-## Findings
-
-### Prior Art (from knowledge-locator)
-[What exists, with links]
-
-### Technical Analysis (from knowledge-analyst)
-[How it works, constraints, failure modes]
-
-### Environment Probing (from knowledge-prober)
-[What's available, what's missing, probe results]
-
-### Evidence Assessment (from knowledge-validator)
-[For/against, risks, tradeoffs]
-
-## Unknowns
-- [Things we still don't know]
-
-## Assumptions
-- [Things we're assuming are true]
-
-## Recommendation
-[Proceed / Pivot / Need more info]
+- **[Claim summary]**: Validated
+  - Spec reference: [Section in SPEC.md]
+  - Evidence: experiments/arch-[slug]/validation.md
+  - Notes: [Any caveats or constraints discovered]
 ```
 
-### Step 6: Design & Run Experiment
-
-Based on research, design simple tests:
-
-1. **Core test**: Does the basic mechanism work?
-2. **Assumption tests**: Are our assumptions valid?
-3. **Edge case tests**: What happens at boundaries?
-
-For each test:
-- Write the exact commands to run
-- Run them using Bash tool
-- Capture the output
-- Note pass/fail
-
-Write findings to: `experiments/arch-[slug]/findings.md`
-
-Format:
+If **CONFIRMED_WITH_CAVEATS**:
 ```markdown
----
-date: [ISO date]
-hypothesis: "[The hypothesis]"
-research: thoughts/shared/research/[date]-ARCH-[slug].md
----
-
-# Experiment Findings: [Hypothesis Title]
-
-## Test Results
-
-### Test 1: [Name]
-**Command**:
-```bash
-[exact command]
-```
-**Output**:
-```
-[actual output]
-```
-**Result**: PASS / FAIL
-**Notes**: [observations]
-
-### Test 2: [Name]
-[Same format]
-
-## Summary
-- Tests passed: [N]
-- Tests failed: [N]
-- Key observations: [What we learned]
-
-## Verdict
-[CONFIRMED / REJECTED / PARTIALLY_CONFIRMED]
-
-## New Questions
-- [Questions that emerged from testing]
+- **[Claim summary]**: Validated with modifications
+  - Spec reference: [Section in SPEC.md]
+  - Evidence: experiments/arch-[slug]/validation.md
+  - Modification needed: [What SPEC.md should say instead]
 ```
 
-### Step 7: Update Architecture Document
-
-Based on experiment results, update `thoughts/ARCHITECTURE.md`:
-
-**If CONFIRMED**, add to Confirmed Decisions:
+If **REJECTED**:
 ```markdown
-- **[Decision name]**: [What was decided]
-  - Evidence: experiments/arch-[slug]/findings.md
-  - Rationale: [Why this works, key evidence]
+- **[Claim summary]**: Rejected
+  - Spec reference: [Section in SPEC.md]
+  - Evidence: experiments/arch-[slug]/validation.md
+  - Why rejected: [What failed]
+  - Alternative: [If discovered, what might work instead]
 ```
 
-**If REJECTED**, add to Rejected Approaches:
+**Update Iteration Log**:
 ```markdown
-- **[Approach name]**: [What was tried]
-  - Evidence: experiments/arch-[slug]/findings.md
-  - Why rejected: [What failed, key evidence]
+- [N]: "[Claim]" → [CONFIRMED/REJECTED] (arch-[slug])
 ```
 
-**Add new questions** that emerged to Open Questions.
-
-**Remove the question** that was just answered from Open Questions.
-
-**Add to Iteration Log**:
-```markdown
-- [N]: "[Question]" → [CONFIRMED/REJECTED] (arch-[slug])
+**Update SPEC.md frontmatter**:
+```yaml
+validation_progress: X/Y
+last_validated: [ISO date]
 ```
 
-### Step 8: Report & Continue
+### Step 12: Report & Continue
 
 Output iteration summary:
 
@@ -258,59 +290,108 @@ Output iteration summary:
 Iteration [N] complete
 ═══════════════════════════════════════════════════════════
 
-Question: "[What was tested]"
-Hypothesis: "[The hypothesis]"
-Verdict: [CONFIRMED/REJECTED]
+Spec Claim: "[The claim from SPEC.md]"
+Hypothesis: "[The testable hypothesis]"
+Verdict: [CONFIRMED/CONFIRMED_WITH_CAVEATS/REJECTED]
 
 Key findings:
 - [Finding 1]
 - [Finding 2]
 
-New questions added: [N]
-Open questions remaining: [N]
+Caveats/Modifications: [If any]
+
+Claims validated: [X of Y]
+Claims remaining: [N]
 
 Artifacts:
 - Research: thoughts/shared/research/[date]-ARCH-[slug].md
+- Experiment: experiments/arch-[slug]/experiment.md
 - Findings: experiments/arch-[slug]/findings.md
+- Validation: experiments/arch-[slug]/validation.md
 ```
 
 Then continue to next iteration (go back to Step 1).
 
-## Slug Naming Convention
+## Claim Extraction Examples
 
-Generate slug from the question:
-- "What layer should Dual intercept at?" → `interception-layer`
-- "How does file system boundary work?" → `filesystem-boundary`
-- "What's the latency of docker exec?" → `docker-exec-latency`
+From SPEC.md:
 
-## Context: What is Dual?
+**Section: Command Routing**
+> "Anything npm/pnpm/node/python/curl → container"
 
-From CLAUDE.md:
-- Terminal workspace orchestrator for parallel multi-repo development
-- One workspace = one full clone = one container
-- Dev tools (nvim, claude, git) run on HOST
-- Runtime processes (pnpm dev, node) run in CONTAINER
-- Core invariant: Claude Code must never know commands are routed to containers
+Extracted claims:
+1. "Shell can selectively route npm commands to container"
+2. "Shell can selectively route pnpm commands to container"
+3. "curl localhost:X inside routed shell reaches container network"
+
+**Section: Reverse Proxy**
+> "MUST support HTTP and WebSocket (for hot reload / HMR)"
+
+Extracted claims:
+1. "Reverse proxy can forward HTTP requests by subdomain"
+2. "Reverse proxy can forward WebSocket connections"
+3. "WebSocket forwarding works for HMR/hot reload"
+
+**Section: Container Lifecycle**
+> "File edits on the host are immediately visible inside the container"
+
+Extracted claims:
+1. "Bind mount propagates file changes to container"
+2. "File change propagation is fast enough for hot reload (<500ms)"
+
+## Prioritization Logic
+
+When multiple claims are unvalidated, process in this order:
+
+1. **Layer 1 - Foundations** (must work for anything else to work):
+   - Docker exec basic functionality
+   - Bind mount works
+   - Container networking basics
+
+2. **Layer 2 - Core Mechanisms** (the main architectural bets):
+   - Shell interception transparency
+   - Command routing accuracy
+   - Reverse proxy routing
+
+3. **Layer 3 - Integration** (things working together):
+   - Hot reload through bind mount + container
+   - WebSocket through proxy
+   - Multiple containers simultaneously
+
+4. **Layer 4 - Polish** (nice to have, not blockers):
+   - Performance thresholds
+   - Edge cases
+   - Error message cleanliness
 
 ## Example First Iteration
 
-**Open question**: "What layer should Dual intercept at?"
+**Spec claim** (from CRITICAL: The Core Invariant):
+> "Claude Code must never know it is running inside a container"
 
-**Scoped hypothesis**: "A shell wrapper using PROMPT_COMMAND or custom shell function can transparently intercept runtime commands (node, pnpm, npm) and route them to docker exec while allowing file operations (cat, ls, git) to run on host."
+**Extracted testable claim**:
+"Shell wrapper can transparently intercept runtime commands and route them to docker exec"
 
-**Research agents find**:
-- Prior art: direnv, autoenv, custom shell wrappers
-- Mechanics: PROMPT_COMMAND runs before each command, can intercept
-- Probing: Docker available, bash 5.2, PROMPT_COMMAND works
-- Evidence: Similar approaches used in devcontainers
+**Hypothesis**:
+"A shell wrapper using function overrides or PATH manipulation can intercept commands like `node`, `pnpm`, `npm` and route them to `docker exec <container>` while preserving exit codes, stdout/stderr, and TTY behavior such that Claude Code cannot detect it is not running on the host."
+
+**Research findings**:
+- Prior art: direnv, autoenv, devcontainers
+- Mechanism: Shell functions take precedence over PATH binaries
+- Prober confirms: Docker available, bash 5.2, function override works
 
 **Experiment tests**:
-- Basic interception works
-- Exit codes preserved
-- TTY works for interactive
+- Test 1.1: Basic interception (function called instead of binary)
+- Test 1.2: Exit code preservation
+- Test 1.3: TTY passthrough
+- Test 2.1: Error message inspection (no "docker" leakage)
 
-**Result**: CONFIRMED
+**Validation result**: CONFIRMED
+- All tests pass
+- No docker leakage detected
+- Caveat: Need to handle edge case of `command node` bypassing function
 
 **Architecture updated**:
-- Confirmed: Shell wrapper approach viable
-- New questions: "What's the latency overhead?", "How to handle pipes?"
+- Confirmed: Shell function interception is viable
+- Note: Must also override `command` builtin or document limitation
+
+**Spec status**: 1/N claims validated
