@@ -1,11 +1,11 @@
 ---
-description: Compare experiment results to research predictions and determine verdict
+description: Validate experiment results against research predictions, determine verdict
 model: opus
 ---
 
 # Validate Experiment
 
-You are tasked with comparing experiment results against research predictions, determining whether the hypothesis was validated, and identifying what we learned.
+You are tasked with validating that an experiment was correctly executed, comparing results against research predictions, and determining whether the hypothesis was validated.
 
 ## CRITICAL: YOUR JOB IS TO INTERPRET AND CONCLUDE
 
@@ -16,90 +16,123 @@ You are tasked with comparing experiment results against research predictions, d
 - DO conclude whether hypothesis is validated/invalidated/inconclusive
 - You are a scientist analyzing data, not a technician collecting it
 
-## Understanding the Experiment Flow
+## Getting Started
 
-```
-Research Phase                    Create Phase
-┌─────────────────────┐          ┌─────────────────────────────┐
-│ Desk research       │          │ Designed empirical tests    │
-│ Predicted behavior  │          │ Defined success criteria    │
-│ Unknowns identified │          │ Specified measurements      │
-└─────────────────────┘          └─────────────────────────────┘
-         ↓                                    ↓
-                    Validate Phase (YOU ARE HERE)
-                    ┌─────────────────────────────┐
-    Run Phase   →   │ Compare results to research │
-┌─────────────────┐ │ Verdict: pass/fail/unclear  │
-│ Raw results     │ │ Unknowns resolved?          │
-│ Measurements    │ │ New questions raised?       │
-└─────────────────┘ └─────────────────────────────┘
-```
+When invoked:
 
-## Initial Response
+1. **Determine context** — Are you in an existing conversation or starting fresh?
+   - If existing: Review what was researched, designed, and executed in this session
+   - If fresh: Need all three document paths
 
-When this command is invoked:
+2. **Locate documents**:
+   - If experiment slug provided, find all docs in `experiments/{slug}/`
+   - Otherwise, ask for paths
 
-1. **Check if paths were provided**:
-   - Research document path
-   - Experiment design path
-   - Findings path
-   - If yes, read all three FULLY
-
-2. **If no parameters**, respond with:
+3. **If no parameters provided**:
 ```
 I'll validate your experiment results against research predictions.
 
-Please provide:
-1. Path to research document
-2. Path to experiment design
-3. Path to findings from run phase
+Please provide the experiment slug or paths:
+
+Option 1 (recommended): `/validate-experiment experiments/shell-wrapper-interception/`
+
+Option 2 (explicit paths):
+1. Research document: `thoughts/shared/research/...`
+2. Experiment design: `experiments/{slug}/experiment.md`
+3. Findings: `experiments/{slug}/findings.md`
 
 I'll compare results, determine verdict, and identify what we learned.
 ```
 
-## Process Steps
+## Validation Process
 
-### Step 1: Read All Documents
+### Step 1: Context Discovery
 
-1. Read research document FULLY — understand predictions
-2. Read experiment design FULLY — understand success criteria
-3. Read findings FULLY — understand actual results
+1. **Read all three documents FULLY**:
+   - Research document — understand predictions and unknowns
+   - Experiment design — understand success criteria
+   - Findings — understand actual results
+   - **Never use limit/offset** — you need complete context
 
-### Step 2: Compare Each Test Result
+2. **Create mental model**:
+   - What did research predict would happen?
+   - What criteria define success/failure?
+   - What actually happened during execution?
 
-For each test case:
+3. **Spawn parallel analysis tasks** for thorough validation:
+   ```
+   Task 1 (knowledge-analyst): "Analyze the technical claims in the research document.
+   For each claim, identify what would constitute proof or disproof."
 
-1. **What did research predict?** (from research doc)
-2. **What was the success criteria?** (from experiment design)
-3. **What actually happened?** (from findings)
-4. **Verdict**: Pass / Fail / Inconclusive
+   Task 2 (knowledge-validator): "Compare findings against research predictions.
+   For each test, document: predicted vs actual, and whether they match."
 
-### Step 3: Assess Unknowns
+   Task 3 (knowledge-comparator): "Compare the experiment design's success criteria
+   against the actual measurements in findings. Identify matches and mismatches."
+   ```
 
-For each unknown from research:
+4. **Wait for all tasks to complete** before proceeding
 
-1. **What was the question?**
-2. **What test was designed?**
-3. **What did we learn?**
-4. **Is the unknown now resolved?**
+### Step 2: Systematic Validation
 
-### Step 4: Assess Assumptions
+For each test group:
 
-For each assumption from research:
+#### Core Functionality Tests (Test Group 1)
+These prove or disprove the hypothesis directly.
 
-1. **What did we assume?**
-2. **What test validated it?**
-3. **Was assumption correct?**
+| Question | Source | Answer |
+|----------|--------|--------|
+| What did research predict? | Research doc | [Quote] |
+| What was success criteria? | Experiment design | [Criteria] |
+| What actually happened? | Findings | [Result] |
+| Does result match prediction? | Your analysis | Yes/No/Partial |
 
-### Step 5: Determine Overall Verdict
+#### Unknown Validation Tests (Test Group 2)
+These answer questions research couldn't answer.
 
-- **VALIDATED**: Evidence strongly supports hypothesis
-- **INVALIDATED**: Evidence contradicts hypothesis
-- **INCONCLUSIVE**: Evidence is mixed or insufficient
+| Question | Source | Answer |
+|----------|--------|--------|
+| What was the unknown? | Research doc | [Question] |
+| What test was designed? | Experiment design | [Test] |
+| What did we learn? | Findings + Analysis | [Answer] |
+| Is unknown resolved? | Your analysis | Resolved/Partial/Still Unknown |
 
-### Step 6: Write Validation Report
+#### Assumption Validation Tests (Test Group 3)
+These validate things research assumed true.
 
-Create file: `experiments/{slug}/validation.md`
+| Question | Source | Answer |
+|----------|--------|--------|
+| What was assumed? | Research doc | [Assumption] |
+| How was it tested? | Experiment design | [Test] |
+| Was assumption correct? | Findings + Analysis | Correct/Incorrect/Unclear |
+| Impact if wrong? | Your analysis | [Implications] |
+
+### Step 3: Determine Verdict
+
+Apply these criteria strictly:
+
+**VALIDATED** requires:
+- Core functionality tests pass
+- Critical assumptions validated
+- No contradicting evidence
+- Unknowns resolved or don't block hypothesis
+
+**INVALIDATED** requires:
+- Core functionality tests fail, OR
+- Critical assumption proven wrong, OR
+- Strong contradicting evidence that undermines hypothesis
+
+**INCONCLUSIVE** when:
+- Mixed results across tests
+- Tests didn't run properly (execution failures)
+- Measurements insufficient to decide
+- Design flaw prevented clear answer
+
+Think deeply: Does the evidence actually support the verdict? Be honest.
+
+### Step 4: Generate Validation Report
+
+Write to `experiments/{slug}/validation.md`:
 
 ```markdown
 ---
@@ -127,8 +160,9 @@ verdict: validated|invalidated|inconclusive
 | Test | Expected (Research) | Actual (Findings) | Verdict |
 |------|---------------------|-------------------|---------|
 | 1.1  | [prediction]        | [result]          | ✓/✗/?   |
-| 2.1  | [prediction]        | [result]          | ✓/✗/?   |
-| ...  | ...                 | ...               | ...     |
+| 1.2  | [prediction]        | [result]          | ✓/✗/?   |
+| 2.1  | [unknown]           | [answer]          | Resolved/? |
+| 3.1  | [assumption]        | [validation]      | ✓/✗/?   |
 
 ## Detailed Analysis
 
@@ -136,45 +170,53 @@ verdict: validated|invalidated|inconclusive
 
 #### Test 1.1: [Name]
 
-**Research predicted**: [Quote from research]
+**Research predicted**: "[Quote from research]"
 **Success criteria**: [From experiment design]
 **Actual result**: [From findings]
 
-**Analysis**: [Your interpretation — why does this result support or contradict?]
+**Analysis**: [Your interpretation — why does this support or contradict?]
 
 **Verdict**: Pass / Fail / Inconclusive
 
 ---
 
-### Test Group 2: Unknowns Validation
+### Test Group 2: Unknowns Resolved
 
 #### Unknown 1: [Name]
 
-**Research question**: [From research unknowns section]
+**Research question**: "[From research unknowns section]"
 **Test designed**: [Test 2.1 name]
 **Result**: [From findings]
 
 **Answer**: [What we now know that we didn't before]
 
-**Status**: Resolved / Partially Resolved / Still Unknown
+**Status**: ✓ Resolved / ~ Partially Resolved / ✗ Still Unknown
 
 ---
 
-### Test Group 3: Assumptions Validation
+### Test Group 3: Assumptions Validated
 
 #### Assumption 1: [Name]
 
-**Research assumed**: [From research assumptions section]
+**Research assumed**: "[From research assumptions section]"
 **Test designed**: [Test 3.1 name]
 **Result**: [From findings]
 
-**Validation**: Assumption Correct / Assumption Incorrect / Inconclusive
+**Validation**: ✓ Correct / ✗ Incorrect / ? Inconclusive
 
 **Impact if incorrect**: [What does this mean for the hypothesis?]
 
 ---
 
-## Unknowns Resolved
+### Test Group 4: Edge Cases
+
+[Same structure]
+
+---
+
+## Summary Tables
+
+### Unknowns Resolution
 
 | Unknown | Status | What We Learned |
 |---------|--------|-----------------|
@@ -182,7 +224,7 @@ verdict: validated|invalidated|inconclusive
 | [U2]    | ~ Partial  | [What we know, what's still unclear] |
 | [U3]    | ✗ Still unknown | [Why test didn't answer it] |
 
-## Assumptions Validated
+### Assumptions Validation
 
 | Assumption | Status | Notes |
 |------------|--------|-------|
@@ -213,16 +255,65 @@ verdict: validated|invalidated|inconclusive
 
 ## Evidence Summary
 
-**For hypothesis**: [Count and summary of supporting evidence]
-**Against hypothesis**: [Count and summary of contradicting evidence]
-**Unclear**: [Count and summary of inconclusive results]
+| Category | Count | Summary |
+|----------|-------|---------|
+| For hypothesis | [N] | [Brief summary of supporting evidence] |
+| Against hypothesis | [N] | [Brief summary of contradicting evidence] |
+| Unclear | [N] | [Brief summary of inconclusive results] |
 
 ## Conclusion
 
-[Final paragraph synthesizing what we learned and what it means]
+[Final paragraph synthesizing what we learned and what it means for the hypothesis and future work]
 ```
 
-### Step 7: Present Summary
+## Working with Existing Context
+
+If you were part of the research/design/execution:
+- Review the conversation history for context
+- Trust your earlier analysis unless findings contradict it
+- Focus on connecting results back to original hypothesis
+- Be honest about any shortcuts or incomplete tests
+
+## Important Guidelines
+
+1. **Be honest about the verdict**:
+   - Don't stretch evidence to claim validation
+   - Inconclusive is a valid outcome
+   - Partial validation should still be "inconclusive" if critical tests failed
+
+2. **Quote from all three documents**:
+   - Show the connection between prediction, design, and result
+   - Make reasoning transparent and traceable
+
+3. **Distinguish result types**:
+   - Core functionality tests: prove/disprove hypothesis
+   - Unknown tests: answer questions (resolved/unresolved, not pass/fail)
+   - Assumption tests: validate prerequisites (correct/incorrect)
+
+4. **Identify new questions**:
+   - Experiments often reveal surprises
+   - Document these for future research cycles
+
+5. **Think critically**:
+   - Does the verdict actually follow from the evidence?
+   - Are there alternative explanations?
+   - What would change your mind?
+
+## Validation Checklist
+
+Always verify:
+- [ ] All three documents read completely
+- [ ] Each test compared: research → design → findings
+- [ ] Each unknown assessed: resolved or not
+- [ ] Each assumption validated: correct or not
+- [ ] Verdict criteria applied strictly
+- [ ] Evidence quoted with sources
+- [ ] New questions documented
+- [ ] Recommendations are actionable
+
+## Completion
+
+After generating the validation report:
 
 ```
 Validation complete.
@@ -236,47 +327,20 @@ Validation complete.
 **Unknowns resolved**: X of Y
 **Assumptions validated**: X of Y
 
+**What this means**:
+[1-2 sentences on practical implications]
+
 Full report: `experiments/{slug}/validation.md`
 ```
 
-## Important Guidelines
+## Relationship to Experiment Flow
 
-1. **Be honest about the verdict**:
-   - Don't stretch evidence to claim validation
-   - Inconclusive is a valid outcome
-   - Partial validation is common
+Recommended workflow:
+1. `/research-experiment` — Investigate feasibility
+2. `/create-experiment` — Design test cases
+3. `/run-experiment` — Execute and capture results
+4. `/validate-experiment` — Compare results to predictions (YOU ARE HERE)
 
-2. **Quote from all three documents**:
-   - Show the connection between prediction, design, and result
-   - Make reasoning transparent
-
-3. **Distinguish result types**:
-   - Core functionality tests prove/disprove hypothesis
-   - Unknown tests answer questions (no pass/fail)
-   - Assumption tests validate prerequisites
-
-4. **Identify new questions**:
-   - Experiments often reveal surprises
-   - Document these for future research
-
-5. **Recommend next steps**:
-   - What does this verdict mean practically?
-   - What should happen next?
-
-## Verdict Criteria
-
-**VALIDATED** requires:
-- Core functionality tests pass
-- Critical assumptions validated
-- No contradicting evidence
-
-**INVALIDATED** requires:
-- Core functionality tests fail, OR
-- Critical assumption proven wrong, OR
-- Strong contradicting evidence
-
-**INCONCLUSIVE** when:
-- Mixed results across tests
-- Tests didn't run properly
-- Measurements insufficient to decide
-- Design flaw prevented clear answer
+Validation closes the loop. If inconclusive, you may need to iterate:
+- Back to `/create-experiment` if test design was flawed
+- Back to `/research-experiment` if fundamental assumptions were wrong
