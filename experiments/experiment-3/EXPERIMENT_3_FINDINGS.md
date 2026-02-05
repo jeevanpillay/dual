@@ -1,8 +1,8 @@
 # Experiment 3: Transparent Command Interception
 
 **Date:** 2026-02-05
-**Status:** ✅ PASS
-**Conclusion:** The transparent command interception architecture is viable and production-ready.
+**Status:** ✅ PASS (Shell validation) / 🔲 PENDING (Claude Code integration)
+**Conclusion:** The transparent command interception architecture is architecturally viable. Claude Code integration testing required before Phase 1 implementation.
 
 ## Overview
 
@@ -46,6 +46,7 @@ A shell wrapper function intercepts runtime commands (`pnpm`, `npm`, `node`, etc
 
 1. **curl not in node:20-slim** — Tooling issue, not architectural. Install curl if needed or use alternatives.
 2. **Signal handling not explicitly tested** — Likely works via `-i` flag. Recommend manual Ctrl+C test: `source conductor-intercept.sh && pnpm dev`, then press Ctrl+C.
+3. **Claude Code integration not tested** — Tests were run in isolated shell context. Need to validate with Claude Code actually invoking commands through wrapped shell.
 
 ## Implementation
 
@@ -100,15 +101,22 @@ This core assumption is validated by:
 - Pipes between host and container commands work seamlessly
 - Data flows correctly even with complex arguments (JavaScript code, etc.)
 
-### Decision: PROCEED
+### Decision: ARCHITECTURALLY SOUND, INTEGRATION TEST REQUIRED
 
-The transparent interception approach is **architecturally sound and ready for Conductor v0 Phase 1 implementation.**
+The transparent interception approach is **architecturally viable** and all shell-level tests pass. However, **Claude Code integration must be validated before Phase 1 implementation.**
 
-All critical architectural risks are resolved:
+#### Risks Resolved (Shell-level)
 - ✅ Pipes (highest risk) — Confirmed working
 - ✅ Environment forwarding — Fixed and working
 - ✅ Exit codes — Fixed and working
 - ✅ Command routing — Working for 9 target commands
+
+#### Risks Pending (Claude Code Integration)
+- 🔲 Claude Code subprocess invocation pattern — Does Claude Code's subprocess spawning work through bash function overrides?
+- 🔲 Shell selection — Does Claude Code use bash or sh? Function overrides only work in bash.
+- 🔲 Real-world command patterns — Do the commands Claude Code actually invokes work through the wrapper?
+
+**Recommendation:** Run Claude Code integration test before Phase 1. This is a 30-minute validation to confirm the wrapper works end-to-end with Claude Code.
 
 ## Usage
 
@@ -153,9 +161,19 @@ pnpm dev                 # Start dev server in container
 
 ## Next Steps
 
-1. **Experiment 4 (Multi-service monorepo)** — Validate single-container-multiple-services model
-2. **Experiment 1 (File watch latency)** — Measure VirtioFS bind mount performance on macOS
-3. **Experiment 2 (Reverse proxy)** — Validate network path through proxy
+### Blocking for Phase 1
+
+1. **Claude Code Integration Test** — Validate that Claude Code invoking commands through the wrapped shell works end-to-end
+   - Start Claude Code in shell with wrapper sourced
+   - Execute representative commands: `pnpm dev`, `node -e`, `npm install`, piped commands
+   - Verify exit codes and output handling
+   - **Criticality:** HIGH — Function-based overrides are shell-specific; Claude Code's subprocess patterns must be validated
+
+### Other Experiments
+
+2. **Experiment 4 (Multi-service monorepo)** — Validate single-container-multiple-services model
+3. **Experiment 1 (File watch latency)** — Measure VirtioFS bind mount performance on macOS
+4. **Experiment 2 (Reverse proxy)** — Validate network path through proxy
 
 ## Notes for Implementation
 
