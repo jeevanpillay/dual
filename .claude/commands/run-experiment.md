@@ -1,11 +1,11 @@
 ---
-description: Execute experiment test cases and capture raw results
+description: Execute experiment test cases and capture raw results with verification
 model: sonnet
 ---
 
 # Run Experiment
 
-You are tasked with executing the experiment design and capturing raw results. You should follow the test cases exactly, document everything observed, and avoid interpretation.
+You are tasked with executing an approved experiment design from `experiments/{slug}/experiment.md`. These designs contain test cases with specific procedures and success criteria.
 
 ## CRITICAL: YOUR JOB IS TO EXECUTE AND CAPTURE, NOT INTERPRET
 
@@ -16,88 +16,121 @@ You are tasked with executing the experiment design and capturing raw results. Y
 - ONLY execute tests exactly as designed and capture raw output
 - You are a lab technician running procedures, not a scientist analyzing results
 
-## Understanding the Experiment Flow
+## Getting Started
 
-```
-Research Phase                    Create Phase
-┌─────────────────────┐          ┌─────────────────────────────┐
-│ Desk research       │          │ Designed empirical tests    │
-│ Unknowns identified │    →     │ Defined success criteria    │
-│ Assumptions made    │          │ Specified measurements      │
-└─────────────────────┘          └─────────────────────────────┘
-                                              ↓
-Run Phase (YOU ARE HERE)          Validate Phase
-┌─────────────────────┐          ┌─────────────────────────────┐
-│ Execute tests       │          │ Compare results to research │
-│ Capture raw data    │    →     │ Verdict: pass/fail/unclear  │
-│ Document findings   │          │ Unknowns resolved?          │
-└─────────────────────┘          └─────────────────────────────┘
-```
+When given an experiment design path:
+1. Read the experiment design completely
+2. Check for any existing results (partially completed runs)
+3. Read all prerequisite information mentioned in the design
+4. **Read files fully** — never use limit/offset parameters
+5. Create a todo list to track test execution progress
+6. Verify prerequisites are met before starting
 
-## Initial Response
-
-When this command is invoked:
-
-1. **Check if experiment design path was provided**:
-   - If yes, read the experiment.md FULLY
-   - Begin execution
-
-2. **If no parameters**, respond with:
+If no experiment design path provided:
 ```
 I'll execute your experiment and capture results.
 
 Please provide:
 1. Path to experiment design (from /create-experiment)
-2. Confirm environment is ready (prerequisites met)
+
+Example: `/run-experiment experiments/shell-wrapper-interception/experiment.md`
 
 I'll run each test case and document raw results.
 ```
 
-## Process Steps
+## Execution Philosophy
 
-### Step 1: Read Experiment Design
+Experiment designs are carefully crafted, but execution can be messy. Your job is to:
+- Follow procedures exactly as written
+- Capture everything — more data is better for validation
+- Continue running all tests even when things go wrong
+- Document what actually happened, not what should have happened
 
-1. Read `experiments/{slug}/experiment.md` FULLY
-2. Verify you understand:
-   - Environment setup commands
-   - Each test case procedure
-   - What measurements to capture
-   - Execution order
+When procedures don't work as written:
+1. **Try the procedure exactly as written first**
+2. **If it fails**, document the failure with full output
+3. **If you must adapt**, note the deviation clearly:
+   ```
+   Deviation in Test [X.Y]:
+   Original procedure: [what the design says]
+   Actual procedure: [what you ran instead]
+   Reason: [why adaptation was necessary]
+   ```
+4. **Continue to next test** — don't stop the experiment
 
-### Step 2: Setup Environment
-
-1. Run setup commands from experiment design
-2. Verify prerequisites are met
-3. Document any setup issues
-
-### Step 3: Execute Test Cases
+## Test Execution
 
 For each test case in order:
 
-1. **Announce the test**: "Running Test X.Y: [Name]"
-2. **Execute procedure**: Run commands exactly as written
-3. **Capture everything**:
-   - Full stdout/stderr output
-   - Exit codes
-   - Timing (if relevant)
-   - Any observations
-4. **Document raw result**: Don't interpret, just record
-5. **Continue to next test**: Even if this one "failed"
+### 1. Announce the Test
+```
+Running Test X.Y: [Name]
+Testing: [What this tests]
+```
 
-### Step 4: Teardown Environment
+### 2. Execute Procedure
+- Run commands exactly as written in the design
+- Use the Bash tool for all command execution
+- Do not modify commands unless they literally cannot run
 
-1. Run teardown commands
-2. Document any cleanup issues
+### 3. Capture Everything
+- **Full stdout/stderr**: Copy complete output, don't truncate
+- **Exit codes**: Record the exact exit code
+- **Timing**: Note duration when relevant
+- **Observations**: Factual notes (what happened, not why)
 
-### Step 5: Write Findings Document
+### 4. Document Raw Result
+Record without interpretation:
+```
+**Raw output**:
+[exact output here]
 
-Create file: `experiments/{slug}/findings.md`
+**Measurements**:
+- Exit code: [N]
+- Duration: [Xms]
+- [Other measurements from design]
+
+**Observations**: [Factual notes only]
+```
+
+### 5. Continue to Next Test
+Even if this test "failed", proceed to the next one. Run ALL tests.
+
+## Verification Approach
+
+After completing each test group:
+
+1. **Check automated verification items** from the design
+2. **Update your progress** in the findings document
+3. **Pause for human verification** if manual checks are needed:
+
+```
+Test Group [N] Complete - Ready for Manual Verification
+
+Automated verification results:
+- [x] Exit code was 0
+- [x] Output contained expected string
+- [ ] (Failed) No errors in stderr — got: [error]
+
+Please perform the manual verification steps:
+- [ ] [Manual check from design]
+- [ ] [Another manual check]
+
+Let me know when manual testing is complete so I can proceed to Test Group [N+1].
+```
+
+If instructed to execute all tests consecutively, skip intermediate pauses until the final test group.
+
+## Findings Document
+
+Write results to `experiments/{slug}/findings.md`:
 
 ```markdown
 ---
 date_run: [ISO timestamp]
 experiment_design: [Path to experiment.md]
-status: complete
+status: complete|partial
+tests_run: [X of Y]
 duration: [Total time]
 ---
 
@@ -108,20 +141,22 @@ duration: [Total time]
 - **Date**: [When run]
 - **Duration**: [Total time]
 - **Tests executed**: [X of Y]
-- **Environment**: [Any relevant env info]
+- **Environment**: [Relevant env info discovered during execution]
 
 ## Setup
 
 **Commands run**:
 ```bash
-[exact commands from setup]
+[exact commands]
 ```
 
-**Result**: [Success/issues encountered]
+**Result**: [What happened — factual]
 
 ## Test Results
 
-### Test 1.1: [Name]
+### Test Group 1: Core Functionality
+
+#### Test 1.1: [Name]
 
 **Procedure executed**:
 ```bash
@@ -130,21 +165,31 @@ duration: [Total time]
 
 **Raw output**:
 ```
-[full stdout/stderr]
+[full stdout/stderr — do not truncate]
 ```
 
-**Measurements captured**:
+**Measurements**:
 - Exit code: [N]
 - Duration: [Xms]
 - [Other measurements from design]
 
-**Observations**: [Anything notable, without interpretation]
+**Observations**: [Factual notes, no interpretation]
+
+**Automated verification**:
+- [x] Exit code is 0
+- [ ] Output contains "expected" — Actual: [what was found]
 
 ---
 
-### Test 2.1: [Name]
+#### Test 1.2: [Name]
+[Same structure]
 
-[Same structure for each test]
+---
+
+### Test Group 2: Unknown Validation
+
+#### Test 2.1: [Name]
+[Same structure]
 
 ---
 
@@ -155,19 +200,53 @@ duration: [Total time]
 [exact teardown commands]
 ```
 
-**Result**: [Success/issues]
+**Result**: [What happened]
 
 ## Artifacts
 
-- [List any files, logs, screenshots captured]
+- [List files, logs, screenshots captured]
 - Location: `experiments/{slug}/measurements/`
+
+## Deviations from Design
+
+[Any procedures that had to be modified and why]
 
 ## Execution Notes
 
-[Any issues during execution, deviations from procedure, environment quirks]
+[Environment quirks, timing issues, unexpected behaviors — factual only]
 ```
 
-### Step 6: Present Summary
+## If You Get Stuck
+
+When a procedure doesn't work as expected:
+
+1. **Document exactly what happened** — full output, error messages
+2. **Try once more** if it seems like a transient issue
+3. **If still stuck**, document the failure and continue:
+   ```
+   Test [X.Y] could not be executed:
+   Attempted procedure: [commands]
+   Error encountered: [full error]
+   Continuing to next test...
+   ```
+4. **Don't spend time debugging** — that's not your job. Capture and move on.
+
+Use sub-tasks sparingly — mainly for:
+- Running long commands in background
+- Parallel test execution if tests are independent
+
+## Resuming Work
+
+If findings.md already exists with partial results:
+1. Read the existing findings
+2. Trust that completed tests are done
+3. Pick up from the first test without results
+4. Append new results to the existing document
+5. Update the frontmatter (tests_run count, status)
+
+## Completion
+
+After all tests are executed:
 
 ```
 Experiment execution complete.
@@ -175,24 +254,15 @@ Experiment execution complete.
 **Summary**:
 - Tests run: X of Y
 - Duration: [time]
+- Deviations: [count, if any]
 - Findings: `experiments/{slug}/findings.md`
 
-Ready for validation phase: `/validate-experiment`
+Ready for validation: `/validate-experiment experiments/{slug}/`
 ```
-
-## Important Guidelines
-
-1. **Capture everything**: More data is better for validation
-2. **Don't interpret**: "Exit code was 1" not "The test failed"
-3. **Run all tests**: Don't stop on "failures"
-4. **Document deviations**: If you had to modify a procedure, note it
-5. **Preserve raw output**: Copy-paste exact output, don't summarize
-6. **Note timing**: When relevant, capture how long things took
-7. **Screenshot if useful**: Visual evidence helps validation
 
 ## What Raw Results Look Like
 
-**Good** (raw):
+**Good** (raw, factual):
 ```
 Exit code: 137
 Stdout: ""
@@ -200,9 +270,9 @@ Stderr: "Killed"
 Duration: 120003ms
 ```
 
-**Bad** (interpreted):
+**Bad** (interpreted, explanatory):
 ```
 The test failed because the process was killed after timing out.
 ```
 
-The validation phase will do interpretation. Your job is data capture.
+The validation phase will interpret results. Your job is faithful data capture.
