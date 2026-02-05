@@ -1,85 +1,36 @@
 ---
-description: Run ONE iteration of architecture design loop, then exit (Ralph pattern)
+description: Iteratively design Dual's architecture through hypothesis-driven experimentation
 model: opus
 ---
 
-# Architecture Loop (Single Iteration)
+# Architecture Loop
 
-You run ONE iteration of the architecture design loop, update state files, then EXIT. A Stop hook will re-launch you for the next iteration. This is the Ralph pattern — fresh Claude instance per iteration, state persisted in files.
+You iteratively design Dual's architecture by reading the current state, scoping a hypothesis, researching it, experimenting, and updating the architecture document.
 
-## CRITICAL: ONE ITERATION THEN EXIT
+## CRITICAL RULES
 
-- DO read state from files (ARCHITECTURE.md tracks progress)
-- DO complete ONE full iteration (scope → research → experiment → validate)
-- DO update ARCHITECTURE.md with findings
-- DO emit EXIT_SIGNAL when no open questions remain
-- DO exit cleanly after updating state
-- DO NOT try to loop internally — the hook handles that
-- DO NOT ask for confirmation between phases — run autonomously
-- You are ONE iteration of a larger loop managed externally
-
-## How The Ralph Loop Works
-
-```
-┌─────────────────────────────────────────────┐
-│ Stop Hook (external)                         │
-│ - Catches Claude exit                        │
-│ - Checks output for EXIT_SIGNAL             │
-│ - If no signal: re-launch with same command │
-│ - If signal found: stop looping             │
-└─────────────────────────────────────────────┘
-        ↑ exit              ↓ launch
-┌─────────────────────────────────────────────┐
-│ This Command (one iteration)                 │
-│ 1. Read ARCHITECTURE.md                      │
-│ 2. If no open questions → EXIT_SIGNAL       │
-│ 3. Scope next hypothesis                     │
-│ 4. Research → Create → Run → Validate       │
-│ 5. Update ARCHITECTURE.md                   │
-│ 6. Exit (hook catches, re-launches)         │
-└─────────────────────────────────────────────┘
-```
-
-## State Files (Memory Between Instances)
-
-**Primary state**: `thoughts/ARCHITECTURE.md`
-```markdown
-# Dual Architecture
-## Confirmed Decisions
-- [Decision]: [Rationale] (experiment: [link])
-
-## Open Questions
-- [Next question to address]
-
-## Rejected Approaches
-- [Approach]: [Why] (experiment: [link])
-
-## Iteration Log
-- [N]: [Question] → [Outcome]
-```
-
-**Artifacts**: `experiments/arch-[slug]/` and `thoughts/shared/research/`
+- DO NOT use slash commands (/research_experiment, /create_experiment, etc.) — do the work directly
+- DO NOT ask for user input — run autonomously
+- DO spawn agents directly using the Task tool for research
+- DO update thoughts/ARCHITECTURE.md with findings
+- DO output `<promise>ARCHITECTURE_COMPLETE</promise>` when no open questions remain
 
 ## Execution Flow
 
-### Step 1: Read State
+### Step 1: Read Current State
 
-Read `thoughts/ARCHITECTURE.md` completely.
-
-Parse:
-- Current iteration number (from log)
-- Confirmed decisions
-- Open questions
-- Rejected approaches
+Read `thoughts/ARCHITECTURE.md` completely. Parse:
+- Iteration number (count entries in Iteration Log, add 1)
+- Confirmed decisions (what's already decided)
+- Open questions (what needs answering)
+- Rejected approaches (what didn't work)
 
 ### Step 2: Check Exit Condition
 
 If NO open questions remain:
 
 ```
-═══════════════════════════════════════════════════════════
-EXIT_SIGNAL: ARCHITECTURE_COMPLETE
-═══════════════════════════════════════════════════════════
+<promise>ARCHITECTURE_COMPLETE</promise>
 
 Architecture design complete after [N] iterations.
 
@@ -89,135 +40,260 @@ Architecture design complete after [N] iterations.
 ## Rejected Approaches
 [Summary of what didn't work]
 
-All critical questions answered. Ready for implementation.
+Ready for implementation.
 ```
 
-Then EXIT. The hook will see EXIT_SIGNAL and stop looping.
+Then STOP.
 
 ### Step 3: Scope Hypothesis
 
-Spawn **architecture-scoper** agent to analyze the next open question:
-- Generate testable hypothesis
-- Surface implicit assumptions
-- Define success/failure criteria
+For the FIRST open question, analyze it and generate:
 
-### Step 4: Research (Parallel)
+1. **Testable Hypothesis**: A specific, falsifiable statement
+   - Example: "A shell wrapper can transparently intercept runtime commands and route them to containers"
 
-Spawn in parallel:
-- **knowledge-locator**: Find prior art, docs, implementations
-- **knowledge-analyst**: Analyze mechanics, constraints, failure modes
-- **knowledge-prober**: Verify prerequisites, probe actual behavior
-- **knowledge-validator**: Research evidence for/against
+2. **Assumptions**: What must be true for this to work
+   - Example: "Docker exec preserves exit codes", "TTY passthrough works"
 
-Wait for all to complete.
+3. **Success Criteria**: How we'll know it works
+   - Example: "Commands run in container, exit codes preserved, interactive mode works"
 
-Write research doc to: `thoughts/shared/research/[date]-ARCH-[slug].md`
+4. **Failure Criteria**: What would disprove it
+   - Example: "Latency >100ms per command", "Breaks existing shell features"
 
-### Step 5: Create Experiment
+### Step 4: Research (Spawn Agents in Parallel)
 
-Design test plan from research:
-- Unknowns → test cases
-- Assumptions → validation tests
-- Clear pass/fail criteria
+Spawn these agents using the Task tool, ALL IN PARALLEL:
 
-Write to: `experiments/arch-[slug]/experiment.md`
-
-### Step 6: Run Experiment
-
-Execute tests, capture raw results.
-
-Write to: `experiments/arch-[slug]/findings.md`
-
-### Step 7: Validate & Update State
-
-Compare results to predictions. Determine verdict.
-
-Update `thoughts/ARCHITECTURE.md`:
-
-**If confirmed**:
-```markdown
-## Confirmed Decisions
-- **[Decision]**: [What we learned]
-  - Experiment: experiments/arch-[slug]/
-  - Rationale: [Evidence from findings]
+**Task 1 - knowledge-locator**:
+```
+Find information about [hypothesis topic]:
+- Prior art: existing tools that do similar things
+- Documentation: official docs for relevant technologies
+- Implementations: open source examples
+- Return specific URLs and code references
 ```
 
-**If rejected**:
-```markdown
-## Rejected Approaches
-- **[Approach]**: [What we tried]
-  - Experiment: experiments/arch-[slug]/
-  - Why rejected: [Evidence from findings]
+**Task 2 - knowledge-analyst**:
+```
+Analyze the mechanics of [hypothesis approach]:
+- How does this technically work?
+- What are the constraints and limitations?
+- What are the failure modes and edge cases?
+- Return technical explanation with specifics
 ```
 
-**Add new questions** that emerged:
-```markdown
-## Open Questions
-- [New question from experiment]
+**Task 3 - knowledge-prober**:
+```
+Verify prerequisites and probe actual behavior:
+- Check required tools exist (docker, shell, etc.)
+- Run quick probes to see how things actually work
+- Discover any missing dependencies
+- Return probe results with exact commands and outputs
 ```
 
-**Log the iteration**:
-```markdown
-## Iteration Log
-- [N]: "[Question]" → [CONFIRMED/REJECTED] ([slug])
+**Task 4 - knowledge-validator**:
+```
+Research evidence for and against [hypothesis]:
+- What supports this approach?
+- What argues against it?
+- What are the risks and tradeoffs?
+- Return evidence with sources
 ```
 
-### Step 8: Exit
+**WAIT for all 4 agents to complete before proceeding.**
 
-After updating state, exit cleanly. Output:
+### Step 5: Synthesize Research
+
+Combine agent findings into a research summary:
+- What we learned
+- Key constraints discovered
+- Unknowns that remain
+- Recommendation: proceed with experiment or pivot?
+
+Write to: `thoughts/shared/research/[date]-ARCH-[slug].md`
+
+Format:
+```markdown
+---
+date: [ISO date]
+hypothesis: "[The hypothesis]"
+status: research_complete
+---
+
+# Research: [Hypothesis Title]
+
+## Hypothesis
+[The testable statement]
+
+## Findings
+
+### Prior Art (from knowledge-locator)
+[What exists, with links]
+
+### Technical Analysis (from knowledge-analyst)
+[How it works, constraints, failure modes]
+
+### Environment Probing (from knowledge-prober)
+[What's available, what's missing, probe results]
+
+### Evidence Assessment (from knowledge-validator)
+[For/against, risks, tradeoffs]
+
+## Unknowns
+- [Things we still don't know]
+
+## Assumptions
+- [Things we're assuming are true]
+
+## Recommendation
+[Proceed / Pivot / Need more info]
+```
+
+### Step 6: Design & Run Experiment
+
+Based on research, design simple tests:
+
+1. **Core test**: Does the basic mechanism work?
+2. **Assumption tests**: Are our assumptions valid?
+3. **Edge case tests**: What happens at boundaries?
+
+For each test:
+- Write the exact commands to run
+- Run them using Bash tool
+- Capture the output
+- Note pass/fail
+
+Write findings to: `experiments/arch-[slug]/findings.md`
+
+Format:
+```markdown
+---
+date: [ISO date]
+hypothesis: "[The hypothesis]"
+research: thoughts/shared/research/[date]-ARCH-[slug].md
+---
+
+# Experiment Findings: [Hypothesis Title]
+
+## Test Results
+
+### Test 1: [Name]
+**Command**:
+```bash
+[exact command]
+```
+**Output**:
+```
+[actual output]
+```
+**Result**: PASS / FAIL
+**Notes**: [observations]
+
+### Test 2: [Name]
+[Same format]
+
+## Summary
+- Tests passed: [N]
+- Tests failed: [N]
+- Key observations: [What we learned]
+
+## Verdict
+[CONFIRMED / REJECTED / PARTIALLY_CONFIRMED]
+
+## New Questions
+- [Questions that emerged from testing]
+```
+
+### Step 7: Update Architecture Document
+
+Based on experiment results, update `thoughts/ARCHITECTURE.md`:
+
+**If CONFIRMED**, add to Confirmed Decisions:
+```markdown
+- **[Decision name]**: [What was decided]
+  - Evidence: experiments/arch-[slug]/findings.md
+  - Rationale: [Why this works, key evidence]
+```
+
+**If REJECTED**, add to Rejected Approaches:
+```markdown
+- **[Approach name]**: [What was tried]
+  - Evidence: experiments/arch-[slug]/findings.md
+  - Why rejected: [What failed, key evidence]
+```
+
+**Add new questions** that emerged to Open Questions.
+
+**Remove the question** that was just answered from Open Questions.
+
+**Add to Iteration Log**:
+```markdown
+- [N]: "[Question]" → [CONFIRMED/REJECTED] (arch-[slug])
+```
+
+### Step 8: Report & Continue
+
+Output iteration summary:
 
 ```
 ═══════════════════════════════════════════════════════════
-Iteration [N] complete.
+Iteration [N] complete
 ═══════════════════════════════════════════════════════════
 
 Question: "[What was tested]"
+Hypothesis: "[The hypothesis]"
 Verdict: [CONFIRMED/REJECTED]
-New questions: [N] added
 
-State updated in thoughts/ARCHITECTURE.md
-Exiting for next iteration...
+Key findings:
+- [Finding 1]
+- [Finding 2]
+
+New questions added: [N]
+Open questions remaining: [N]
+
+Artifacts:
+- Research: thoughts/shared/research/[date]-ARCH-[slug].md
+- Findings: experiments/arch-[slug]/findings.md
 ```
 
-The Stop hook catches this exit and re-launches for iteration N+1.
+Then continue to next iteration (go back to Step 1).
 
-## Hook Configuration
+## Slug Naming Convention
 
-Add to `.claude/settings.json`:
+Generate slug from the question:
+- "What layer should Dual intercept at?" → `interception-layer`
+- "How does file system boundary work?" → `filesystem-boundary`
+- "What's the latency of docker exec?" → `docker-exec-latency`
 
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "command": "if ! grep -q 'EXIT_SIGNAL' /tmp/claude-last-output; then echo '/architecture_loop'; fi"
-      }
-    ]
-  }
-}
-```
+## Context: What is Dual?
 
-Or use a script for more control:
+From CLAUDE.md:
+- Terminal workspace orchestrator for parallel multi-repo development
+- One workspace = one full clone = one container
+- Dev tools (nvim, claude, git) run on HOST
+- Runtime processes (pnpm dev, node) run in CONTAINER
+- Core invariant: Claude Code must never know commands are routed to containers
 
-```bash
-#!/bin/bash
-# .claude/hooks/ralph-loop.sh
+## Example First Iteration
 
-OUTPUT=$(cat /tmp/claude-last-output)
+**Open question**: "What layer should Dual intercept at?"
 
-if echo "$OUTPUT" | grep -q "EXIT_SIGNAL"; then
-    echo "Architecture complete. Stopping loop."
-    exit 0
-fi
+**Scoped hypothesis**: "A shell wrapper using PROMPT_COMMAND or custom shell function can transparently intercept runtime commands (node, pnpm, npm) and route them to docker exec while allowing file operations (cat, ls, git) to run on host."
 
-# Re-launch with same command
-echo "/architecture_loop"
-```
+**Research agents find**:
+- Prior art: direnv, autoenv, custom shell wrappers
+- Mechanics: PROMPT_COMMAND runs before each command, can intercept
+- Probing: Docker available, bash 5.2, PROMPT_COMMAND works
+- Evidence: Similar approaches used in devcontainers
 
-## Important Notes
+**Experiment tests**:
+- Basic interception works
+- Exit codes preserved
+- TTY works for interactive
 
-1. **Autonomous execution** — Don't pause for user input mid-iteration
-2. **State is in files** — Each instance reads/writes ARCHITECTURE.md
-3. **Clean exits** — Always exit after one iteration
-4. **EXIT_SIGNAL** — Only emit when truly complete
-5. **Artifacts persist** — Research docs and experiments accumulate
+**Result**: CONFIRMED
+
+**Architecture updated**:
+- Confirmed: Shell wrapper approach viable
+- New questions: "What's the latency overhead?", "How to handle pipes?"
