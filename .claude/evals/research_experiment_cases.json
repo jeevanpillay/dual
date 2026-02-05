@@ -1,0 +1,562 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "description": "Evaluation cases for /research_experiment command",
+    "total_cases": 24,
+    "domains": ["systems", "web", "games", "graphics", "databases", "networking", "ai_ml", "mobile"]
+  },
+  "cases": [
+    {
+      "id": "sys-001-shell-wrapper-docker",
+      "domain": "systems",
+      "difficulty": "medium",
+      "hypothesis": "Shell wrapper scripts can transparently intercept CLI commands and route execution to Docker containers without breaking existing workflows",
+      "context": "Enable developers to use familiar CLI tools (node, python, cargo) that transparently execute inside containers, maintaining consistent environments across teams",
+      "expected_findings": {
+        "must_discover": [
+          "PATH environment variable precedence behavior",
+          "Difference between exec and sourcing scripts",
+          "Exit code propagation through wrapper chains",
+          "TTY allocation with docker exec -it"
+        ],
+        "should_discover": [
+          "Signal forwarding limitations (SIGTERM, SIGINT)",
+          "Environment variable passing to container",
+          "Working directory mapping considerations",
+          "Shebang interpreter selection"
+        ],
+        "keywords": ["PATH", "shebang", "exec", "docker exec", "exit code", "$?", "tty", "-it", "signal"]
+      },
+      "known_answer_summary": "Shell wrappers work by placing a directory early in PATH containing scripts that exec docker commands. The wrapper must handle TTY allocation (-it flags), propagate exit codes correctly, and consider signal forwarding. Key challenges include environment variable passing and ensuring the wrapper doesn't interfere with shell builtins."
+    },
+    {
+      "id": "sys-002-virtio-fs-events",
+      "domain": "systems",
+      "difficulty": "hard",
+      "hypothesis": "VirtioFS can propagate file system events (inotify/FSEvents) from host to container with latency under 500ms for practical file watching use cases",
+      "context": "Hot-reload development workflows require fast file change detection when source code lives on host but builds run in containers",
+      "expected_findings": {
+        "must_discover": [
+          "VirtioFS vs gRPC-FUSE vs 9P performance differences",
+          "inotify event types and their propagation behavior",
+          "Docker Desktop's default file sharing mechanism per platform",
+          "Polling fallback strategies when events don't propagate"
+        ],
+        "should_discover": [
+          "Batch event coalescing behavior",
+          "Maximum file watcher limits (fs.inotify.max_user_watches)",
+          "Platform-specific differences (macOS FSEvents vs Linux inotify)",
+          "Latency measurement methodologies"
+        ],
+        "keywords": ["VirtioFS", "inotify", "FSEvents", "gRPC-FUSE", "file watching", "polling", "latency", "max_user_watches"]
+      },
+      "known_answer_summary": "VirtioFS (Docker Desktop 4.15+) significantly improves file event propagation compared to gRPC-FUSE, but consistent sub-500ms latency isn't guaranteed. Most tools implement polling fallbacks. Linux inotify has configurable limits; macOS FSEvents works differently. Practical solutions often combine native events with polling for reliability."
+    },
+    {
+      "id": "sys-003-process-isolation-namespaces",
+      "domain": "systems",
+      "difficulty": "hard",
+      "hypothesis": "Linux namespaces can provide process isolation equivalent to containers without the overhead of a full container runtime",
+      "context": "Building lightweight sandboxing for CLI tools that need isolation but not full containerization",
+      "expected_findings": {
+        "must_discover": [
+          "Types of Linux namespaces (pid, net, mnt, uts, ipc, user, cgroup)",
+          "unshare and nsenter system calls",
+          "Capability requirements for creating namespaces",
+          "User namespace for rootless operation"
+        ],
+        "should_discover": [
+          "seccomp for syscall filtering",
+          "Cgroup v2 for resource limits",
+          "Pivot_root vs chroot for filesystem isolation",
+          "Differences from Docker/Podman implementation"
+        ],
+        "keywords": ["namespace", "unshare", "nsenter", "clone", "CLONE_NEWPID", "seccomp", "capabilities", "rootless"]
+      },
+      "known_answer_summary": "Linux namespaces are the foundation of container isolation. Using unshare(2) or clone(2) with CLONE_NEW* flags creates isolated environments. User namespaces enable rootless operation. Full isolation requires combining namespaces with seccomp, capabilities restriction, and cgroups. This is exactly what container runtimes do, but can be done directly for lighter-weight sandboxing."
+    },
+    {
+      "id": "web-001-websocket-vs-sse",
+      "domain": "web",
+      "difficulty": "easy",
+      "hypothesis": "Server-Sent Events (SSE) provide sufficient functionality for most real-time web applications while being simpler than WebSockets",
+      "context": "Choosing between SSE and WebSockets for a dashboard that displays real-time metrics and notifications",
+      "expected_findings": {
+        "must_discover": [
+          "SSE is unidirectional (server to client only)",
+          "WebSocket is bidirectional",
+          "SSE uses standard HTTP (works with HTTP/2 multiplexing)",
+          "WebSocket requires protocol upgrade"
+        ],
+        "should_discover": [
+          "SSE automatic reconnection with Last-Event-ID",
+          "WebSocket binary frame support",
+          "Proxy and load balancer compatibility differences",
+          "Browser connection limits for SSE"
+        ],
+        "keywords": ["EventSource", "WebSocket", "bidirectional", "HTTP/2", "text/event-stream", "upgrade", "reconnection"]
+      },
+      "known_answer_summary": "SSE is ideal for server-push scenarios (notifications, feeds, dashboards) with automatic reconnection and HTTP/2 compatibility. WebSockets are needed for bidirectional communication (chat, gaming) or binary data. SSE is simpler to implement and debug. The 6-connection browser limit per domain can be mitigated with HTTP/2 multiplexing."
+    },
+    {
+      "id": "web-002-service-worker-caching",
+      "domain": "web",
+      "difficulty": "medium",
+      "hypothesis": "Service Worker caching strategies can provide offline-first functionality for web applications with predictable cache invalidation",
+      "context": "Building a progressive web app that works offline and updates seamlessly when online",
+      "expected_findings": {
+        "must_discover": [
+          "Cache-first vs network-first vs stale-while-revalidate strategies",
+          "Service Worker lifecycle (install, activate, fetch)",
+          "Cache API for storing responses",
+          "Scope limitations of Service Workers"
+        ],
+        "should_discover": [
+          "Workbox library for common patterns",
+          "Cache versioning and cleanup strategies",
+          "Background sync for deferred operations",
+          "Navigation preload for performance"
+        ],
+        "keywords": ["Service Worker", "Cache API", "stale-while-revalidate", "cache-first", "network-first", "Workbox", "install", "activate"]
+      },
+      "known_answer_summary": "Service Workers intercept fetch requests and can serve cached responses. Common strategies: cache-first (offline-first), network-first (freshness priority), stale-while-revalidate (best UX). Cache invalidation requires versioning and cleanup during activate. Workbox simplifies implementation. Key challenges are debugging and ensuring updates reach users."
+    },
+    {
+      "id": "web-003-browser-storage-limits",
+      "domain": "web",
+      "difficulty": "medium",
+      "hypothesis": "Browser storage APIs (IndexedDB, localStorage, Cache API) have sufficient capacity for offline-capable applications if managed correctly",
+      "context": "Designing data persistence strategy for a web app that needs to store significant offline data",
+      "expected_findings": {
+        "must_discover": [
+          "localStorage limit (~5-10MB)",
+          "IndexedDB limit (typically 50%+ of free disk)",
+          "Storage quota estimation API (navigator.storage.estimate)",
+          "Eviction policies under storage pressure"
+        ],
+        "should_discover": [
+          "Persistent storage permission (navigator.storage.persist)",
+          "Origin-based storage partitioning",
+          "OPFS (Origin Private File System) for large files",
+          "Differences across browsers"
+        ],
+        "keywords": ["IndexedDB", "localStorage", "Cache API", "quota", "persist", "eviction", "OPFS", "storage.estimate"]
+      },
+      "known_answer_summary": "localStorage is limited (~5MB) and synchronous. IndexedDB offers much larger storage (browser-dependent, often 50%+ of disk) and is async. Cache API shares quota with IndexedDB. Storage can be evicted under pressure unless persist() is granted. OPFS (new) enables file-system-like access for large files. Always check quota and handle QuotaExceededError."
+    },
+    {
+      "id": "game-001-ecs-vs-oop",
+      "domain": "games",
+      "difficulty": "medium",
+      "hypothesis": "Entity Component System (ECS) architecture provides better performance and flexibility than traditional OOP inheritance for game objects at scale",
+      "context": "Architecting a game engine that needs to handle thousands of entities with varied behaviors",
+      "expected_findings": {
+        "must_discover": [
+          "ECS separates data (components) from behavior (systems)",
+          "Cache-friendly memory layout with component arrays",
+          "Composition over inheritance for entity definition",
+          "System iteration patterns over component queries"
+        ],
+        "should_discover": [
+          "Archetype-based ECS vs sparse set ECS",
+          "Popular implementations (Unity DOTS, Bevy ECS, EnTT)",
+          "Trade-offs in iteration vs component add/remove performance",
+          "When OOP is still preferable"
+        ],
+        "keywords": ["ECS", "Entity", "Component", "System", "archetype", "sparse set", "cache locality", "data-oriented"]
+      },
+      "known_answer_summary": "ECS improves cache utilization by storing components contiguously, enabling efficient system iteration. Archetype-based ECS (Unity DOTS) groups entities by component signature for fast iteration but slower structural changes. Sparse set ECS (EnTT) offers faster add/remove but less cache-optimal iteration. ECS excels at scale; OOP may be simpler for small projects or complex single entities."
+    },
+    {
+      "id": "game-002-spatial-partitioning",
+      "domain": "games",
+      "difficulty": "hard",
+      "hypothesis": "Spatial partitioning structures can reduce collision detection from O(n²) to O(n log n) for typical game scenarios",
+      "context": "Implementing efficient broad-phase collision detection for a game with hundreds of dynamic objects",
+      "expected_findings": {
+        "must_discover": [
+          "Broad phase vs narrow phase collision detection",
+          "Quadtree (2D) / Octree (3D) hierarchical subdivision",
+          "Spatial hashing with grid cells",
+          "AABB (Axis-Aligned Bounding Box) for broad phase"
+        ],
+        "should_discover": [
+          "Sweep and prune algorithm",
+          "BVH (Bounding Volume Hierarchy) for static geometry",
+          "Handling objects spanning multiple cells",
+          "Dynamic rebalancing costs"
+        ],
+        "keywords": ["quadtree", "octree", "spatial hash", "AABB", "broad phase", "narrow phase", "BVH", "sweep and prune"]
+      },
+      "known_answer_summary": "Spatial partitioning reduces collision pairs to check. Quadtrees/octrees subdivide space hierarchically (good for clustered objects). Spatial hashing uses grid cells (good for uniform distribution, O(1) lookup). Sweep and prune exploits temporal coherence. Choice depends on object distribution, movement patterns, and whether geometry is static. Broad phase produces candidate pairs; narrow phase does precise tests."
+    },
+    {
+      "id": "game-003-netcode-prediction",
+      "domain": "games",
+      "difficulty": "hard",
+      "hypothesis": "Client-side prediction with server reconciliation can hide network latency up to 150ms while maintaining game state consistency",
+      "context": "Building responsive multiplayer gameplay for a fast-paced action game",
+      "expected_findings": {
+        "must_discover": [
+          "Client-side prediction runs simulation locally before server confirmation",
+          "Server reconciliation corrects mispredictions",
+          "Input buffering and deterministic simulation",
+          "Entity interpolation for smooth remote player movement"
+        ],
+        "should_discover": [
+          "Rollback netcode (GGPO) vs lockstep",
+          "Lag compensation for hit detection",
+          "Snapshot interpolation vs extrapolation",
+          "Tick rate and send rate considerations"
+        ],
+        "keywords": ["client-side prediction", "server reconciliation", "rollback", "GGPO", "interpolation", "extrapolation", "tick rate", "lag compensation"]
+      },
+      "known_answer_summary": "Client-side prediction immediately applies local input while awaiting server confirmation. When server state arrives, client reconciles by replaying inputs from the confirmed state. Rollback netcode (GGPO) rewinds game state on misprediction. Entity interpolation smooths remote player movement between updates. Lag compensation adjusts hit detection to account for latency. Effective up to ~100-200ms RTT depending on game type."
+    },
+    {
+      "id": "gfx-001-deferred-vs-forward",
+      "domain": "graphics",
+      "difficulty": "medium",
+      "hypothesis": "Deferred rendering provides better performance than forward rendering for scenes with many dynamic lights",
+      "context": "Choosing a rendering architecture for a 3D game with complex lighting scenarios",
+      "expected_findings": {
+        "must_discover": [
+          "Forward rendering processes lights per-object (O(objects × lights))",
+          "Deferred rendering decouples geometry from lighting via G-buffer",
+          "G-buffer stores position, normal, albedo, etc.",
+          "Light pass only processes visible pixels"
+        ],
+        "should_discover": [
+          "G-buffer memory bandwidth costs",
+          "MSAA difficulty with deferred rendering",
+          "Transparent object handling challenges",
+          "Forward+ (tiled forward) as hybrid approach"
+        ],
+        "keywords": ["deferred rendering", "forward rendering", "G-buffer", "light pass", "MSAA", "Forward+", "tiled", "bandwidth"]
+      },
+      "known_answer_summary": "Deferred rendering excels with many lights by limiting shading to visible pixels (O(pixels × lights) vs O(objects × lights × overdraw)). Trade-offs: high G-buffer bandwidth, complex transparency handling, MSAA incompatibility (requires MSAA alternatives). Forward+ uses light culling per tile, offering a middle ground. Modern games often use hybrid approaches with deferred for opaque and forward for transparent."
+    },
+    {
+      "id": "gfx-002-compute-particles",
+      "domain": "graphics",
+      "difficulty": "medium",
+      "hypothesis": "GPU compute shaders can simulate millions of particles at interactive frame rates by keeping all particle data on the GPU",
+      "context": "Implementing a particle system for visual effects that needs to handle massive particle counts",
+      "expected_findings": {
+        "must_discover": [
+          "Compute shaders run general-purpose code on GPU",
+          "Particle data stored in GPU buffers (SSBOs/UAVs)",
+          "Parallel update of particle positions/velocities",
+          "Indirect draw for variable particle counts"
+        ],
+        "should_discover": [
+          "Atomic operations for emission/death",
+          "GPU sorting for depth-sorted transparency",
+          "Spatial data structures on GPU",
+          "CPU readback costs and alternatives"
+        ],
+        "keywords": ["compute shader", "SSBO", "UAV", "indirect draw", "particle", "atomic", "GPU buffer", "parallel"]
+      },
+      "known_answer_summary": "GPU compute shaders update particle positions in parallel, with data never leaving the GPU. SSBOs/UAVs store particle arrays. Indirect draw commands render variable particle counts without CPU readback. Emission uses atomic counters to allocate slots. Sorting for transparency can use parallel GPU sorts. This architecture handles millions of particles where CPU approaches fail at thousands."
+    },
+    {
+      "id": "gfx-003-screen-space-ao",
+      "domain": "graphics",
+      "difficulty": "hard",
+      "hypothesis": "Screen-space ambient occlusion (SSAO) can approximate global illumination contact shadows at a fraction of the cost of ray-traced AO",
+      "context": "Adding ambient occlusion to a real-time renderer without ray tracing hardware",
+      "expected_findings": {
+        "must_discover": [
+          "SSAO samples depth buffer to estimate occlusion",
+          "Hemisphere kernel sampling around each pixel",
+          "Depth comparison to detect occluders",
+          "Blur pass to reduce noise from limited samples"
+        ],
+        "should_discover": [
+          "HBAO (Horizon-Based AO) for better quality",
+          "GTAO (Ground Truth AO) approximation",
+          "Temporal accumulation for stability",
+          "View-dependent artifacts and mitigations"
+        ],
+        "keywords": ["SSAO", "HBAO", "GTAO", "ambient occlusion", "depth buffer", "hemisphere", "kernel", "screen-space"]
+      },
+      "known_answer_summary": "SSAO works by sampling the depth buffer around each pixel to estimate how much surrounding geometry blocks ambient light. Original Crytek SSAO uses random hemisphere samples with depth comparison. HBAO improves by tracing along horizon directions. GTAO provides more physically accurate results. All suffer from screen-space limitations (missing offscreen occluders). Temporal filtering and careful tuning improve quality vs performance."
+    },
+    {
+      "id": "db-001-btree-vs-lsm",
+      "domain": "databases",
+      "difficulty": "medium",
+      "hypothesis": "LSM-trees provide better write performance than B-trees at the cost of read amplification, making them suitable for write-heavy workloads",
+      "context": "Choosing storage engine architecture for a time-series database with heavy write throughput",
+      "expected_findings": {
+        "must_discover": [
+          "B-tree: in-place updates, optimized for reads",
+          "LSM-tree: append-only writes, background compaction",
+          "Write amplification vs read amplification trade-off",
+          "Memtable and SSTable structure in LSM"
+        ],
+        "should_discover": [
+          "Compaction strategies (leveled, tiered, FIFO)",
+          "Bloom filters for read optimization",
+          "Space amplification considerations",
+          "Examples: RocksDB (LSM), InnoDB (B-tree)"
+        ],
+        "keywords": ["B-tree", "LSM-tree", "compaction", "SSTable", "memtable", "write amplification", "read amplification", "bloom filter"]
+      },
+      "known_answer_summary": "B-trees perform in-place updates with O(log n) reads/writes but suffer write amplification from random I/O. LSM-trees batch writes in memory (memtable), flush to immutable SSTables, and compact in background. This converts random writes to sequential, improving write throughput. Trade-off: reads may check multiple levels (read amplification). Bloom filters mitigate. LSM suits write-heavy; B-tree suits read-heavy balanced workloads."
+    },
+    {
+      "id": "db-002-mvcc-implementation",
+      "domain": "databases",
+      "difficulty": "hard",
+      "hypothesis": "MVCC (Multi-Version Concurrency Control) can provide snapshot isolation without read locks by maintaining multiple versions of data",
+      "context": "Understanding how databases achieve high concurrency for mixed read/write workloads",
+      "expected_findings": {
+        "must_discover": [
+          "Each transaction sees a consistent snapshot",
+          "Writes create new versions rather than overwriting",
+          "Transaction IDs determine version visibility",
+          "No read-write blocking (readers don't block writers)"
+        ],
+        "should_discover": [
+          "Garbage collection of old versions (vacuum)",
+          "Write-write conflicts still require handling",
+          "Snapshot isolation vs serializable anomalies",
+          "Implementation differences (PostgreSQL vs MySQL)"
+        ],
+        "keywords": ["MVCC", "snapshot isolation", "transaction ID", "version", "visibility", "vacuum", "xmin", "xmax"]
+      },
+      "known_answer_summary": "MVCC maintains multiple versions of each row, tagged with creating/deleting transaction IDs. Readers see versions visible to their snapshot (committed before their start). Writers create new versions. This eliminates read locks but requires garbage collection of obsolete versions. PostgreSQL stores versions in heap with visibility info; MySQL InnoDB uses undo logs. Snapshot isolation prevents most anomalies but not all (write skew requires serializable)."
+    },
+    {
+      "id": "db-003-consistent-hashing",
+      "domain": "databases",
+      "difficulty": "medium",
+      "hypothesis": "Consistent hashing minimizes data movement when scaling distributed storage systems horizontally",
+      "context": "Designing a distributed cache or database that can add/remove nodes without full rehashing",
+      "expected_findings": {
+        "must_discover": [
+          "Traditional hash mod N requires full rehash on node change",
+          "Consistent hashing maps both keys and nodes to a ring",
+          "Keys assigned to next node clockwise on ring",
+          "Only K/N keys move on node add/remove (vs all keys)"
+        ],
+        "should_discover": [
+          "Virtual nodes for better load distribution",
+          "Jump consistent hash as alternative",
+          "Replication strategies with consistent hashing",
+          "Used by: DynamoDB, Cassandra, Memcached"
+        ],
+        "keywords": ["consistent hashing", "hash ring", "virtual nodes", "partition", "rebalancing", "jump hash", "distributed"]
+      },
+      "known_answer_summary": "Consistent hashing places nodes and keys on a circular hash space. Keys map to their successor node on the ring. When nodes join/leave, only keys between the affected node and its predecessor move (approximately K/N keys). Virtual nodes (multiple positions per physical node) improve balance. This enables elastic scaling with minimal disruption. Used extensively in distributed databases and caches."
+    },
+    {
+      "id": "net-001-quic-vs-tcp",
+      "domain": "networking",
+      "difficulty": "medium",
+      "hypothesis": "QUIC provides lower latency than TCP+TLS for web applications by eliminating head-of-line blocking and reducing handshake round trips",
+      "context": "Evaluating HTTP/3 (QUIC) adoption for a latency-sensitive web application",
+      "expected_findings": {
+        "must_discover": [
+          "QUIC runs over UDP with built-in encryption",
+          "0-RTT connection resumption capability",
+          "Multiple streams without head-of-line blocking",
+          "Connection migration across network changes"
+        ],
+        "should_discover": [
+          "TCP head-of-line blocking affects all streams",
+          "QUIC loss recovery per-stream",
+          "Middlebox ossification challenges",
+          "HTTP/3 is HTTP-over-QUIC"
+        ],
+        "keywords": ["QUIC", "HTTP/3", "UDP", "head-of-line blocking", "0-RTT", "connection migration", "multiplexing", "TLS 1.3"]
+      },
+      "known_answer_summary": "QUIC integrates transport and encryption, eliminating TCP+TLS handshake overhead (1-RTT or 0-RTT vs 2-3 RTT). Multiplexed streams avoid TCP's head-of-line blocking where one lost packet stalls all streams. Connection IDs enable migration across networks (mobile). Built on UDP to bypass TCP ossification. Trade-offs: higher CPU usage, middlebox compatibility issues, less mature tooling."
+    },
+    {
+      "id": "net-002-connection-pooling",
+      "domain": "networking",
+      "difficulty": "easy",
+      "hypothesis": "Connection pooling significantly reduces latency and resource usage for applications making frequent database or HTTP requests",
+      "context": "Optimizing a web service that makes many database queries per request",
+      "expected_findings": {
+        "must_discover": [
+          "Connection establishment overhead (TCP handshake, TLS, auth)",
+          "Pool maintains warm connections for reuse",
+          "Pool sizing: min, max, idle timeout parameters",
+          "Connection validation/health checks"
+        ],
+        "should_discover": [
+          "Connection leaks from unreturned connections",
+          "Pool exhaustion and timeout handling",
+          "Connection affinity considerations (prepared statements)",
+          "Different implementations (HikariCP, PgBouncer, etc.)"
+        ],
+        "keywords": ["connection pool", "pool size", "idle timeout", "connection reuse", "handshake", "HikariCP", "PgBouncer", "leak"]
+      },
+      "known_answer_summary": "Connection pooling amortizes establishment costs (handshakes, authentication) across requests. Pools maintain idle connections up to a max size, with idle timeout for cleanup. Key parameters: min/max pool size, connection timeout, idle timeout, validation query. Proper sizing prevents both resource waste and pool exhaustion. Connection leaks (unreturned connections) are a common bug. Pools like HikariCP (Java) and PgBouncer (PostgreSQL) provide battle-tested implementations."
+    },
+    {
+      "id": "net-003-dns-security",
+      "domain": "networking",
+      "difficulty": "medium",
+      "hypothesis": "DNS-over-HTTPS (DoH) improves privacy compared to traditional DNS but introduces trade-offs in enterprise network management",
+      "context": "Evaluating encrypted DNS adoption for an organization with security and compliance requirements",
+      "expected_findings": {
+        "must_discover": [
+          "Traditional DNS is unencrypted, visible to network observers",
+          "DoH encrypts DNS queries inside HTTPS",
+          "DoT (DNS-over-TLS) as alternative on port 853",
+          "Resolvers: Cloudflare 1.1.1.1, Google 8.8.8.8, etc."
+        ],
+        "should_discover": [
+          "Bypasses network-level DNS filtering/logging",
+          "Enterprise split-horizon DNS challenges",
+          "DNSSEC vs DoH (authentication vs encryption)",
+          "Browser DoH implementations and fallback behavior"
+        ],
+        "keywords": ["DoH", "DoT", "DNS-over-HTTPS", "DNS-over-TLS", "DNSSEC", "privacy", "encrypted DNS", "resolver"]
+      },
+      "known_answer_summary": "DoH encrypts DNS queries, preventing ISP/network snooping but also bypassing corporate DNS policies and parental controls. DoT offers similar privacy on dedicated port 853 (easier to block). Neither replaces DNSSEC (which provides authentication, not encryption). Enterprise challenges: loss of visibility, split-horizon DNS breaks, compliance logging. Solutions include internal DoH resolvers or policy-controlled exceptions."
+    },
+    {
+      "id": "ml-001-attention-mechanisms",
+      "domain": "ai_ml",
+      "difficulty": "hard",
+      "hypothesis": "Self-attention mechanisms enable transformers to capture long-range dependencies more effectively than RNNs by computing direct pairwise relationships",
+      "context": "Understanding the core innovation behind modern LLMs and why they outperform previous architectures",
+      "expected_findings": {
+        "must_discover": [
+          "Attention computes weighted sum based on query-key similarity",
+          "Self-attention relates positions within same sequence",
+          "O(n²) complexity in sequence length",
+          "Multi-head attention captures diverse relationships"
+        ],
+        "should_discover": [
+          "Positional encoding for sequence order",
+          "Scaled dot-product attention formula",
+          "Cross-attention for encoder-decoder models",
+          "Efficient attention variants (sparse, linear)"
+        ],
+        "keywords": ["attention", "self-attention", "query", "key", "value", "multi-head", "transformer", "softmax", "positional encoding"]
+      },
+      "known_answer_summary": "Self-attention computes Attention(Q,K,V) = softmax(QK^T/√d)V, where each position attends to all others directly (unlike RNN's sequential processing). This enables parallel training and captures long-range dependencies without vanishing gradients. Multi-head attention runs multiple attention functions in parallel, concatenating results. Quadratic complexity is the main limitation, driving research into efficient variants (sparse attention, linear attention, flash attention)."
+    },
+    {
+      "id": "ml-002-quantization",
+      "domain": "ai_ml",
+      "difficulty": "medium",
+      "hypothesis": "Post-training quantization can reduce model size and inference latency by 2-4x with minimal accuracy loss",
+      "context": "Deploying a large language model on resource-constrained hardware",
+      "expected_findings": {
+        "must_discover": [
+          "Quantization reduces precision (FP32 → INT8/INT4)",
+          "Weight quantization vs activation quantization",
+          "Post-training quantization vs quantization-aware training",
+          "Calibration dataset for determining scale factors"
+        ],
+        "should_discover": [
+          "Per-tensor vs per-channel quantization granularity",
+          "GPTQ, AWQ, GGML/GGUF quantization methods",
+          "Mixed-precision approaches",
+          "Hardware support (CUDA INT8, Apple Neural Engine)"
+        ],
+        "keywords": ["quantization", "INT8", "INT4", "FP16", "calibration", "GPTQ", "AWQ", "GGUF", "post-training", "weight"]
+      },
+      "known_answer_summary": "Quantization maps floating-point weights/activations to lower precision integers. Post-training quantization analyzes a calibration set to determine optimal scale factors. INT8 typically achieves ~4x compression with <1% accuracy loss. INT4 (GPTQ, AWQ) pushes to ~8x but requires more sophisticated methods. Per-channel quantization improves accuracy over per-tensor. Hardware acceleration (Tensor Cores, NPUs) makes quantized inference significantly faster."
+    },
+    {
+      "id": "ml-003-kv-cache",
+      "domain": "ai_ml",
+      "difficulty": "hard",
+      "hypothesis": "KV-cache optimization is critical for efficient LLM inference, as cache size grows linearly with sequence length and batch size",
+      "context": "Optimizing inference throughput for a production LLM deployment with long contexts",
+      "expected_findings": {
+        "must_discover": [
+          "KV-cache stores key/value tensors from previous tokens",
+          "Avoids recomputing attention for all previous tokens",
+          "Memory grows as O(batch × layers × seq_len × d_model)",
+          "Often the memory bottleneck for long sequences"
+        ],
+        "should_discover": [
+          "PagedAttention (vLLM) for non-contiguous cache",
+          "Multi-Query Attention (MQA) / Grouped-Query Attention (GQA)",
+          "Sliding window attention for bounded cache",
+          "Cache compression and eviction strategies"
+        ],
+        "keywords": ["KV-cache", "key-value cache", "PagedAttention", "vLLM", "MQA", "GQA", "memory", "inference", "batch"]
+      },
+      "known_answer_summary": "During autoregressive generation, KV-cache stores computed key-value pairs to avoid O(n²) recomputation per token. Memory is batch × layers × heads × seq_len × head_dim × 2 (K and V) × dtype_size. For long contexts, this dominates GPU memory. PagedAttention (vLLM) manages cache like virtual memory pages, enabling larger batches. MQA/GQA share KV heads across query heads, reducing cache size. Sliding window bounds maximum cache at the cost of full attention span."
+    },
+    {
+      "id": "mobile-001-background-execution",
+      "domain": "mobile",
+      "difficulty": "medium",
+      "hypothesis": "iOS and Android provide mechanisms for reliable background task execution but with significant platform-specific constraints",
+      "context": "Building a mobile app that needs to sync data and process updates when not in foreground",
+      "expected_findings": {
+        "must_discover": [
+          "iOS Background App Refresh with limited execution time",
+          "Android WorkManager for deferrable background work",
+          "Background execution limits imposed by OS for battery",
+          "Push notifications as trigger mechanism"
+        ],
+        "should_discover": [
+          "iOS BGTaskScheduler for processing/refresh tasks",
+          "Android foreground services for long-running work",
+          "Doze mode and app standby buckets (Android)",
+          "Silent push notifications for wake-up"
+        ],
+        "keywords": ["background task", "WorkManager", "BGTaskScheduler", "foreground service", "Doze", "Background App Refresh", "push notification"]
+      },
+      "known_answer_summary": "Both platforms heavily restrict background execution for battery life. iOS: BGTaskScheduler provides brief processing windows; Background App Refresh is user-controllable. Android: WorkManager handles constraints (network, charging); foreground services for ongoing work. Both use push notifications to wake apps. Key constraints: limited execution time, OS-determined scheduling, user can disable. Design for eventual consistency rather than real-time background sync."
+    },
+    {
+      "id": "mobile-002-deep-linking",
+      "domain": "mobile",
+      "difficulty": "easy",
+      "hypothesis": "Universal Links (iOS) and App Links (Android) provide a seamless way to link web content to app content without custom URL schemes",
+      "context": "Implementing deep linking for a mobile app with corresponding web content",
+      "expected_findings": {
+        "must_discover": [
+          "Universal Links use standard HTTPS URLs",
+          "Requires apple-app-site-association file on web server",
+          "Android App Links use assetlinks.json",
+          "Falls back to browser if app not installed"
+        ],
+        "should_discover": [
+          "Domain verification process",
+          "Custom URL schemes as legacy alternative",
+          "Deferred deep linking for install attribution",
+          "Firebase Dynamic Links / Branch.io for cross-platform"
+        ],
+        "keywords": ["Universal Links", "App Links", "deep linking", "apple-app-site-association", "assetlinks.json", "custom URL scheme", "deferred deep link"]
+      },
+      "known_answer_summary": "Universal Links (iOS) and App Links (Android) use standard HTTPS URLs that open in the app if installed, or browser if not. Setup requires hosting verification files (apple-app-site-association, assetlinks.json) on your domain. Unlike custom schemes, they're secure (verified domain ownership) and user-friendly. Deferred deep linking (via Branch, Firebase) handles the install-then-link flow. Both platforms have specific requirements for entitlements and manifest configuration."
+    },
+    {
+      "id": "mobile-003-offline-sync",
+      "domain": "mobile",
+      "difficulty": "hard",
+      "hypothesis": "Offline-first mobile architectures with optimistic updates provide better UX than online-required approaches, but require careful conflict resolution",
+      "context": "Designing data sync for a mobile app that must work reliably offline",
+      "expected_findings": {
+        "must_discover": [
+          "Local-first: writes go to local DB, sync asynchronously",
+          "Optimistic UI updates assume success",
+          "Conflict resolution strategies (last-write-wins, merge, manual)",
+          "Operational Transform or CRDTs for automatic merging"
+        ],
+        "should_discover": [
+          "Vector clocks / version vectors for causality",
+          "Sync protocols (CouchDB replication, Firebase RTDB)",
+          "Offline queue for pending operations",
+          "Idempotency for retry safety"
+        ],
+        "keywords": ["offline-first", "sync", "conflict resolution", "CRDT", "last-write-wins", "optimistic update", "vector clock", "idempotent"]
+      },
+      "known_answer_summary": "Offline-first writes to local storage immediately, syncing when connected. Optimistic UI shows changes before server confirmation, rolling back on failure. Conflicts arise when the same data is modified offline on multiple devices. Strategies: last-write-wins (simple, data loss risk), operational transform (complex, used by Google Docs), CRDTs (automatic merge, limited data types). Implementation requires careful consideration of operation ordering, idempotency, and user experience during conflict resolution."
+    }
+  ]
+}

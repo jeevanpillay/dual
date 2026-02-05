@@ -1,0 +1,22 @@
+{
+  "name": "research-experiment-evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "npx braintrust eval src/eval.ts",
+    "eval:dry-run": "DRY_RUN=true npx braintrust eval src/eval.ts",
+    "run-single": "tsx src/run-single.ts"
+  },
+  "dependencies": {
+    "braintrust": "^0.0.160",
+    "autoevals": "^0.0.80",
+    "@anthropic-ai/sdk": "^0.30.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}
