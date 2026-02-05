@@ -31,13 +31,13 @@ When this command is invoked:
 I'll help you create a structured experiment test plan. Let me start by understanding what we're testing.
 
 Please provide:
-1. The path to the research document (from /research-experiment)
+1. The path to the research document (from /research_experiment)
 2. Any additional context or constraints for the experiment
 
 I'll analyze the research and work with you to create a comprehensive test design.
 
 Tip: You can invoke this command with a research doc directly:
-`/create-experiment thoughts/shared/research/2026-02-05-EXP-shell-wrapper.md`
+`/create_experiment thoughts/shared/research/2026-02-05-EXP-shell-wrapper.md`
 ```
 
 Then wait for the user's input.
@@ -389,7 +389,7 @@ Tests constraints and edge cases from research.
    Experiment design is complete at:
    `experiments/{slug}/experiment.md`
 
-   When ready, run with: `/run-experiment experiments/{slug}/experiment.md`
+   When ready, run with: `/run_experiment experiments/{slug}/experiment.md`
    ```
 
 ## Important Guidelines
@@ -516,7 +516,7 @@ Task 3 (knowledge-prober): "Verify that [tool] version [X] is installed and chec
 ## Example Interaction Flow
 
 ```
-User: /create-experiment thoughts/shared/research/2026-02-05-EXP-shell-wrapper.md
+User: /create_experiment thoughts/shared/research/2026-02-05-EXP-shell-wrapper.md
 Assistant: Let me read that research document completely first...
 
 [Reads file fully, spawns sub-tasks in parallel]

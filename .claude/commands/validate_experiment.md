@@ -34,7 +34,7 @@ I'll validate your experiment results against research predictions.
 
 Please provide the experiment slug or paths:
 
-Option 1 (recommended): `/validate-experiment experiments/shell-wrapper-interception/`
+Option 1 (recommended): `/validate_experiment experiments/shell-wrapper-interception/`
 
 Option 2 (explicit paths):
 1. Research document: `thoughts/shared/research/...`
@@ -336,11 +336,11 @@ Full report: `experiments/{slug}/validation.md`
 ## Relationship to Experiment Flow
 
 Recommended workflow:
-1. `/research-experiment` — Investigate feasibility
-2. `/create-experiment` — Design test cases
-3. `/run-experiment` — Execute and capture results
-4. `/validate-experiment` — Compare results to predictions (YOU ARE HERE)
+1. `/research_experiment` — Investigate feasibility
+2. `/create_experiment` — Design test cases
+3. `/run_experiment` — Execute and capture results
+4. `/validate_experiment` — Compare results to predictions (YOU ARE HERE)
 
 Validation closes the loop. If inconclusive, you may need to iterate:
-- Back to `/create-experiment` if test design was flawed
-- Back to `/research-experiment` if fundamental assumptions were wrong
+- Back to `/create_experiment` if test design was flawed
+- Back to `/research_experiment` if fundamental assumptions were wrong

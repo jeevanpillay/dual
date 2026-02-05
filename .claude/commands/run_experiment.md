@@ -31,9 +31,9 @@ If no experiment design path provided:
 I'll execute your experiment and capture results.
 
 Please provide:
-1. Path to experiment design (from /create-experiment)
+1. Path to experiment design (from /create_experiment)
 
-Example: `/run-experiment experiments/shell-wrapper-interception/experiment.md`
+Example: `/run_experiment experiments/shell-wrapper-interception/experiment.md`
 
 I'll run each test case and document raw results.
 ```
@@ -257,7 +257,7 @@ Experiment execution complete.
 - Deviations: [count, if any]
 - Findings: `experiments/{slug}/findings.md`
 
-Ready for validation: `/validate-experiment experiments/{slug}/`
+Ready for validation: `/validate_experiment experiments/{slug}/`
 ```
 
 ## What Raw Results Look Like
