@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "description": "Golden set - real-world Conductor hypotheses with known critical paths",
+    "project": "conductor",
+    "total_cases": 3,
+    "purpose": "High-stakes validation cases from actual architecture decisions"
+  },
+  "cases": [
+    {
+      "id": "conductor-001-virtio-fs-latency",
+      "domain": "systems",
+      "difficulty": "hard",
+      "tags": ["conductor", "dx", "macos", "docker", "hot-reload"],
+      "hypothesis": "VirtioFS on macOS Docker Desktop propagates filesystem events from host to container with low enough latency (<500ms p95) that hot reload feels instantaneous.",
+      "context": "Conductor's core DX depends on: developer edits file on host → bind mount propagates change → container's dev server detects it → HMR fires in browser. If VirtioFS adds >500ms latency to this chain, hot reload feels sluggish and the entire architecture is compromised. This is the most likely failure mode on macOS specifically — Linux Docker bind mounts use the native filesystem and have no VM overhead.",
+      "critical_path": [
+        "File change on host",
+        "VirtioFS propagates to VM",
+        "Container filesystem sees change",
+        "File watcher (inotify/chokidar) fires event",
+        "Dev server triggers HMR",
+        "Browser receives update"
+      ],
+      "expected_findings": {
+        "must_discover": [
+          "VirtioFS vs gRPC-FUSE vs osxfs performance characteristics",
+          "How Docker Desktop on macOS handles filesystem events across VM boundary",
+          "inotify event propagation behavior through VirtioFS",
+          "Documented latency benchmarks or measurements",
+          "Whether polling fallback is required vs native events work"
+        ],
+        "should_discover": [
+          "Docker Desktop version requirements for VirtioFS",
+          "How to verify VirtioFS is enabled vs other backends",
+          "Chokidar/nodemon/vite behavior with VirtioFS",
+          "Comparison to Linux native bind mount performance",
+          "Known issues or workarounds in Docker Desktop GitHub issues"
+        ],
+        "keywords": [
+          "VirtioFS", "gRPC-FUSE", "osxfs", "inotify", "FSEvents",
+          "bind mount", "file watching", "chokidar", "polling",
+          "latency", "Docker Desktop", "macOS", "VM", "hyperkit", "virtualization"
+        ]
+      },
+      "known_answer_summary": "VirtioFS (introduced Docker Desktop 4.6, default in 4.15+) significantly improves file event propagation over gRPC-FUSE/osxfs. However, consistent <500ms p95 is not guaranteed — depends on file watcher implementation. Most tools (chokidar, nodemon) use polling fallback for reliability. Native inotify events do propagate but with variable latency. Key factors: VirtioFS must be explicitly enabled in older versions, file watcher polling interval affects perceived latency, and burst writes may coalesce events. Linux has none of these issues due to native filesystem access.",
+      "failure_modes": [
+        "VirtioFS not enabled (using slower gRPC-FUSE)",
+        "File watcher using polling instead of native events",
+        "Event coalescing adding latency on burst writes",
+        "VM overhead during high I/O periods"
+      ],
+      "success_criteria": "Research must definitively answer: (1) Does VirtioFS propagate inotify events? (2) What is measured/documented latency? (3) What configuration ensures optimal performance? (4) What are known failure modes?"
+    },
+    {
+      "id": "conductor-002-reverse-proxy-routing",
+      "domain": "networking",
+      "difficulty": "hard",
+      "tags": ["conductor", "networking", "proxy", "websocket", "hmr"],
+      "hypothesis": "A minimal reverse proxy can route {workspace}.localhost:{port} to the correct Docker container, *.localhost resolves natively in all major browsers on macOS, and WebSocket upgrade (HMR) works through the proxy with no perceivable latency.",
+      "context": "This experiment validates the entire developer-facing network path at once. It collapses what were previously 4 separate tests (macOS networking, port isolation, proxy routing, HMR through proxy) into a single integrated validation. If any link in this chain breaks — browser DNS, subdomain routing, WebSocket upgrade, proxy forwarding — the developer cannot access their workspace from the browser.",
+      "critical_path": [
+        "Browser requests {workspace}.localhost:port",
+        "macOS resolves *.localhost to 127.0.0.1",
+        "Request hits reverse proxy",
+        "Proxy extracts workspace from subdomain",
+        "Proxy forwards to correct container port",
+        "WebSocket upgrade for HMR passes through",
+        "HMR messages flow bidirectionally"
+      ],
+      "expected_findings": {
+        "must_discover": [
+          "Whether *.localhost resolves to 127.0.0.1 on macOS without /etc/hosts",
+          "Browser behavior for localhost subdomains (Chrome, Safari, Firefox)",
+          "How to implement WebSocket upgrade passthrough in a proxy",
+          "Whether WebSocket adds measurable latency through proxy layer",
+          "Proxy options: nginx, caddy, traefik, custom Node/Go"
+        ],
+        "should_discover": [
+          "RFC 6761 localhost special handling",
+          "Browser security policies for localhost subdomains",
+          "Connection: Upgrade and Upgrade: websocket header handling",
+          "Keep-alive and connection pooling through proxy",
+          "How HMR specifically works (Vite/webpack websocket protocol)"
+        ],
+        "keywords": [
+          "localhost", "subdomain", "wildcard DNS", "127.0.0.1",
+          "reverse proxy", "nginx", "caddy", "traefik",
+          "WebSocket", "upgrade", "Connection header", "HMR",
+          "hot module replacement", "Vite", "webpack-dev-server"
+        ]
+      },
+      "known_answer_summary": "*.localhost resolves to 127.0.0.1 per RFC 6761 on macOS (and most systems) without /etc/hosts modification. All major browsers handle this correctly. WebSocket upgrade through a proxy requires forwarding Connection: Upgrade and Upgrade: websocket headers, plus the Sec-WebSocket-* headers. Nginx requires proxy_http_version 1.1 and specific header configuration. Caddy handles this automatically. Latency through a local proxy is negligible (<1ms). Key gotcha: some proxies buffer responses which breaks streaming/websocket — need to disable buffering.",
+      "failure_modes": [
+        "*.localhost not resolving (older macOS, corporate DNS)",
+        "Proxy stripping WebSocket upgrade headers",
+        "Proxy buffering breaking streaming responses",
+        "Browser CORS/security blocking localhost subdomains",
+        "Port conflicts with existing services"
+      ],
+      "success_criteria": "Research must definitively answer: (1) Is *.localhost resolution reliable? (2) What proxy configuration enables WebSocket passthrough? (3) What is expected latency overhead? (4) What are known browser-specific issues?"
+    },
+    {
+      "id": "conductor-003-shell-wrapper-interception",
+      "domain": "systems",
+      "difficulty": "hard",
+      "tags": ["conductor", "shell", "docker", "transparency", "claude-code"],
+      "hypothesis": "A shell wrapper can transparently intercept runtime commands (pnpm, npm, node, curl, npx) and route them through docker exec without the calling process (Claude Code) detecting any difference in behavior.",
+      "context": "This is the core invariant of Conductor's architecture: Claude Code must never know it is running inside a container. Every other architectural decision flows from this. The previous spike tested whether docker exec works (it does — that's trivially true). This experiment tests whether the interception layer — the thing that makes docker exec invisible — actually works for the command patterns Claude Code uses in practice. If transparent interception is too fragile (breaks on pipes, fails on interactive commands, mangles environment variables), the entire command routing strategy may need to change. This is the highest-risk, least-validated part of the architecture.",
+      "critical_path": [
+        "Claude Code spawns 'node script.js'",
+        "Shell finds wrapper script in PATH first",
+        "Wrapper determines target container",
+        "Wrapper constructs docker exec command",
+        "docker exec runs node inside container",
+        "stdout/stderr/exit code propagate back",
+        "Claude Code sees identical behavior to native execution"
+      ],
+      "expected_findings": {
+        "must_discover": [
+          "How PATH precedence works for command interception",
+          "Difference between exec and running a script (process replacement)",
+          "How to propagate exit codes through wrapper → docker exec → original caller",
+          "stdin/stdout/stderr handling through docker exec",
+          "TTY allocation (-t flag) requirements and detection"
+        ],
+        "should_discover": [
+          "Environment variable propagation to container",
+          "Working directory mapping between host and container",
+          "Signal handling (SIGTERM, SIGINT) through docker exec",
+          "Handling of pipes and redirections (cmd | grep, cmd > file)",
+          "Interactive command support (e.g., npm init prompts)"
+        ],
+        "keywords": [
+          "PATH", "wrapper", "shebang", "exec", "docker exec",
+          "exit code", "$?", "stdin", "stdout", "stderr",
+          "TTY", "-it", "-t", "signal", "SIGTERM", "SIGINT",
+          "environment variable", "working directory", "pipe", "redirect"
+        ]
+      },
+      "known_answer_summary": "Shell wrappers intercept commands by placing a directory containing wrapper scripts early in PATH. The wrapper must use 'exec' to replace itself (not spawn a child) so the calling process sees correct PID behavior. Exit codes propagate naturally through exec. Key challenges: (1) TTY detection — need -t for interactive, but -t breaks when there's no TTY (pipes); use [ -t 0 ] to detect. (2) Environment variables must be explicitly passed with -e or --env-file. (3) Working directory requires -w flag with path mapping. (4) Signals propagate to docker exec but may not propagate into container without --init. (5) Pipes work but wrapper must not consume stdin meant for the command.",
+      "failure_modes": [
+        "Wrapper spawns subprocess instead of exec (wrong PID, zombie processes)",
+        "TTY detection wrong (hangs on pipe, breaks on interactive)",
+        "Exit code not propagated (always returns 0)",
+        "Environment variables not passed (commands fail inside container)",
+        "Working directory mismatch (file not found errors)",
+        "Signals not forwarded (Ctrl+C doesn't stop container process)",
+        "stdin consumed by wrapper logic"
+      ],
+      "success_criteria": "Research must definitively answer: (1) How to correctly intercept via PATH? (2) How to handle TTY vs non-TTY? (3) How to propagate exit codes? (4) How to forward signals? (5) What edge cases break transparency?"
+    }
+  ]
+}
