@@ -79,6 +79,27 @@ pub fn source_command(container_name: &str) -> String {
     format!("eval \"$(dual shell-rc {container_name})\"")
 }
 
+/// Write the shell RC to a file and return the path.
+/// RC files are written to ~/.config/dual/rc/{container_name}.sh
+pub fn write_rc_file(container_name: &str) -> Result<std::path::PathBuf, std::io::Error> {
+    let rc_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from(".config"))
+        .join("dual")
+        .join("rc");
+    std::fs::create_dir_all(&rc_dir)?;
+
+    let rc_path = rc_dir.join(format!("{container_name}.sh"));
+    let rc_content = generate_rc(container_name);
+    std::fs::write(&rc_path, rc_content)?;
+
+    Ok(rc_path)
+}
+
+/// Get the source command for an RC file path.
+pub fn source_file_command(rc_path: &std::path::Path) -> String {
+    format!("source {}", rc_path.display())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +179,23 @@ mod tests {
     fn source_command_format() {
         let cmd = source_command("dual-lightfast-main");
         assert_eq!(cmd, "eval \"$(dual shell-rc dual-lightfast-main)\"");
+    }
+
+    #[test]
+    fn write_rc_file_creates_file() {
+        let path = write_rc_file("dual-test-write-rc").unwrap();
+        assert!(path.exists());
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("export DUAL_CONTAINER=\"dual-test-write-rc\""));
+        assert!(content.contains("npm()"));
+        // Clean up
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn source_file_command_format() {
+        let path = std::path::Path::new("/home/user/.config/dual/rc/dual-test.sh");
+        let cmd = source_file_command(path);
+        assert_eq!(cmd, "source /home/user/.config/dual/rc/dual-test.sh");
     }
 }

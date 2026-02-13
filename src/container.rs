@@ -104,6 +104,26 @@ pub fn status(name: &str) -> ContainerStatus {
     }
 }
 
+/// Get the IP address of a running container on the Docker bridge network.
+pub fn get_ip(name: &str) -> Option<String> {
+    let output = Command::new("docker")
+        .args([
+            "inspect",
+            "--format",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+            name,
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let ip = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if ip.is_empty() { None } else { Some(ip) }
+}
+
 /// List all dual-managed containers (name and running status).
 pub fn list_all() -> Vec<(String, bool)> {
     let output = Command::new("docker")
@@ -152,6 +172,9 @@ pub fn build_create_args(name: &str, workspace_dir: &Path, image: &str) -> Vec<S
         WORKSPACE_MOUNT.to_string(),
         // Image
         image.to_string(),
+        // Keep container running for docker exec
+        "sleep".to_string(),
+        "infinity".to_string(),
     ]
 }
 
@@ -232,6 +255,8 @@ mod tests {
         assert_eq!(args[7], "-w");
         assert_eq!(args[8], "/workspace");
         assert_eq!(args[9], "node:20");
+        assert_eq!(args[10], "sleep");
+        assert_eq!(args[11], "infinity");
     }
 
     #[test]

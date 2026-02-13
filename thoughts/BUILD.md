@@ -2,10 +2,9 @@
 spec_source: SPEC.md
 arch_source: thoughts/ARCHITECTURE.md
 date_started: 2026-02-13
-status: integration_pending
-build_progress: 6/6
+status: complete
+build_progress: 9/9
 date_completed: 2026-02-13
-next_phase: integration
 ---
 
 # Dual MVP Build
@@ -19,61 +18,61 @@ Status: Complete (24/24 validated)
 
 ## Built Modules
 
-- **cli**: Entry point, arg parsing (`dual`, `dual list`, `dual destroy`, `dual open`, `dual urls`) - BUILT
+- **cli**: Entry point, arg parsing (`dual`, `dual launch`, `dual list`, `dual destroy`, `dual open`, `dual urls`, `dual proxy`, `dual shell-rc`) - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-cli.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 8 unit tests, all subcommands produce correct output
-  - Notes: Stub handlers only — real implementations come from downstream modules. Uses clap v4 derive macros.
+  - Evidence: cargo build/test/clippy/fmt all pass, all subcommands produce correct output
+  - Notes: Uses clap v4 derive macros. Hidden shell-rc subcommand for internal use.
 
 - **config**: Workspace config parsing from `dual.toml` - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-config.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 11 unit tests, full TOML parsing, validation, path generation
-  - Notes: Supports repo definitions with branches, workspace_root config, branch encoding (feat/auth → feat__auth), container naming, config discovery (cwd → ~/.config/dual/). Dead code warnings expected until downstream modules consume config.
+  - Evidence: cargo build/test/clippy/fmt all pass, 14 unit tests
+  - Notes: Supports repo definitions with branches and ports, workspace_root config, branch encoding, container naming, config discovery, workspace resolution, all_workspaces iterator.
 
 - **clone**: Full git clone management (`git clone`, `git clone --local`) - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-clone.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests, local/remote detection, clone command construction
-  - Notes: Detects local vs remote URLs. Local paths use --local flag for hardlink clones. Creates parent dirs, checks for existing clones, supports removal. Uses config module for path generation.
+  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests
+  - Notes: Detects local vs remote URLs. Local paths use --local flag for hardlink clones.
 
 - **container**: Docker container lifecycle (create, start, stop, destroy, exec) - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-container.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests, command construction for create/exec verified
-  - Notes: Bind mount workspace to /workspace, anonymous volume for node_modules isolation, docker exec with TTY/CWD support, container status detection, list all dual-managed containers. Default image node:20 for MVP.
+  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests
+  - Notes: Bind mount workspace to /workspace, anonymous volume for node_modules isolation, sleep infinity keep-alive, container IP resolution for proxy.
 
 - **shell**: Shell RC generation + command routing (classify + intercept) - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-shell.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 8 unit tests, classification and RC generation verified
-  - Notes: Generates bash/zsh-compatible shell functions for npm/npx/pnpm/node/python/curl/make. TTY detection in generated functions. Classifies commands as host vs container. Exports DUAL_CONTAINER env var.
+  - Evidence: cargo build/test/clippy/fmt all pass, 10 unit tests
+  - Notes: Generates bash/zsh-compatible shell functions. TTY detection. RC file persistence to ~/.config/dual/rc/.
 
 - **tmux**: tmux session management (create, attach, detach, destroy, list) - BUILT
   - Plan: thoughts/shared/plans/2026-02-13-BUILD-tmux.md
-  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests, session naming matches container naming
-  - Notes: Creates detached sessions with CWD, sources shell RC for command interception, checks tmux availability, lists dual-managed sessions. Session names match container names (dual-{repo}-{branch}).
+  - Evidence: cargo build/test/clippy/fmt all pass, 5 unit tests
+  - Notes: Session names match container names (dual-{repo}-{branch}).
+
+- **wire-cli**: CLI integration — wired all stub handlers to real module calls - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-wire-cli.md
+  - Research: thoughts/shared/research/2026-02-13-BUILD-wire-cli.md
+  - Evidence: All commands produce correct output, 48 tests at time of build
+  - Notes: Full workspace orchestration: clone→container→shell→tmux→attach.
+
+- **end-to-end**: Full flow verification with real Docker + tmux - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-end-to-end.md
+  - Research: thoughts/shared/research/2026-02-13-BUILD-end-to-end.md
+  - Evidence: 7/7 test phases pass with Docker 29.2.0 + tmux 3.5a
+  - Notes: Full lifecycle verified: lazy → launch → running → exec → destroy → lazy.
+
+- **proxy**: Reverse proxy for browser access + URL management - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-proxy.md
+  - Research: thoughts/shared/research/2026-02-13-BUILD-proxy.md
+  - Evidence: cargo build/test/clippy/fmt all pass, 55 total tests (7 proxy tests)
+  - Notes: HTTP reverse proxy using hyper+tokio. Routes by Host header subdomain. Ports configured in dual.toml. Container IP via docker inspect. dual urls shows all URLs. dual open opens in browser. dual proxy starts proxy server. WebSocket upgrade support via http1 with_upgrades.
 
 ## Failed Modules
 
-[Modules that failed implementation — needs rework]
+[None]
 
 ## Unbuilt Modules
 
-Modules extracted from ARCHITECTURE.md and SPEC.md, organized by dependency order:
-
-### Layer 1 - Foundations (no upstream dependencies)
-
-1. ~~**cli**: Entry point, arg parsing~~ → BUILT (see Built Modules)
-
-2. ~~**config**: Workspace config format and discovery~~ → BUILT (see Built Modules)
-
-### Layer 2 - Core Mechanisms (depend on foundations)
-
-3. ~~**clone**: Full clone management~~ → BUILT (see Built Modules)
-
-4. ~~**container**: Docker lifecycle~~ → BUILT (see Built Modules)
-
-### Layer 3 - Integration (compose mechanisms)
-
-5. ~~**shell**: RC injection + command routing~~ → BUILT (see Built Modules)
-
-6. ~~**tmux**: Session management~~ → BUILT (see Built Modules)
+[None — all modules built]
 
 ## Iteration Log
 
@@ -83,35 +82,6 @@ Modules extracted from ARCHITECTURE.md and SPEC.md, organized by dependency orde
 - 4: "container" → BUILT (plans/2026-02-13-BUILD-container.md)
 - 5: "shell" → BUILT (plans/2026-02-13-BUILD-shell.md)
 - 6: "tmux" → BUILT (plans/2026-02-13-BUILD-tmux.md)
-
----
-
-## Next Phase: Integration
-
-Status: **Pending**
-
-All 6 MVP modules are built as independent units with stub handlers. The next phase wires them into a working end-to-end flow.
-
-### Integration Targets
-
-1. **wire-cli**: Replace CLI stub handlers with real module calls
-   - `dual` (no args) → config.load → fzf picker → clone.ensure → container.create → shell.generate_rc → tmux.create → tmux.attach
-   - `dual list` → config.load → tmux.list + container.list → display status
-   - `dual destroy` → tmux.destroy → container.destroy → clone.remove
-
-2. **end-to-end**: Verify the full flow works with a real repo + Docker
-   - Create a `dual.toml` for a test repo
-   - Run `dual` → workspace launches, shell interceptors active, pnpm runs in container
-   - Switch workspaces via meta-key → detach/attach works
-   - `dual destroy` → clean teardown
-
-3. **proxy** (Phase 3 from SPEC.md): Reverse proxy for browser access
-   - `{repo}-{branch}.localhost:{port}` → container's `:{port}`
-   - Dynamic port registration as containers start/stop
-   - WebSocket + SSE support
-
-### Dependency Order
-
-```
-wire-cli → end-to-end → proxy
-```
+- 7: "wire-cli" → BUILT (plans/2026-02-13-BUILD-wire-cli.md)
+- 8: "end-to-end" → BUILT (plans/2026-02-13-BUILD-end-to-end.md)
+- 9: "proxy" → BUILT (plans/2026-02-13-BUILD-proxy.md)

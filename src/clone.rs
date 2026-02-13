@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::config::{self, DualConfig, RepoConfig};
+use crate::config::{DualConfig, RepoConfig};
 
 /// Check if a URL looks like a local filesystem path (vs a remote git URL).
 pub fn is_local_path(url: &str) -> bool {
@@ -145,6 +145,7 @@ impl std::error::Error for CloneError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config;
 
     #[test]
     fn local_path_detection() {

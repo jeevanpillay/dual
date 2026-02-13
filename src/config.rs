@@ -25,6 +25,10 @@ pub struct RepoConfig {
     /// Branches to create workspaces for
     #[serde(default)]
     pub branches: Vec<String>,
+
+    /// Ports that services bind to inside the container (for reverse proxy)
+    #[serde(default)]
+    pub ports: Vec<u16>,
 }
 
 impl DualConfig {
@@ -51,6 +55,32 @@ impl DualConfig {
     /// Pattern: dual-{repo}-{encoded_branch}
     pub fn container_name(repo: &str, branch: &str) -> String {
         format!("dual-{}-{}", repo, encode_branch(branch))
+    }
+
+    /// Resolve a workspace identifier (e.g. "lightfast-main") to the matching
+    /// repo config and branch name. Matches against container name format
+    /// (without the "dual-" prefix).
+    pub fn resolve_workspace(&self, identifier: &str) -> Option<(&RepoConfig, String)> {
+        for repo in &self.repos {
+            for branch in &repo.branches {
+                let name = format!("{}-{}", repo.name, encode_branch(branch));
+                if name == identifier {
+                    return Some((repo, branch.clone()));
+                }
+            }
+        }
+        None
+    }
+
+    /// Iterate all configured workspaces as (repo_config, branch) pairs.
+    pub fn all_workspaces(&self) -> Vec<(&RepoConfig, &str)> {
+        let mut result = Vec::new();
+        for repo in &self.repos {
+            for branch in &repo.branches {
+                result.push((repo, branch.as_str()));
+            }
+        }
+        result
     }
 }
 
@@ -285,5 +315,67 @@ url = ""
     fn workspace_root_custom() {
         let config = parse("workspace_root = \"/tmp/my-workspaces\"").unwrap();
         assert_eq!(config.workspace_root(), PathBuf::from("/tmp/my-workspaces"));
+    }
+
+    #[test]
+    fn resolve_workspace_found() {
+        let config = parse(
+            r#"
+[[repos]]
+name = "lightfast"
+url = "https://example.com/lightfast.git"
+branches = ["main", "feat/auth"]
+"#,
+        )
+        .unwrap();
+
+        let (repo, branch) = config.resolve_workspace("lightfast-main").unwrap();
+        assert_eq!(repo.name, "lightfast");
+        assert_eq!(branch, "main");
+
+        let (repo, branch) = config.resolve_workspace("lightfast-feat__auth").unwrap();
+        assert_eq!(repo.name, "lightfast");
+        assert_eq!(branch, "feat/auth");
+    }
+
+    #[test]
+    fn resolve_workspace_not_found() {
+        let config = parse(
+            r#"
+[[repos]]
+name = "lightfast"
+url = "https://example.com/lightfast.git"
+branches = ["main"]
+"#,
+        )
+        .unwrap();
+        assert!(config.resolve_workspace("unknown-workspace").is_none());
+    }
+
+    #[test]
+    fn all_workspaces_iterates_all() {
+        let config = parse(
+            r#"
+[[repos]]
+name = "lightfast"
+url = "https://example.com/lightfast.git"
+branches = ["main", "feat/auth"]
+
+[[repos]]
+name = "agent-os"
+url = "/local/agent-os"
+branches = ["main"]
+"#,
+        )
+        .unwrap();
+
+        let workspaces = config.all_workspaces();
+        assert_eq!(workspaces.len(), 3);
+        assert_eq!(workspaces[0].0.name, "lightfast");
+        assert_eq!(workspaces[0].1, "main");
+        assert_eq!(workspaces[1].0.name, "lightfast");
+        assert_eq!(workspaces[1].1, "feat/auth");
+        assert_eq!(workspaces[2].0.name, "agent-os");
+        assert_eq!(workspaces[2].1, "main");
     }
 }

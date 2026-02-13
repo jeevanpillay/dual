@@ -6,7 +6,11 @@ edition = "2024"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["http1", "server", "client"] }
+hyper-util = { version = "0.1", features = ["tokio", "http1"] }
 serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 toml = "0.8"
 
 # The profile that 'dist' will build with
