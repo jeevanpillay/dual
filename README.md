@@ -103,6 +103,10 @@ cargo fmt                # Format code
 
 Targets: Linux, macOS (Intel + Apple Silicon), Windows.
 
+## Status
+
+Under active development.
+
 ## License
 
 See repository for license details.
