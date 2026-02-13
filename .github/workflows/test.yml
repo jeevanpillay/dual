@@ -1,0 +1,105 @@
+name: Test
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        run: cargo build
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run unit tests
+        run: cargo test
+
+  e2e-tests:
+    name: E2E Tests (Docker + tmux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install tmux
+        run: sudo apt-get install -y tmux
+
+      - name: Verify Docker
+        run: docker --version
+
+      - name: Verify tmux
+        run: tmux -V
+
+      - name: Pull test image
+        run: docker pull node:20
+
+      - name: Cleanup stale test resources (pre-suite)
+        run: |
+          docker rm -f $(docker ps -aq --filter "name=dual-test-") 2>/dev/null || true
+          tmux kill-server 2>/dev/null || true
+
+      - name: Run E2E tests
+        run: cargo test --test e2e -- --include-ignored
+
+      - name: Cleanup test resources (post-suite)
+        if: always()
+        run: |
+          docker rm -f $(docker ps -aq --filter "name=dual-test-") 2>/dev/null || true
+          tmux kill-server 2>/dev/null || true
