@@ -353,12 +353,18 @@ fn tmux_send_keys() {
     dual::tmux::send_keys(&session_name, &format!("echo '{}' > marker.txt", marker))
         .expect("send_keys should succeed");
 
-    // Wait for command to execute
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    // Verify the file was created
+    // Poll for marker file with timeout (tmux send-keys is async)
     let marker_path = temp.join("marker.txt");
-    assert!(marker_path.exists(), "marker file should exist");
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(10);
+    while !marker_path.exists() {
+        assert!(
+            start.elapsed() < timeout,
+            "marker file should exist (timed out after {timeout:?})"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
     let contents = std::fs::read_to_string(&marker_path).unwrap();
     assert_eq!(contents.trim(), marker);
 }
