@@ -2,8 +2,9 @@
 spec_source: SPEC.md
 arch_source: thoughts/ARCHITECTURE.md
 date_started: 2026-02-13
-status: in_progress
-build_progress: 9/10
+status: complete
+date_completed: 2026-02-13
+build_progress: 13/13
 ---
 
 # Dual MVP Build
@@ -13,7 +14,7 @@ This document tracks the implementation of Dual's MVP modules, informed by valid
 ## Architecture Reference
 
 Source: `thoughts/ARCHITECTURE.md`
-Status: Complete (24/24 validated)
+Status: Complete (27/27 validated)
 
 ## Built Modules
 
@@ -65,21 +66,38 @@ Status: Complete (24/24 validated)
   - Evidence: cargo build/test/clippy/fmt all pass, 55 total tests (7 proxy tests)
   - Notes: HTTP reverse proxy using hyper+tokio. Routes by Host header subdomain. Ports configured in dual.toml. Container IP via docker inspect. dual urls shows all URLs. dual open opens in browser. dual proxy starts proxy server. WebSocket upgrade support via http1 with_upgrades.
 
+- **test-harness**: RAII test fixture framework (UUID naming, RAII Drop cleanup, prefix sweep) - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-test-harness.md
+  - Research: thoughts/shared/research/2026-02-13-BUILD-test-harness.md
+  - Evidence: cargo build/test/clippy/fmt all pass, 65 total tests (10 harness smoke tests)
+  - Notes: Restructured crate to lib+binary for integration test support. TestFixture with RAII Drop for containers, tmux sessions, temp dirs. UUID-based naming (dual-test-{uuid}). cleanup_sweep() for SIGKILL defense-in-depth. uuid v1 dev-dependency.
+
+- **test-fixture**: Minimal monorepo fixture (git init, package.json, HTTP server) - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-test-fixture.md
+  - Evidence: cargo build/test/clippy/fmt all pass, 72 total tests (7 fixture smoke tests)
+  - Notes: create_fixture_repo() creates local git repo with package.json + server.js. fixture_config_toml() generates dual.toml pointing at fixture. Works with clone module's --local flag. Sub-100ms clone time confirmed.
+
+- **test-suite**: E2E integration tests with real Docker + tmux - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-test-suite.md
+  - Evidence: cargo build/test/clippy/fmt all pass, 9 e2e tests (3 clone + 4 Docker + 2 tmux)
+  - Notes: Tests cover: clone lifecycle, container lifecycle, exit code preservation, bind mount visibility, network isolation (2 containers on same port), tmux session lifecycle, tmux send-keys. Docker/tmux tests use #[ignore] and run with --ignored flag.
+
+- **ci-pipeline**: GitHub Actions workflow for CI/CD - BUILT
+  - Plan: thoughts/shared/plans/2026-02-13-BUILD-ci-pipeline.md
+  - Evidence: Workflow YAML valid, all local checks pass
+  - Notes: Three jobs: check (fmt + clippy + build), unit-tests (cargo test), e2e-tests (Docker + tmux + --include-ignored). Pre/post cleanup sweeps. Cargo caching. tmux installed via apt.
+
 ## Failed Modules
 
 [None]
 
 ## Unbuilt Modules
 
-- **e2e-pipeline**: Isolated E2E test pipeline (local + CI)
-  - Depends on: all MVP modules (exercises full lifecycle)
-  - Architecture claims: e2e-ci-environment (#25), e2e-test-isolation (#26), e2e-local-fixture-repo (#27)
-  - Deliverables:
-    1. `tests/e2e.rs` — Rust integration tests exercising full workspace lifecycle
-    2. Test harness with RAII cleanup guards (Docker containers, tmux sessions, temp dirs)
-    3. Local git fixture repos (no network dependency)
-    4. `.github/workflows/test.yml` — CI workflow with Docker + tmux
-  - Blocks: nothing (closes the testing loop)
+### Layer 4 - E2E Test Infrastructure (close the loop)
+
+Architecture basis: e2e-ci-environment (#25), e2e-test-isolation (#26), e2e-local-fixture-repo (#27)
+
+[All modules built]
 
 ## Iteration Log
 
@@ -92,3 +110,7 @@ Status: Complete (24/24 validated)
 - 7: "wire-cli" → BUILT (plans/2026-02-13-BUILD-wire-cli.md)
 - 8: "end-to-end" → BUILT (plans/2026-02-13-BUILD-end-to-end.md)
 - 9: "proxy" → BUILT (plans/2026-02-13-BUILD-proxy.md)
+- 10: "test-harness" → BUILT (plans/2026-02-13-BUILD-test-harness.md)
+- 11: "test-fixture" → BUILT (plans/2026-02-13-BUILD-test-fixture.md)
+- 12: "test-suite" → BUILT (plans/2026-02-13-BUILD-test-suite.md)
+- 13: "ci-pipeline" → BUILT (plans/2026-02-13-BUILD-ci-pipeline.md)
