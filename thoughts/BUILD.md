@@ -2,9 +2,8 @@
 spec_source: SPEC.md
 arch_source: thoughts/ARCHITECTURE.md
 date_started: 2026-02-13
-status: complete
-build_progress: 9/9
-date_completed: 2026-02-13
+status: in_progress
+build_progress: 9/10
 ---
 
 # Dual MVP Build
@@ -72,7 +71,15 @@ Status: Complete (24/24 validated)
 
 ## Unbuilt Modules
 
-[None — all modules built]
+- **e2e-pipeline**: Isolated E2E test pipeline (local + CI)
+  - Depends on: all MVP modules (exercises full lifecycle)
+  - Architecture claims: e2e-ci-environment (#25), e2e-test-isolation (#26), e2e-local-fixture-repo (#27)
+  - Deliverables:
+    1. `tests/e2e.rs` — Rust integration tests exercising full workspace lifecycle
+    2. Test harness with RAII cleanup guards (Docker containers, tmux sessions, temp dirs)
+    3. Local git fixture repos (no network dependency)
+    4. `.github/workflows/test.yml` — CI workflow with Docker + tmux
+  - Blocks: nothing (closes the testing loop)
 
 ## Iteration Log
 

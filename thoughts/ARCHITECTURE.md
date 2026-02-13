@@ -2,7 +2,9 @@
 spec_source: SPEC.md
 date_started: 2026-02-05
 status: complete
-validation_progress: 24/24
+validation_progress: 27/27
+last_validated: 2026-02-13
+last_validated_by: Claude
 ---
 
 # Dual Architecture Validation
@@ -12,7 +14,7 @@ This document tracks the validation of architectural claims from SPEC.md through
 ## Spec Reference
 
 Source: `SPEC.md`
-Status: Validating
+Status: Validated (27/27 claims)
 
 ## Confirmed Decisions
 
@@ -136,6 +138,21 @@ Status: Validating
   - Evidence: Backend abstraction design analysis
   - Notes: Core functionality (containers, routing, proxy) preserved. Only UI degradation (no panes).
 
+- **e2e-ci-environment**: GitHub Actions runners provide Docker + tmux for E2E tests - CONFIRMED
+  - Spec reference: E2E Test Infrastructure - CI environment for build loop
+  - Evidence: experiments/arch-e2e-ci-environment/validation.md
+  - Notes: Docker pre-installed on ubuntu-latest (28.0.4+). tmux installable via apt. Detached sessions work without TTY. No Docker networking restrictions for step-level commands.
+
+- **e2e-test-isolation**: UUID naming + RAII cleanup prevents cross-test contamination - CONFIRMED WITH CAVEATS
+  - Spec reference: E2E Test Infrastructure - parallel test safety
+  - Evidence: experiments/arch-e2e-test-isolation/validation.md
+  - Notes: UUID naming works for Docker (46 chars, within 63 limit) and tmux (no limit). Drop fires on panic (unwind). SIGKILL gap requires prefix-based cleanup sweep as defense-in-depth.
+
+- **e2e-local-fixture-repo**: Local git init'd temp dir serves as test repo without network - CONFIRMED
+  - Spec reference: E2E Test Infrastructure - network-independent test fixtures
+  - Evidence: experiments/arch-e2e-local-fixture-repo/validation.md
+  - Notes: git clone --local from /tmp works with hardlinks. ~64ms average (sub-100ms). Dual's is_local_path() already handles /tmp paths. No URL validation rejects temp paths.
+
 ## Rejected Approaches
 
 [Approaches that failed validation]
@@ -200,6 +217,14 @@ Claims extracted from SPEC.md, organized by validation priority:
 
 24. ~~**progressive-enhancement**~~: CONFIRMED (see Confirmed Decisions)
 
+### Layer 5 - E2E Test Infrastructure (close the loop)
+
+25. ~~**e2e-ci-environment**~~: CONFIRMED (see Confirmed Decisions)
+
+26. ~~**e2e-test-isolation**~~: CONFIRMED WITH CAVEATS (see Confirmed Decisions)
+
+27. ~~**e2e-local-fixture-repo**~~: CONFIRMED (see Confirmed Decisions)
+
 ## Iteration Log
 
 - 1: "docker-exec-basic" -> CONFIRMED (arch-docker-exec-basic)
@@ -226,3 +251,6 @@ Claims extracted from SPEC.md, organized by validation priority:
 - 22: "concurrent-websocket" -> CONFIRMED (standard proxy capability)
 - 23: "image-caching" -> CONFIRMED (native Docker layer sharing)
 - 24: "progressive-enhancement" -> CONFIRMED (core functionality preserved)
+- 25: "e2e-ci-environment" -> CONFIRMED (arch-e2e-ci-environment)
+- 26: "e2e-test-isolation" -> CONFIRMED WITH CAVEATS (arch-e2e-test-isolation)
+- 27: "e2e-local-fixture-repo" -> CONFIRMED (arch-e2e-local-fixture-repo)
