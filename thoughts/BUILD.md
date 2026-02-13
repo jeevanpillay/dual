@@ -3,8 +3,8 @@ spec_source: SPEC.md
 arch_source: thoughts/ARCHITECTURE.md
 date_started: 2026-02-13
 status: complete
+build_progress: 14/14
 date_completed: 2026-02-13
-build_progress: 13/13
 ---
 
 # Dual MVP Build
@@ -87,17 +87,17 @@ Status: Complete (27/27 validated)
   - Evidence: Workflow YAML valid, all local checks pass
   - Notes: Three jobs: check (fmt + clippy + build), unit-tests (cargo test), e2e-tests (Docker + tmux + --include-ignored). Pre/post cleanup sweeps. Cargo caching. tmux installed via apt.
 
+- **ci-fix-tmux-send-keys**: Fix `tmux_send_keys` e2e test timing failure in CI - BUILT
+  - Evidence: CI run 21977655135 — all 3 jobs pass (9/9 e2e tests green)
+  - Notes: Replaced fixed 500ms sleep with polling loop (100ms intervals, 10s timeout). tmux send-keys is async; CI runners need more time than local. CI run: https://github.com/jeevanpillay/dual/actions/runs/21977655135
+
 ## Failed Modules
 
-[None]
+[None — all resolved]
 
 ## Unbuilt Modules
 
-### Layer 4 - E2E Test Infrastructure (close the loop)
-
-Architecture basis: e2e-ci-environment (#25), e2e-test-isolation (#26), e2e-local-fixture-repo (#27)
-
-[All modules built]
+[None — all modules built]
 
 ## Iteration Log
 
@@ -114,3 +114,4 @@ Architecture basis: e2e-ci-environment (#25), e2e-test-isolation (#26), e2e-loca
 - 11: "test-fixture" → BUILT (plans/2026-02-13-BUILD-test-fixture.md)
 - 12: "test-suite" → BUILT (plans/2026-02-13-BUILD-test-suite.md)
 - 13: "ci-pipeline" → BUILT (plans/2026-02-13-BUILD-ci-pipeline.md)
+- 14: "ci-fix-tmux-send-keys" → BUILT (polling loop fix, CI run 21977655135 green)
