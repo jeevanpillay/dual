@@ -1,13 +1,11 @@
-mod cli;
-mod clone;
-mod config;
-mod container;
-mod proxy;
-mod shell;
-mod tmux;
-
 use clap::Parser;
-use cli::{Cli, Command};
+use dual::cli::{Cli, Command};
+use dual::clone;
+use dual::config;
+use dual::container;
+use dual::proxy;
+use dual::shell;
+use dual::tmux;
 
 fn main() {
     let cli = Cli::parse();
@@ -354,8 +352,8 @@ fn print_workspace_status(cfg: &config::DualConfig) {
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::Cli;
     use clap::Parser;
+    use dual::cli::{Cli, Command};
 
     #[test]
     fn no_args_is_default() {
@@ -366,13 +364,13 @@ mod tests {
     #[test]
     fn list_subcommand() {
         let cli = Cli::parse_from(["dual", "list"]);
-        assert!(matches!(cli.command, Some(crate::cli::Command::List)));
+        assert!(matches!(cli.command, Some(Command::List)));
     }
 
     #[test]
     fn launch_subcommand() {
         let cli = Cli::parse_from(["dual", "launch", "lightfast-main"]);
-        if let Some(crate::cli::Command::Launch { workspace }) = cli.command {
+        if let Some(Command::Launch { workspace }) = cli.command {
             assert_eq!(workspace, "lightfast-main");
         } else {
             panic!("expected Launch command");
@@ -382,7 +380,7 @@ mod tests {
     #[test]
     fn destroy_subcommand() {
         let cli = Cli::parse_from(["dual", "destroy", "lightfast-main"]);
-        if let Some(crate::cli::Command::Destroy { workspace }) = cli.command {
+        if let Some(Command::Destroy { workspace }) = cli.command {
             assert_eq!(workspace, "lightfast-main");
         } else {
             panic!("expected Destroy command");
@@ -392,7 +390,7 @@ mod tests {
     #[test]
     fn open_without_workspace() {
         let cli = Cli::parse_from(["dual", "open"]);
-        if let Some(crate::cli::Command::Open { workspace }) = cli.command {
+        if let Some(Command::Open { workspace }) = cli.command {
             assert!(workspace.is_none());
         } else {
             panic!("expected Open command");
@@ -402,7 +400,7 @@ mod tests {
     #[test]
     fn open_with_workspace() {
         let cli = Cli::parse_from(["dual", "open", "lightfast-feat__auth"]);
-        if let Some(crate::cli::Command::Open { workspace }) = cli.command {
+        if let Some(Command::Open { workspace }) = cli.command {
             assert_eq!(workspace.as_deref(), Some("lightfast-feat__auth"));
         } else {
             panic!("expected Open command");
@@ -412,7 +410,7 @@ mod tests {
     #[test]
     fn urls_without_workspace() {
         let cli = Cli::parse_from(["dual", "urls"]);
-        if let Some(crate::cli::Command::Urls { workspace }) = cli.command {
+        if let Some(Command::Urls { workspace }) = cli.command {
             assert!(workspace.is_none());
         } else {
             panic!("expected Urls command");
@@ -422,7 +420,7 @@ mod tests {
     #[test]
     fn urls_with_workspace() {
         let cli = Cli::parse_from(["dual", "urls", "agent-os-main"]);
-        if let Some(crate::cli::Command::Urls { workspace }) = cli.command {
+        if let Some(Command::Urls { workspace }) = cli.command {
             assert_eq!(workspace.as_deref(), Some("agent-os-main"));
         } else {
             panic!("expected Urls command");
@@ -432,13 +430,13 @@ mod tests {
     #[test]
     fn proxy_subcommand() {
         let cli = Cli::parse_from(["dual", "proxy"]);
-        assert!(matches!(cli.command, Some(crate::cli::Command::Proxy)));
+        assert!(matches!(cli.command, Some(Command::Proxy)));
     }
 
     #[test]
     fn shell_rc_subcommand() {
         let cli = Cli::parse_from(["dual", "shell-rc", "dual-lightfast-main"]);
-        if let Some(crate::cli::Command::ShellRc { container }) = cli.command {
+        if let Some(Command::ShellRc { container }) = cli.command {
             assert_eq!(container, "dual-lightfast-main");
         } else {
             panic!("expected ShellRc command");

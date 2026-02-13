@@ -13,6 +13,9 @@ serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 toml = "0.8"
 
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
