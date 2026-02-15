@@ -3,9 +3,10 @@
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 6,
+  "checkpoints_count": 8,
   "files_touched": [
     ".DS_Store",
+    ".gitignore",
     "Cargo.toml",
     "README.md",
     "src/cli.rs",
@@ -36,13 +37,20 @@
       "context": "/83/e76ce9f6e4/2/context.md",
       "content_hash": "/83/e76ce9f6e4/2/content_hash.txt",
       "prompt": "/83/e76ce9f6e4/2/prompt.txt"
+    },
+    {
+      "metadata": "/83/e76ce9f6e4/3/metadata.json",
+      "transcript": "/83/e76ce9f6e4/3/full.jsonl",
+      "context": "/83/e76ce9f6e4/3/context.md",
+      "content_hash": "/83/e76ce9f6e4/3/content_hash.txt",
+      "prompt": "/83/e76ce9f6e4/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5421,
-    "cache_creation_tokens": 166929,
-    "cache_read_tokens": 12069923,
-    "output_tokens": 11587,
-    "api_call_count": 109
+    "input_tokens": 5430,
+    "cache_creation_tokens": 173161,
+    "cache_read_tokens": 12228338,
+    "output_tokens": 12185,
+    "api_call_count": 114
   }
 }
