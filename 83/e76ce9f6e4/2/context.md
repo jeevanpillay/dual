@@ -59,3 +59,22 @@ You are tasked with creating git commits for the changes made during this sessio
 
 yes
 
+### Prompt 10
+
+publish new tag
+
+### Prompt 11
+
+yes
+
+### Prompt 12
+
+× This workspace doesn't have anything for dist to Release!
+  help: You may need to pass the current version as --tag, or need to give all your packages the same version
+        
+        Here are some options:
+        
+        --tag=v2.3.0 will Announce: dual
+        
+        you can also request any single package with --tag=dual-v2.3.0
+

@@ -3,7 +3,7 @@
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 8,
+  "checkpoints_count": 7,
   "files_touched": [
     ".DS_Store",
     ".gitignore",
@@ -11,10 +11,8 @@
     "README.md",
     "src/cli.rs",
     "src/main.rs",
-    "src/shell.rs",
     "src/tmux.rs",
-    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md",
-    "thoughts/shared/research/2026-02-16-port-routing-container-isolation.md"
+    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md"
   ],
   "sessions": [
     {
@@ -47,10 +45,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 5430,
-    "cache_creation_tokens": 173161,
-    "cache_read_tokens": 12228338,
-    "output_tokens": 12185,
-    "api_call_count": 114
+    "input_tokens": 114,
+    "cache_creation_tokens": 108408,
+    "cache_read_tokens": 10724180,
+    "output_tokens": 7166,
+    "api_call_count": 93
   }
 }
