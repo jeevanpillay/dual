@@ -1968,3 +1968,27 @@ merge both PRs.
 ---
 
 proceed next phase
+
+---
+
+whats the command to turn on tui btw?
+
+---
+
+merge it
+
+---
+
+let's do the v3.0.0 release
+
+---
+
+[Request interrupted by user]
+
+---
+
+lets do new verdsion bump but not go to v3.0.0. we'll test this with a small bumb first then release new.
+
+---
+
+yes commit it and publish

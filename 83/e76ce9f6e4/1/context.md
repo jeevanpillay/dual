@@ -95,3 +95,27 @@ merge both PRs.
 
 proceed next phase
 
+### Prompt 13
+
+whats the command to turn on tui btw?
+
+### Prompt 14
+
+merge it
+
+### Prompt 15
+
+let's do the v3.0.0 release
+
+### Prompt 16
+
+[Request interrupted by user]
+
+### Prompt 17
+
+lets do new verdsion bump but not go to v3.0.0. we'll test this with a small bumb first then release new.
+
+### Prompt 18
+
+yes commit it and publish
+

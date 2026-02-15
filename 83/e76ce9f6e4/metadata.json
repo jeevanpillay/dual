@@ -2,10 +2,11 @@
   "cli_version": "0.4.4",
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
-  "branch": "feature/dual-60-tui-suspend-resume-loop",
+  "branch": "main",
   "checkpoints_count": 4,
   "files_touched": [
     ".DS_Store",
+    "CHANGELOG.md",
     "Cargo.toml",
     "src/cli.rs",
     "src/main.rs",
@@ -29,10 +30,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 122,
-    "cache_creation_tokens": 171557,
-    "cache_read_tokens": 11414291,
-    "output_tokens": 7459,
-    "api_call_count": 106
+    "input_tokens": 108,
+    "cache_creation_tokens": 282265,
+    "cache_read_tokens": 10416634,
+    "output_tokens": 6470,
+    "api_call_count": 88
   }
 }
