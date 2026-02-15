@@ -212,14 +212,14 @@ mod tests {
     #[test]
     fn session_name_matches_container_name() {
         // Session names should match container names for consistency
-        use crate::config::DualConfig;
+        use crate::config;
         assert_eq!(
             session_name("lightfast", "main"),
-            DualConfig::container_name("lightfast", "main")
+            config::container_name("lightfast", "main")
         );
         assert_eq!(
             session_name("lightfast", "feat/auth"),
-            DualConfig::container_name("lightfast", "feat/auth")
+            config::container_name("lightfast", "feat/auth")
         );
     }
 

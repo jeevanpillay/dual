@@ -78,31 +78,33 @@ server.listen(3000, () => {
     repo_dir
 }
 
-/// Generate a dual.toml config string pointing at a fixture repo.
-///
-/// The config sets workspace_root to the given directory and defines
-/// a single repo using the fixture path as a local URL.
-pub fn fixture_config_toml(
+/// Build a WorkspaceState pointing at a fixture repo.
+pub fn fixture_state(
     workspace_root: &Path,
     fixture_repo: &Path,
     repo_name: &str,
     branch: &str,
-    ports: &[u16],
-) -> String {
-    let ports_str: Vec<String> = ports.iter().map(|p| p.to_string()).collect();
-    format!(
-        r#"workspace_root = "{workspace_root}"
+) -> dual::state::WorkspaceState {
+    let mut state = dual::state::WorkspaceState::new();
+    state.workspace_root = Some(workspace_root.to_string_lossy().to_string());
+    state
+        .add_workspace(dual::state::WorkspaceEntry {
+            repo: repo_name.to_string(),
+            url: fixture_repo.to_string_lossy().to_string(),
+            branch: branch.to_string(),
+            path: None,
+        })
+        .unwrap();
+    state
+}
 
-[[repos]]
-name = "{repo_name}"
-url = "{fixture_repo}"
-branches = ["{branch}"]
-ports = [{ports}]
-"#,
-        workspace_root = workspace_root.display(),
-        repo_name = repo_name,
-        fixture_repo = fixture_repo.display(),
-        branch = branch,
-        ports = ports_str.join(", "),
-    )
+/// Write .dual.toml hints into a workspace directory.
+pub fn create_fixture_hints(repo_dir: &Path, ports: &[u16]) {
+    let hints = dual::config::RepoHints {
+        image: "node:20".to_string(),
+        ports: ports.to_vec(),
+        setup: None,
+        env: std::collections::HashMap::new(),
+    };
+    dual::config::write_hints(repo_dir, &hints).expect("failed to write fixture hints");
 }

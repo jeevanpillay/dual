@@ -4,4 +4,5 @@ pub mod config;
 pub mod container;
 pub mod proxy;
 pub mod shell;
+pub mod state;
 pub mod tmux;

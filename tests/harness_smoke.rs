@@ -52,22 +52,18 @@ fn fixture_temp_subdir_created() {
 }
 
 #[test]
-fn fixture_test_config_parses() {
+fn fixture_test_state_creates_valid_state() {
     let mut f = harness::TestFixture::new();
     let workspace_root = f.temp_dir();
-    let config = harness::TestFixture::test_config(
+    let state = harness::TestFixture::test_state(
         &workspace_root,
-        r#"
-[[repos]]
-name = "test-app"
-url = "/tmp/test-repo"
-branches = ["main"]
-ports = [3000]
-"#,
+        &[("test-app", "/tmp/test-repo", "main")],
     );
-    assert_eq!(config.repos.len(), 1);
-    assert_eq!(config.repos[0].name, "test-app");
-    assert_eq!(config.repos[0].ports, vec![3000]);
+    assert_eq!(state.all_workspaces().len(), 1);
+    let ws = &state.all_workspaces()[0];
+    assert_eq!(ws.repo, "test-app");
+    assert_eq!(ws.url, "/tmp/test-repo");
+    assert_eq!(ws.branch, "main");
 }
 
 #[test]
