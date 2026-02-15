@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use dual::backend::MultiplexerBackend;
 use dual::cli::{Cli, Command};
 use dual::clone;
 use dual::config;
@@ -9,7 +10,7 @@ use dual::proxy;
 use dual::shared;
 use dual::shell;
 use dual::state;
-use dual::tmux;
+use dual::tmux_backend::TmuxBackend;
 use tracing::{debug, error, info, warn};
 
 fn main() {
@@ -24,14 +25,15 @@ fn main() {
         .init();
 
     let cli = Cli::parse();
+    let backend = TmuxBackend::new();
 
     let exit_code = match cli.command {
-        None => cmd_default(),
+        None => cmd_default(&backend),
         Some(Command::Add { name }) => cmd_add(name.as_deref()),
         Some(Command::Create { branch, repo }) => cmd_create(repo.as_deref(), &branch),
-        Some(Command::Launch { workspace }) => cmd_launch(workspace.as_deref()),
-        Some(Command::List) => cmd_list(),
-        Some(Command::Destroy { workspace }) => cmd_destroy(workspace.as_deref()),
+        Some(Command::Launch { workspace }) => cmd_launch(workspace.as_deref(), &backend),
+        Some(Command::List) => cmd_list(&backend),
+        Some(Command::Destroy { workspace }) => cmd_destroy(workspace.as_deref(), &backend),
         Some(Command::Open { workspace }) => cmd_open(workspace),
         Some(Command::Urls { workspace }) => cmd_urls(workspace),
         Some(Command::Sync { workspace }) => cmd_sync(workspace),
@@ -43,7 +45,7 @@ fn main() {
 }
 
 /// Default (no subcommand): show workspace list with launch hint.
-fn cmd_default() -> i32 {
+fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -60,7 +62,7 @@ fn cmd_default() -> i32 {
     }
 
     println!("Workspaces:\n");
-    print_workspace_status(&st);
+    print_workspace_status(&st, backend);
     println!("Use `dual launch <workspace>` to start a workspace.");
     println!("Use `dual add` to register a new repo.");
     0
@@ -222,7 +224,7 @@ fn cmd_create(repo_arg: Option<&str>, branch: &str) -> i32 {
 }
 
 /// Launch a specific workspace: clone → container → shell RC → tmux → attach.
-fn cmd_launch(workspace_arg: Option<&str>) -> i32 {
+fn cmd_launch(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -262,7 +264,7 @@ fn cmd_launch(workspace_arg: Option<&str>) -> i32 {
 
     let workspace_root = st.workspace_root();
     let container_name = config::container_name(&entry.repo, &entry.branch);
-    let session_name = tmux::session_name(&entry.repo, &entry.branch);
+    let session_name = config::session_name(&entry.repo, &entry.branch);
     debug!(
         repo = %entry.repo,
         branch = %entry.branch,
@@ -399,18 +401,18 @@ fn cmd_launch(workspace_arg: Option<&str>) -> i32 {
     };
 
     // Step 5: Create tmux session if not alive
-    if !tmux::is_alive(&session_name) {
+    if !backend.is_alive(&session_name) {
         let source_cmd = shell::source_file_command(&rc_path);
-        if let Err(e) = tmux::create_session(&session_name, &workspace_dir, Some(&source_cmd)) {
-            error!("tmux session creation failed: {e}");
+        if let Err(e) = backend.create_session(&session_name, &workspace_dir, Some(&source_cmd)) {
+            error!("session creation failed: {e}");
             return 1;
         }
     }
 
     // Step 6: Attach
     info!("Attaching to {session_name}...");
-    if let Err(e) = tmux::attach(&session_name) {
-        error!("tmux attach failed: {e}");
+    if let Err(e) = backend.attach(&session_name) {
+        error!("attach failed: {e}");
         return 1;
     }
 
@@ -418,7 +420,7 @@ fn cmd_launch(workspace_arg: Option<&str>) -> i32 {
 }
 
 /// List all configured workspaces with their live status.
-fn cmd_list() -> i32 {
+fn cmd_list(backend: &dyn MultiplexerBackend) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -433,12 +435,12 @@ fn cmd_list() -> i32 {
         return 0;
     }
 
-    print_workspace_status(&st);
+    print_workspace_status(&st, backend);
     0
 }
 
 /// Destroy a workspace: tmux → container → clone.
-fn cmd_destroy(workspace_arg: Option<&str>) -> i32 {
+fn cmd_destroy(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -475,13 +477,13 @@ fn cmd_destroy(workspace_arg: Option<&str>) -> i32 {
 
     let workspace_root = st.workspace_root();
     let container_name = config::container_name(&entry.repo, &entry.branch);
-    let session_name = tmux::session_name(&entry.repo, &entry.branch);
+    let session_name = config::session_name(&entry.repo, &entry.branch);
 
     // Destroy tmux session
-    if tmux::is_alive(&session_name) {
-        info!("Destroying tmux session {session_name}...");
-        if let Err(e) = tmux::destroy(&session_name) {
-            warn!("tmux destroy failed: {e}");
+    if backend.is_alive(&session_name) {
+        info!("Destroying session {session_name}...");
+        if let Err(e) = backend.destroy(&session_name) {
+            warn!("session destroy failed: {e}");
         }
     }
 
@@ -817,7 +819,7 @@ fn detect_workspace(st: &state::WorkspaceState) -> Option<state::WorkspaceEntry>
 }
 
 /// Print workspace status grouped by repo.
-fn print_workspace_status(st: &state::WorkspaceState) {
+fn print_workspace_status(st: &state::WorkspaceState, backend: &dyn MultiplexerBackend) {
     let workspace_root = st.workspace_root();
 
     // Collect unique repo names in order of first appearance
@@ -832,7 +834,7 @@ fn print_workspace_status(st: &state::WorkspaceState) {
         println!("{repo}");
         for ws in st.workspaces_for_repo(repo) {
             let container_name = config::container_name(&ws.repo, &ws.branch);
-            let session_name = tmux::session_name(&ws.repo, &ws.branch);
+            let session_name = config::session_name(&ws.repo, &ws.branch);
 
             let clone_exists = if ws.path.is_some() {
                 ws.path
@@ -843,7 +845,7 @@ fn print_workspace_status(st: &state::WorkspaceState) {
                 clone::workspace_exists(&workspace_root, &ws.repo, &ws.branch)
             };
             let container_st = container::status(&container_name);
-            let tmux_alive = tmux::is_alive(&session_name);
+            let tmux_alive = backend.is_alive(&session_name);
 
             let (icon, status_text) = match (&container_st, tmux_alive) {
                 (container::ContainerStatus::Running, true) => {

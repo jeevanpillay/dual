@@ -1,3 +1,4 @@
+pub mod backend;
 pub mod cli;
 pub mod clone;
 pub mod config;
@@ -6,4 +7,4 @@ pub mod proxy;
 pub mod shared;
 pub mod shell;
 pub mod state;
-pub mod tmux;
+pub mod tmux_backend;
