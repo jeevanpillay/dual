@@ -327,10 +327,14 @@ fn network_isolation_same_port() {
 
 // ─── Tmux Tests (require tmux) ─────────────────────────────────────────────
 
+use dual::backend::MultiplexerBackend;
+use dual::tmux_backend::TmuxBackend;
+
 #[test]
 #[ignore] // Requires tmux
 fn tmux_session_lifecycle() {
-    if !dual::tmux::is_available() {
+    let backend = TmuxBackend::new();
+    if !backend.is_available() {
         eprintln!("tmux not available, skipping");
         return;
     }
@@ -341,22 +345,27 @@ fn tmux_session_lifecycle() {
     f.register_tmux_session(session_name.clone());
 
     // Create detached session
-    dual::tmux::create_session(&session_name, &temp, None).expect("create should succeed");
+    backend
+        .create_session(&session_name, &temp, None)
+        .expect("create should succeed");
 
     // Session should be alive
-    assert!(dual::tmux::is_alive(&session_name));
+    assert!(backend.is_alive(&session_name));
 
     // Destroy session
-    dual::tmux::destroy(&session_name).expect("destroy should succeed");
+    backend
+        .destroy(&session_name)
+        .expect("destroy should succeed");
 
     // Session should no longer be alive
-    assert!(!dual::tmux::is_alive(&session_name));
+    assert!(!backend.is_alive(&session_name));
 }
 
 #[test]
 #[ignore] // Requires tmux
 fn tmux_send_keys() {
-    if !dual::tmux::is_available() {
+    let backend = TmuxBackend::new();
+    if !backend.is_available() {
         eprintln!("tmux not available, skipping");
         return;
     }
@@ -366,11 +375,14 @@ fn tmux_send_keys() {
     let session_name = f.session_name();
     f.register_tmux_session(session_name.clone());
 
-    dual::tmux::create_session(&session_name, &temp, None).expect("create should succeed");
+    backend
+        .create_session(&session_name, &temp, None)
+        .expect("create should succeed");
 
     // Send a command that creates a file
     let marker = format!("dual-tmux-test-{}", f.short_id);
-    dual::tmux::send_keys(&session_name, &format!("echo '{}' > marker.txt", marker))
+    backend
+        .send_keys(&session_name, &format!("echo '{}' > marker.txt", marker))
         .expect("send_keys should succeed");
 
     // Poll for marker file with timeout (tmux send-keys is async)

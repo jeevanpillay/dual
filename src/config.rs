@@ -163,6 +163,12 @@ pub fn container_name(repo: &str, branch: &str) -> String {
     format!("dual-{}-{}", repo, encode_branch(branch))
 }
 
+/// Compute the tmux session name for a repo + branch combination.
+/// Uses the same naming convention as container names for consistency.
+pub fn session_name(repo: &str, branch: &str) -> String {
+    container_name(repo, branch)
+}
+
 /// Encode a branch name for filesystem use.
 /// Replaces `/` with `__` (double underscore).
 /// e.g. "feat/auth" → "feat__auth"
@@ -405,6 +411,31 @@ files = []
         let hints = RepoHints::default();
         let toml_str = toml::to_string_pretty(&hints).unwrap();
         assert!(!toml_str.contains("[shared]"));
+    }
+
+    #[test]
+    fn session_name_format() {
+        assert_eq!(session_name("lightfast", "main"), "dual-lightfast-main");
+        assert_eq!(
+            session_name("lightfast", "feat/auth"),
+            "dual-lightfast-feat__auth"
+        );
+        assert_eq!(
+            session_name("agent-os", "v2-rewrite"),
+            "dual-agent-os-v2-rewrite"
+        );
+    }
+
+    #[test]
+    fn session_name_matches_container_name() {
+        assert_eq!(
+            session_name("lightfast", "main"),
+            container_name("lightfast", "main")
+        );
+        assert_eq!(
+            session_name("lightfast", "feat/auth"),
+            container_name("lightfast", "feat/auth")
+        );
     }
 
     #[test]
