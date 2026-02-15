@@ -31,27 +31,64 @@ cargo install --path .
 
 ## Quick Start
 
-Register your repo, create a branch workspace, and launch it:
-
 ```bash
+# 1. Register your repo
 cd ~/code/my-project
-dual add                          # Register this repo
-dual create my-project feat/auth  # Create a branch workspace
-dual launch my-project-feat__auth # Launch it
+dual add
+
+# 2. Create a branch workspace
+dual create feat/auth
+
+# 3. Launch the TUI and select a workspace
+dual
 ```
 
-This clones the repo, starts a Docker container, generates transparent command routing, and opens a tmux session. Your editor, git, and credentials stay on the host. Runtime commands (`pnpm dev`, `node`, `curl localhost`) are transparently routed to the container.
+`dual` opens an interactive workspace browser. Select a workspace to launch it — Dual clones the repo, starts a Docker container, sets up transparent command routing, and drops you into a tmux session. Detach from tmux (`Ctrl+b d`) and you're back in the browser.
+
+## The TUI
+
+Running `dual` with no arguments opens the workspace browser:
+
+```
+ dual  workspace browser
+┌──────────────────────────────────────┐
+│▼ my-project                          │
+│  main                     ● running  │
+│  feat/auth                ○ stopped  │
+│  feat/billing             ◌ lazy     │
+│▼ agent-os                            │
+│  main                     ● running  │
+└──────────────────────────────────────┘
+ j/k navigate  enter launch  q quit
+```
+
+- **j/k** or arrow keys to navigate
+- **Enter** on a workspace to launch it (clone + container + tmux)
+- **Enter** on a repo header to expand/collapse
+- **q** or Esc to quit
+
+When you select a workspace, the TUI suspends, tmux takes over. Detach from tmux (`Ctrl+b d`) and the TUI resumes automatically with fresh status.
+
+### Tmux keybinding
+
+For quick access from any tmux session, add to `~/.tmux.conf`:
+
+```bash
+bind-key w display-popup -E -w 60% -h 60% "dual"
+```
+
+Now `Prefix + w` opens the Dual picker in a popup overlay.
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `dual` | Show workspace list with status |
+| `dual` | Open TUI workspace browser |
 | `dual add [--name NAME]` | Register current git repo as a workspace |
-| `dual create <repo> <branch>` | Create a new branch workspace for an existing repo |
-| `dual launch <workspace>` | Clone, start container, open tmux session |
-| `dual list` | List all workspaces with status |
-| `dual destroy <workspace>` | Tear down workspace (container, tmux, clone) |
+| `dual create <branch> [--repo NAME]` | Create a new branch workspace |
+| `dual launch [workspace]` | Launch a workspace (auto-detects from cwd) |
+| `dual list` | List all workspaces with status (non-interactive) |
+| `dual destroy [workspace]` | Tear down workspace (container, tmux, clone) |
 | `dual open [workspace]` | Open workspace services in browser |
 | `dual urls [workspace]` | Display workspace URLs |
 | `dual sync [workspace]` | Sync shared config files across branch workspaces |
@@ -66,13 +103,27 @@ Dual uses two config files:
 Lives in your project root. Committed to git. Controls runtime behavior.
 
 ```toml
+# Docker image for the container runtime
 image = "node:20"
+
+# Ports your dev server uses (for reverse proxy routing)
 ports = [3000, 3001]
+
+# Shell command to run after container creation (e.g., dependency install)
 setup = "pnpm install"
 
+# Commands to route to the container (in addition to defaults)
+# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+extra_commands = ["cargo", "go"]
+
+# Directories to isolate with anonymous Docker volumes
+anonymous_volumes = ["node_modules", ".next"]
+
+# Environment variables passed to the container
 [env]
 NODE_ENV = "development"
 
+# Files to share across all workspaces of this repo
 [shared]
 files = [".vercel", ".env.local"]
 ```
@@ -81,9 +132,11 @@ files = [".vercel", ".env.local"]
 |-------|-------------|---------|
 | `image` | Docker image for the container | `node:20` |
 | `ports` | Ports that services bind to (for reverse proxy) | `[]` |
-| `setup` | Command to run on container start | None |
+| `setup` | Command to run after first container creation | None |
 | `env` | Environment variables passed to the container | `{}` |
 | `shared.files` | Files/directories to share across branch workspaces | `[]` |
+| `extra_commands` | Additional commands to route to the container | `[]` |
+| `anonymous_volumes` | Container volumes (e.g., `node_modules`) | `["node_modules"]` |
 
 ### `~/.dual/workspaces.toml` (global state)
 
@@ -96,6 +149,7 @@ workspace_root = "~/dual-workspaces"
 repo = "my-project"
 url = "git@github.com:org/my-project.git"
 branch = "main"
+path = "/Users/you/code/my-project"
 
 [[workspaces]]
 repo = "my-project"
@@ -105,18 +159,26 @@ branch = "feat/auth"
 
 ## How It Works
 
-When you run `dual launch`, Dual:
+When you select a workspace (via `dual` or `dual launch`):
 
-1. Clones the repo into `{workspace_root}/{repo}/{branch}/`
-2. Creates a Docker container with the clone bind-mounted
-3. Generates a shell RC file that transparently routes runtime commands into the container via `docker exec`
-4. Opens a tmux session in the workspace directory
+1. **Clone** — Clones the repo into `{workspace_root}/{repo}/{branch}/` (uses `git clone --local` from main workspace for speed)
+2. **Shared files** — Copies shared config files (`.env.local`, `.vercel`, etc.) from `~/.dual/shared/{repo}/`
+3. **Container** — Creates and starts a Docker container with the clone bind-mounted
+4. **Setup** — Runs `setup` command on first launch (e.g., `pnpm install`)
+5. **Shell RC** — Generates transparent command routing that intercepts runtime commands and routes them to the container via `docker exec`
+6. **Tmux** — Creates a tmux session in the workspace directory and attaches
 
 Your editor, git, and credentials stay on the host. The container handles all runtime processes. Claude Code never knows it's running inside a container.
 
 ## Architecture
 
 ```
+Terminal
+├── State A: Dual TUI (ratatui)
+│   └── Select workspace → suspend TUI → launch pipeline → tmux attach
+└── State B: tmux session
+    └── Detach (Ctrl+b d) → resume TUI
+
 Host                          Container
 +--------------------------+  +--------------------------+
 | nvim, git, claude, ssh   |  | pnpm, node, python       |
@@ -142,7 +204,7 @@ Browser --> {repo}-{branch}.localhost:{port}
 ```bash
 cargo build              # Build debug binary
 cargo build --release    # Build release binary
-cargo test               # Run tests
+cargo test               # Run tests (~150 tests)
 cargo clippy             # Run linter
 cargo fmt                # Format code
 ```

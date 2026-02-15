@@ -1,4 +1,32 @@
-image = "node:20"
-ports = []
+# Dual workspace configuration
+# See: https://github.com/jeevanpillay/dual
 
-[env]
+# Docker image for the container runtime
+image = "node:20"
+
+# Ports your dev server uses (for reverse proxy routing)
+# Example: ports = [3000, 3001]
+# ports = []
+
+# Shell command to run after container creation (e.g., dependency install)
+# Example: setup = "pnpm install"
+# setup = ""
+
+# Commands to route to the container (in addition to defaults)
+# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+# Example: extra_commands = ["cargo", "go", "ruby"]
+# extra_commands = []
+
+# Directories to isolate with anonymous Docker volumes
+# These directories get their own volume so they don't sync between host/container
+# Example: anonymous_volumes = ["node_modules", ".next", "target"]
+# anonymous_volumes = ["node_modules"]
+
+# Environment variables passed to the container
+# [env]
+# NODE_ENV = "development"
+
+# Files to share across all workspaces of this repo
+# These are gitignored files that should be available in every branch workspace
+# [shared]
+# files = [".env.local", ".vercel"]
