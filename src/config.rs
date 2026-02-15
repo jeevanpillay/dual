@@ -5,6 +5,15 @@ use std::path::{Path, PathBuf};
 const HINTS_FILENAME: &str = ".dual.toml";
 const DEFAULT_IMAGE: &str = "node:20";
 
+/// Shared configuration file propagation settings.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct SharedConfig {
+    /// Files and directories to share across workspaces.
+    /// e.g. [".vercel", ".env.local", ".env"]
+    #[serde(default)]
+    pub files: Vec<String>,
+}
+
 /// Per-repo runtime hints, read from .dual.toml in a workspace directory.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct RepoHints {
@@ -22,6 +31,10 @@ pub struct RepoHints {
     /// Environment variables for the container
     #[serde(default)]
     pub env: HashMap<String, String>,
+
+    /// Shared files to propagate across workspaces
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
 }
 
 fn default_image() -> String {
@@ -35,8 +48,14 @@ impl Default for RepoHints {
             ports: Vec::new(),
             setup: None,
             env: HashMap::new(),
+            shared: None,
         }
     }
+}
+
+/// Get the shared config directory for a repo: ~/.dual/shared/{repo}/
+pub fn shared_dir(repo: &str) -> Option<PathBuf> {
+    dirs::home_dir().map(|home| home.join(".dual").join("shared").join(repo))
 }
 
 /// Load RepoHints from a workspace directory's .dual.toml.
@@ -229,6 +248,7 @@ NODE_ENV = "development"
             ports: vec![8080, 9090],
             setup: Some("cargo build".to_string()),
             env: HashMap::from([("RUST_LOG".to_string(), "debug".to_string())]),
+            shared: None,
         };
 
         write_hints(&dir, &hints).unwrap();
@@ -248,5 +268,55 @@ unknown_field = "should be ignored"
         // serde by default ignores unknown fields
         let hints = parse_hints(toml).unwrap();
         assert_eq!(hints.image, "node:20");
+    }
+
+    #[test]
+    fn parse_hints_with_shared() {
+        let toml = r#"
+image = "node:20"
+
+[shared]
+files = [".vercel", ".env.local"]
+"#;
+        let hints = parse_hints(toml).unwrap();
+        let shared = hints.shared.unwrap();
+        assert_eq!(shared.files, vec![".vercel", ".env.local"]);
+    }
+
+    #[test]
+    fn parse_hints_without_shared() {
+        let hints = parse_hints("image = \"node:20\"").unwrap();
+        assert!(hints.shared.is_none());
+    }
+
+    #[test]
+    fn parse_hints_shared_empty_files() {
+        let toml = r#"
+[shared]
+files = []
+"#;
+        let hints = parse_hints(toml).unwrap();
+        let shared = hints.shared.unwrap();
+        assert!(shared.files.is_empty());
+    }
+
+    #[test]
+    fn write_hints_without_shared_omits_section() {
+        let hints = RepoHints::default();
+        let toml_str = toml::to_string_pretty(&hints).unwrap();
+        assert!(!toml_str.contains("[shared]"));
+    }
+
+    #[test]
+    fn write_hints_with_shared_includes_section() {
+        let hints = RepoHints {
+            shared: Some(SharedConfig {
+                files: vec![".env".to_string()],
+            }),
+            ..Default::default()
+        };
+        let toml_str = toml::to_string_pretty(&hints).unwrap();
+        assert!(toml_str.contains("[shared]"));
+        assert!(toml_str.contains(".env"));
     }
 }

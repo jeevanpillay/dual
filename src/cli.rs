@@ -56,6 +56,12 @@ pub enum Command {
         workspace: Option<String>,
     },
 
+    /// Sync shared config files for current workspace
+    Sync {
+        /// Workspace to sync (detected from current directory if omitted)
+        workspace: Option<String>,
+    },
+
     /// Start the reverse proxy for browser access
     Proxy,
 
