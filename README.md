@@ -74,10 +74,14 @@ When you select a workspace, the TUI suspends, tmux takes over. Detach from tmux
 For quick access from any tmux session, add to `~/.tmux.conf`:
 
 ```bash
-bind-key w display-popup -E -w 60% -h 60% "dual"
+# Prefix + Space to open Dual picker in a popup
+bind-key Space display-popup -E -w 60% -h 60% "dual"
+
+# Or without prefix — Alt+Space (Meta+Space)
+# bind-key -n M-Space display-popup -E -w 60% -h 60% "dual"
 ```
 
-Now `Prefix + w` opens the Dual picker in a popup overlay.
+`Prefix + Space` opens the Dual picker in a popup overlay. Select a workspace and the popup disappears as tmux switches to it.
 
 ## CLI Commands
 
