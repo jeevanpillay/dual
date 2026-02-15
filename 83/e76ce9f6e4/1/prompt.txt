@@ -1,0 +1,1711 @@
+# Implementation Plan
+
+You are tasked with creating detailed implementation plans through an interactive, iterative process. You should be skeptical, thorough, and work collaboratively with the user to produce high-quality technical specifications.
+
+## Initial Response
+
+When this command is invoked:
+
+1. **Check if parameters were provided**:
+   - If a file path or ticket reference was provided as a parameter, skip the default message
+   - Immediately read any provided files FULLY
+   - Begin the research process
+
+2. **If no parameters provided**, respond with:
+```
+I'll help you create a detailed implementation plan. Let me start by understanding what we're building.
+
+Please provide:
+1. The task/ticket description (or reference to a ticket file)
+2. Any relevant context, constraints, or specific requirements
+3. Links to related research or previous implementations
+
+I'll analyze this information and work with you to create a comprehensive plan.
+
+Tip: You can also invoke this command with a ticket file directly: `/create_plan thoughts/allison/tickets/eng_1234.md`
+For deeper analysis, try: `/create_plan think deeply about thoughts/allison/tickets/eng_1234.md`
+```
+
+Then wait for the user's input.
+
+## Process Steps
+
+### Step 1: Context Gathering & Initial Analysis
+
+1. **Read all mentioned files immediately and FULLY**:
+   - Ticket files (e.g., `thoughts/allison/tickets/eng_1234.md`)
+   - Research documents
+   - Related implementation plans
+   - Any JSON/data files mentioned
+   - **IMPORTANT**: Use the Read tool WITHOUT limit/offset parameters to read entire files
+   - **CRITICAL**: DO NOT spawn sub-tasks before reading these files yourself in the main context
+   - **NEVER** read files partially - if a file is mentioned, read it completely
+
+2. **Spawn initial research tasks to gather context**:
+   Before asking the user any questions, use specialized agents to research in parallel:
+
+   - Use the **codebase-locator** agent to find all files related to the ticket/task
+   - Use the **codebase-analyzer** agent to understand how the current implementation works
+   - If relevant, use the **thoughts-locator** agent to find any existing thoughts documents about this feature
+   - If a Linear ticket is mentioned, use the **linear-ticket-reader** agent to get full details
+
+   These agents will:
+   - Find relevant source files, configs, and tests
+   - Identify the specific directories to focus on (e.g., if WUI is mentioned, they'll focus on humanlayer-wui/)
+   - Trace data flow and key functions
+   - Return detailed explanations with file:line references
+
+3. **Read all files identified by research tasks**:
+   - After research tasks complete, read ALL files they identified as relevant
+   - Read them FULLY into the main context
+   - This ensures you have complete understanding before proceeding
+
+4. **Analyze and verify understanding**:
+   - Cross-reference the ticket requirements with actual code
+   - Identify any discrepancies or misunderstandings
+   - Note assumptions that need verification
+   - Determine true scope based on codebase reality
+
+5. **Present informed understanding and focused questions**:
+   ```
+   Based on the ticket and my research of the codebase, I understand we need to [accurate summary].
+
+   I've found that:
+   - [Current implementation detail with file:line reference]
+   - [Relevant pattern or constraint discovered]
+   - [Potential complexity or edge case identified]
+
+   Questions that my research couldn't answer:
+   - [Specific technical question that requires human judgment]
+   - [Business logic clarification]
+   - [Design preference that affects implementation]
+   ```
+
+   Only ask questions that you genuinely cannot answer through code investigation.
+
+### Step 2: Research & Discovery
+
+After getting initial clarifications:
+
+1. **If the user corrects any misunderstanding**:
+   - DO NOT just accept the correction
+   - Spawn new research tasks to verify the correct information
+   - Read the specific files/directories they mention
+   - Only proceed once you've verified the facts yourself
+
+2. **Create a research todo list** using TodoWrite to track exploration tasks
+
+3. **Spawn parallel sub-tasks for comprehensive research**:
+   - Create multiple Task agents to research different aspects concurrently
+   - Use the right agent for each type of research:
+
+   **For deeper investigation:**
+   - **codebase-locator** - To find more specific files (e.g., "find all files that handle [specific component]")
+   - **codebase-analyzer** - To understand implementation details (e.g., "analyze how [system] works")
+   - **codebase-pattern-finder** - To find similar features we can model after
+
+   **For historical context:**
+   - **thoughts-locator** - To find any research, plans, or decisions about this area
+   - **thoughts-analyzer** - To extract key insights from the most relevant documents
+
+   **For related tickets:**
+   - **linear-searcher** - To find similar issues or past implementations
+
+   Each agent knows how to:
+   - Find the right files and code patterns
+   - Identify conventions and patterns to follow
+   - Look for integration points and dependencies
+   - Return specific file:line references
+   - Find tests and examples
+
+3. **Wait for ALL sub-tasks to complete** before proceeding
+
+4. **Present findings and design options**:
+   ```
+   Based on my research, here's what I found:
+
+   **Current State:**
+   - [Key discovery about existing code]
+   - [Pattern or convention to follow]
+
+   **Design Options:**
+   1. [Option A] - [pros/cons]
+   2. [Option B] - [pros/cons]
+
+   **Open Questions:**
+   - [Technical uncertainty]
+   - [Design decision needed]
+
+   Which approach aligns best with your vision?
+   ```
+
+### Step 3: Plan Structure Development
+
+Once aligned on approach:
+
+1. **Create initial plan outline**:
+   ```
+   Here's my proposed plan structure:
+
+   ## Overview
+   [1-2 sentence summary]
+
+   ## Implementation Phases:
+   1. [Phase name] - [what it accomplishes]
+   2. [Phase name] - [what it accomplishes]
+   3. [Phase name] - [what it accomplishes]
+
+   Does this phasing make sense? Should I adjust the order or granularity?
+   ```
+
+2. **Get feedback on structure** before writing details
+
+### Step 4: Detailed Plan Writing
+
+After structure approval:
+
+1. **Write the plan** to `thoughts/shared/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
+     - YYYY-MM-DD is today's date
+     - ENG-XXXX is the ticket number (omit if no ticket)
+     - description is a brief kebab-case description
+   - Examples:
+     - With ticket: `2025-01-08-ENG-1478-parent-child-tracking.md`
+     - Without ticket: `2025-01-08-improve-error-handling.md`
+2. **Use this template structure**:
+
+````markdown
+# [Feature/Task Name] Implementation Plan
+
+## Overview
+
+[Brief description of what we're implementing and why]
+
+## Current State Analysis
+
+[What exists now, what's missing, key constraints discovered]
+
+## Desired End State
+
+[A Specification of the desired end state after this plan is complete, and how to verify it]
+
+### Key Discoveries:
+- [Important finding with file:line reference]
+- [Pattern to follow]
+- [Constraint to work within]
+
+## What We're NOT Doing
+
+[Explicitly list out-of-scope items to prevent scope creep]
+
+## Implementation Approach
+
+[High-level strategy and reasoning]
+
+## Phase 1: [Descriptive Name]
+
+### Overview
+[What this phase accomplishes]
+
+### Changes Required:
+
+#### 1. [Component/File Group]
+**File**: `path/to/file.ext`
+**Changes**: [Summary of changes]
+
+```[language]
+// Specific code to add/modify
+```
+
+### Success Criteria:
+
+#### Automated Verification:
+- [ ] Migration applies cleanly: `make migrate`
+- [ ] Unit tests pass: `make test-component`
+- [ ] Type checking passes: `npm run typecheck`
+- [ ] Linting passes: `make lint`
+- [ ] Integration tests pass: `make test-integration`
+
+#### Manual Verification:
+- [ ] Feature works as expected when tested via UI
+- [ ] Performance is acceptable under load
+- [ ] Edge case handling verified manually
+- [ ] No regressions in related features
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 2: [Descriptive Name]
+
+[Similar structure with both automated and manual success criteria...]
+
+---
+
+## Testing Strategy
+
+### Unit Tests:
+- [What to test]
+- [Key edge cases]
+
+### Integration Tests:
+- [End-to-end scenarios]
+
+### Manual Testing Steps:
+1. [Specific step to verify feature]
+2. [Another verification step]
+3. [Edge case to test manually]
+
+## Performance Considerations
+
+[Any performance implications or optimizations needed]
+
+## Migration Notes
+
+[If applicable, how to handle existing data/systems]
+
+## References
+
+- Original ticket: `thoughts/allison/tickets/eng_XXXX.md`
+- Related research: `thoughts/shared/research/[relevant].md`
+- Similar implementation: `[file:line]`
+````
+
+### Step 5: Sync and Review
+
+1. **Sync the thoughts directory**:
+   - Run `humanlayer thoughts sync` to sync the newly created plan
+   - This ensures the plan is properly indexed and available
+
+2. **Present the draft plan location**:
+   ```
+   I've created the initial implementation plan at:
+   `thoughts/shared/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+
+   Please review it and let me know:
+   - Are the phases properly scoped?
+   - Are the success criteria specific enough?
+   - Any technical details that need adjustment?
+   - Missing edge cases or considerations?
+   ```
+
+3. **Iterate based on feedback** - be ready to:
+   - Add missing phases
+   - Adjust technical approach
+   - Clarify success criteria (both automated and manual)
+   - Add/remove scope items
+   - After making changes, run `humanlayer thoughts sync` again
+
+4. **Continue refining** until the user is satisfied
+
+## Important Guidelines
+
+1. **Be Skeptical**:
+   - Question vague requirements
+   - Identify potential issues early
+   - Ask "why" and "what about"
+   - Don't assume - verify with code
+
+2. **Be Interactive**:
+   - Don't write the full plan in one shot
+   - Get buy-in at each major step
+   - Allow course corrections
+   - Work collaboratively
+
+3. **Be Thorough**:
+   - Read all context files COMPLETELY before planning
+   - Research actual code patterns using parallel sub-tasks
+   - Include specific file paths and line numbers
+   - Write measurable success criteria with clear automated vs manual distinction
+   - automated steps should use `make` whenever possible - for example `make -C humanlayer-wui check` instead of `cd humanlayer-wui && bun run fmt`
+
+4. **Be Practical**:
+   - Focus on incremental, testable changes
+   - Consider migration and rollback
+   - Think about edge cases
+   - Include "what we're NOT doing"
+
+5. **Track Progress**:
+   - Use TodoWrite to track planning tasks
+   - Update todos as you complete research
+   - Mark planning tasks complete when done
+
+6. **No Open Questions in Final Plan**:
+   - If you encounter open questions during planning, STOP
+   - Research or ask for clarification immediately
+   - Do NOT write the plan with unresolved questions
+   - The implementation plan must be complete and actionable
+   - Every decision must be made before finalizing the plan
+
+## Success Criteria Guidelines
+
+**Always separate success criteria into two categories:**
+
+1. **Automated Verification** (can be run by execution agents):
+   - Commands that can be run: `make test`, `npm run lint`, etc.
+   - Specific files that should exist
+   - Code compilation/type checking
+   - Automated test suites
+
+2. **Manual Verification** (requires human testing):
+   - UI/UX functionality
+   - Performance under real conditions
+   - Edge cases that are hard to automate
+   - User acceptance criteria
+
+**Format example:**
+```markdown
+### Success Criteria:
+
+#### Automated Verification:
+- [ ] Database migration runs successfully: `make migrate`
+- [ ] All unit tests pass: `go test ./...`
+- [ ] No linting errors: `golangci-lint run`
+- [ ] API endpoint returns 200: `curl localhost:8080/api/new-endpoint`
+
+#### Manual Verification:
+- [ ] New feature appears correctly in the UI
+- [ ] Performance is acceptable with 1000+ items
+- [ ] Error messages are user-friendly
+- [ ] Feature works correctly on mobile devices
+```
+
+## Common Patterns
+
+### For Database Changes:
+- Start with schema/migration
+- Add store methods
+- Update business logic
+- Expose via API
+- Update clients
+
+### For New Features:
+- Research existing patterns first
+- Start with data model
+- Build backend logic
+- Add API endpoints
+- Implement UI last
+
+### For Refactoring:
+- Document current behavior
+- Plan incremental changes
+- Maintain backwards compatibility
+- Include migration strategy
+
+## Sub-task Spawning Best Practices
+
+When spawning research sub-tasks:
+
+1. **Spawn multiple tasks in parallel** for efficiency
+2. **Each task should be focused** on a specific area
+3. **Provide detailed instructions** including:
+   - Exactly what to search for
+   - Which directories to focus on
+   - What information to extract
+   - Expected output format
+4. **Be EXTREMELY specific about directories**:
+   - If the ticket mentions "WUI", specify `humanlayer-wui/` directory
+   - If it mentions "daemon", specify `hld/` directory
+   - Never use generic terms like "UI" when you mean "WUI"
+   - Include the full path context in your prompts
+5. **Specify read-only tools** to use
+6. **Request specific file:line references** in responses
+7. **Wait for all tasks to complete** before synthesizing
+8. **Verify sub-task results**:
+   - If a sub-task returns unexpected results, spawn follow-up tasks
+   - Cross-check findings against the actual codebase
+   - Don't accept results that seem incorrect
+
+Example of spawning multiple tasks:
+```python
+# Spawn these tasks concurrently:
+tasks = [
+    Task("Research database schema", db_research_prompt),
+    Task("Find API patterns", api_research_prompt),
+    Task("Investigate UI components", ui_research_prompt),
+    Task("Check test patterns", test_research_prompt)
+]
+```
+
+## Example Interaction Flow
+
+```
+User: /create_plan
+Assistant: I'll help you create a detailed implementation plan...
+
+User: We need to add parent-child tracking for Claude sub-tasks. See thoughts/allison/tickets/eng_1478.md
+Assistant: Let me read that ticket file completely first...
+
+[Reads file fully]
+
+Based on the ticket, I understand we need to track parent-child relationships for Claude sub-task events in the hld daemon. Before I start planning, I have some questions...
+
+[Interactive process continues...]
+```
+
+
+ARGUMENTS: @thoughts/shared/research/2026-02-15-v3-architecture-rethink.md 
+
+let's figure out smaller version jump to get closer to this full re-architecture. 
+
+we need to basically focus on 
+
+1. linear project update.
+2. all the different version fixes in v2.0.0 to then eventually upgrade to v3 (as such, v3 is fully supporting everything), but we need to fix/update whatevr we have now in v2.0.0 before this v3 re-write.
+3. incrementally adding these new features.
+4. what should be done right now v2 and what needs to be done for v3 architceture.
+5. what needs to be removed from our current architecture.
+
+---
+
+<task-notification>
+<task-id>a0a4102</task-id>
+<status>completed</status>
+<summary>Agent "Analyze Dual v2.0.0 codebase" completed</summary>
+<result>Perfect! Now I have a comprehensive understanding of the codebase. Let me compile the analysis.
+
+## Analysis: Dual v2.0.0 Terminal Workspace Orchestrator
+
+### Overview
+
+Dual is a Rust-based terminal workspace orchestrator (v2.0.0) that manages isolated development environments using Docker containers, tmux sessions, and transparent command routing. Each workspace is a full git clone with its own container, enabling parallel multi-repo development with AI coding agents. The core invariant: tools like Claude Code must never know they're running in containers.
+
+### Current Version Number
+
+**v2.0.0** (from `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/Cargo.toml:3`)
+
+---
+
+## CLI Commands and Implementation
+
+### Entry Points
+
+All commands dispatch from `src/main.rs:26-42` through pattern matching on `cli::Command`.
+
+#### 1. Default (No Subcommand) (`cmd_default()` at `main.rs:46-67`)
+- Shows workspace list with status icons
+- Displays launch hints
+- Returns empty state message if no workspaces configured
+
+#### 2. `add [--name NAME]` (`cmd_add()` at `main.rs:70-156`)
+- Detects git repo info from current directory via `detect_git_repo()` at `main.rs:723-757`
+  - Runs `git rev-parse --show-toplevel` for repo root
+  - Runs `git remote get-url origin` for URL
+  - Runs `git rev-parse --abbrev-ref HEAD` for current branch
+- Derives repo name from directory name if not specified
+- Creates default `.dual.toml` if missing (using `RepoHints::default()` at `config.rs:44-54`)
+- Initializes shared directory if `[shared]` config exists
+- Adds `WorkspaceEntry{path: Some(...)}` to state
+- Saves to `~/.dual/workspaces.toml`
+
+#### 3. `create <repo> <branch>` (`cmd_create()` at `main.rs:159-206`)
+- Looks up existing workspace for repo to get URL
+- Registers new `WorkspaceEntry{path: None}` — signals "clone on launch"
+- No git validation — accepts any branch name
+- **BUG**: Will fail at launch if branch doesn't exist in remote
+
+#### 4. `launch <workspace>` (`cmd_launch()` at `main.rs:209-339`)
+Full pipeline:
+1. Resolve workspace from state via `resolve_workspace()` at `state.rs:74-79`
+2. Compute container name (`dual-{repo}-{branch}`) and tmux session name
+3. Resolve workspace directory:
+   - If `path: Some(...)` — use existing directory
+   - If `path: None` — call `clone::clone_workspace()` at `clone.rs:27-74`
+     - Runs `git clone [-b branch] [--local] <url> <target>`
+     - Uses `--local` for filesystem paths (hardlinks)
+     - Uses `-b <branch>` to checkout specific branch (fails if branch doesn't exist remotely)
+4. Handle shared files via `shared::init_from_main()` or `shared::copy_to_branch()`
+5. Ensure container exists and is running:
+   - `container::status()` checks via `docker inspect`
+   - `container::create()` if missing — creates with workspace bind mount + node_modules volume
+   - `container::start()` if stopped
+6. Write shell RC file to `~/.config/dual/rc/{container_name}.sh` via `shell::write_rc_file()`
+7. Create tmux session if not alive:
+   - `tmux::is_alive()` checks via `tmux has-session`
+   - `tmux::create_session()` runs `tmux new-session -d -s {name} -c {cwd}`
+   - `tmux::send_keys()` sources the shell RC file
+8. Attach via `tmux::attach()` — runs `tmux attach-session -t {name}`
+
+#### 5. `list` (`cmd_list()` at `main.rs:342-359`)
+- Loads workspace state
+- Prints workspace status table via `print_workspace_status()` at `main.rs:691-720`
+  - For each workspace: checks clone existence, container status, tmux status
+  - Status icons: ● attached, ● running, ○ stopped, ◌ lazy
+
+#### 6. `destroy <workspace>` (`cmd_destroy()` at `main.rs:362-430`)
+Teardown pipeline:
+1. Resolve workspace entry
+2. Destroy tmux session via `tmux::destroy()` — runs `tmux kill-session`
+3. Stop container via `container::stop()` — runs `docker stop`
+4. Remove container via `container::destroy()` — runs `docker rm`
+5. Remove clone (only for `path: None` workspaces)
+6. Remove from state and save
+
+#### 7. `open [workspace]` (`cmd_open()` at `main.rs:433-481`)
+- Builds URL list via `proxy::workspace_urls()` at `proxy.rs:273-297`
+- Filters by workspace if specified
+- Opens URLs in default browser:
+  - macOS: `open {url}`
+  - Linux: `xdg-open {url}`
+
+#### 8. `urls [workspace]` (`cmd_urls()` at `main.rs:484-514`)
+- Shows workspace URLs with status icons
+- Format: `  ● {workspace_id}.localhost:{port}`
+
+#### 9. `sync [workspace]` (`cmd_sync()` at `main.rs:543-666`)
+- Auto-detects workspace via `detect_workspace()` if no arg provided
+- Loads `.dual.toml` to get `[shared]` config
+- For main workspace (`path: Some`):
+  - Moves files to `~/.dual/shared/{repo}/`
+  - Creates symlinks back (Unix) or copies (Windows)
+  - Prompts to sync all branch workspaces
+- For branch workspace (`path: None`):
+  - Copies files from shared dir into workspace
+
+#### 10. `proxy` (`cmd_proxy()` at `main.rs:517-534`)
+- Starts reverse proxy server via `proxy::start()` at `proxy.rs:85-157`
+- Builds routing table from workspace state + running containers
+- Listens on all configured ports on `127.0.0.1`
+- Routes `{workspace_id}.localhost:{port}` → container IP
+
+#### 11. `shell-rc <container>` (Hidden, `cmd_shell_rc()` at `main.rs:537-540`)
+- Outputs shell RC for container
+- Used internally by `eval "$(dual shell-rc {name})"`
+
+---
+
+## Core Implementation Details
+
+### Entry Points: Command Dispatch
+
+`src/main.rs:26-42` — Main dispatch via `match cli.command`:
+- None → `cmd_default()`
+- Some(Command::Add) → `cmd_add()`
+- Some(Command::Create) → `cmd_create()`
+- ... all 10 commands
+
+### Core Implementation: Launch Pipeline
+
+The most complex flow is `cmd_launch()` at `src/main.rs:209-339`:
+
+1. **Workspace Resolution** (`main.rs:218-229`)
+   - `state::load()` reads `~/.dual/workspaces.toml` at `state.rs:134-148`
+   - `resolve_workspace()` at `state.rs:74-79` does exact string match on workspace ID
+
+2. **Directory Resolution** (`main.rs:241-259`)
+   - If `entry.path.is_some()` → use existing directory
+   - If `entry.path.is_none()` → call `clone::clone_workspace()`
+     - `clone.rs:27-74` constructs: `git clone [--local] -b {branch} {url} {target_dir}`
+     - `is_local_path()` at `clone.rs:7-13` detects filesystem URLs
+     - Target: `{workspace_root}/{repo}/{encoded_branch}/`
+
+3. **Shared Files** (`main.rs:261-288`)
+   - Loads `.dual.toml` via `config::load_hints()` at `config.rs:63-75`
+   - For main workspace: `shared::init_from_main()` at `shared.rs:19-71`
+     - Moves files to `~/.dual/shared/{repo}/`
+     - Creates symlinks back (Unix) or copies (Windows)
+   - For branch workspace: `shared::copy_to_branch()` at `shared.rs:80-111`
+     - Copies from shared dir into workspace
+
+4. **Container Lifecycle** (`main.rs:291-311`)
+   - `container::status()` at `container.rs:77-93` — runs `docker inspect --format {{.State.Running}}`
+   - `container::create()` at `container.rs:20-36` — builds Docker args at `container.rs:147-167`:
+     ```
+     docker create --name {name}
+       -v {workspace_dir}:/workspace
+       -v /workspace/node_modules
+       -w /workspace
+       {image}
+       sleep infinity
+     ```
+   - `container::start()` at `container.rs:39-41` — runs `docker start`
+
+5. **Shell RC** (`main.rs:314-320`)
+   - `shell::write_rc_file()` at `shell.rs:84-96` generates RC file
+   - `shell::generate_rc()` at `shell.rs:37-55` creates shell functions for container commands
+   - Hardcoded commands at `shell.rs:2-4`: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+
+6. **Tmux Session** (`main.rs:323-337`)
+   - `tmux::is_alive()` at `tmux.rs:77-82` — runs `tmux has-session -t {name}`
+   - `tmux::create_session()` at `tmux.rs:20-46` — runs `tmux new-session -d -s {name} -c {cwd}`
+   - `tmux::send_keys()` at `tmux.rs:105-107` sources the shell RC
+   - `tmux::attach()` at `tmux.rs:49-64` — runs `tmux attach-session -t {name}`
+
+### Data Flow: State → Container → Tmux
+
+```
+~/.dual/workspaces.toml (global state)
+    ↓
+WorkspaceEntry{repo, url, branch, path}
+    ↓
+[path: None] → git clone -b branch url target_dir
+[path: Some] → use existing directory
+    ↓
+{workspace_dir}/.dual.toml
+    ↓
+RepoHints{image, ports, setup, env, shared}
+    ↓
+docker create --name dual-{repo}-{branch} -v {dir}:/workspace {image}
+    ↓
+~/.config/dual/rc/dual-{repo}-{branch}.sh (command routing)
+    ↓
+tmux new-session -d -s dual-{repo}-{branch} -c {dir}
+    ↓
+tmux attach-session
+```
+
+### Key Patterns: Naming Conventions
+
+All naming flows through `src/config.rs`:
+
+- `workspace_id()` at `config.rs:94-96` — `{repo}-{encoded_branch}`
+- `container_name()` at `config.rs:106-108` — `dual-{repo}-{encoded_branch}`
+- `encode_branch()` at `config.rs:113-115` — `/` → `__` (e.g., `feat/auth` → `feat__auth`)
+- `session_name()` at `tmux.rs:122-125` — matches container name format
+
+Container names and tmux session names are **identical** (test at `tmux.rs:200-212`).
+
+### Configuration: RepoHints Schema
+
+`src/config.rs:18-38` defines `.dual.toml` structure:
+
+```rust
+pub struct RepoHints {
+    pub image: String,                   // Docker image (default: "node:20")
+    pub ports: Vec<u16>,                 // Exposed ports (default: [])
+    pub setup: Option<String>,           // Setup command (NEVER EXECUTED)
+    pub env: HashMap<String, String>,    // Env vars (LOADED BUT NEVER WIRED)
+    pub shared: Option<SharedConfig>,    // Shared file config
+}
+```
+
+**Implementation Status**:
+- `image` — ✅ Used by `container::create()`
+- `ports` — ✅ Used by `proxy::ProxyState` and `proxy::workspace_urls()`
+- `setup` — ❌ Schema only, never executed
+- `env` — ❌ Loaded at `main.rs:262` then dropped, never passed to container
+- `shared` — ✅ Fully implemented via `src/shared.rs`
+
+### Error Handling: Three Levels
+
+1. **State Errors** (`state.rs:268-290`)
+   - `NoHomeDir`, `ReadError`, `WriteError`, `ParseError`, `SerializeError`, `Validation`, `DuplicateWorkspace`
+
+2. **Container Errors** (`container.rs:200-211`)
+   - `DockerNotFound`, `Failed{operation, name, stderr}`
+
+3. **Tmux Errors** (`tmux.rs:150-161`)
+   - `NotFound`, `Failed{operation, session, stderr}`
+
+All use `thiserror` for error derivation.
+
+---
+
+## Verified Bugs and Gaps
+
+### Bug 1: Branch Model — `-b` Flag Requires Remote Branch
+
+**Location**: `src/clone.rs:54` — `cmd.arg("-b").arg(branch)`
+
+**Chain**:
+1. `dual create myrepo feat/new-thing` → writes entry with `path: None` (no git validation)
+2. `dual launch myrepo-feat__new-thing` → calls `clone_workspace()`
+3. Runs `git clone -b feat/new-thing <url> <dir>` → **FAILS** if branch doesn't exist at origin
+4. Workspace remains in state as unusable ghost entry
+
+**Root Cause**: `-b` flag requires branch to exist in remote. Dual branches are intended to be internal workspace concepts, not tied to origin branches.
+
+### Bug 2: Context-Unaware CLI
+
+**Location**: `src/cli.rs:24-30` — `Create {repo: String, branch: String}`
+
+**Gap**: Commands require explicit identifiers but two detection functions exist:
+- `detect_git_repo()` at `main.rs:723-757` — only used by `cmd_add()`
+- `detect_workspace()` at `main.rs:669-688` — only used by `cmd_sync()`
+
+**Impact**: User inside `~/code/myproject` (already added as `myproject/main`) must type `dual create myproject feat/auth` instead of `dual create feat/auth`.
+
+### Bug 3: Confusing Default `.dual.toml`
+
+**Location**: `src/config.rs:44-54` — `RepoHints::default()`
+
+**Generated Output**:
+```toml
+image = "node:20"
+ports = []
+
+[env]
+```
+
+**Issues**:
+- Empty `ports = []` with no context
+- Empty `[env]` section header looks broken
+- No comments (TOML serializer doesn't support comments)
+- `setup` invisible (None so omitted)
+- `[shared]` invisible (has `skip_serializing_if = "Option::is_none"`)
+- Assumes Node.js (wrong for Python/Rust/Go projects)
+
+### Gap 4: Unimplemented Config Fields
+
+**setup command** (`config.rs:29`):
+- Defined in schema
+- Never executed after container creation
+- No code path wires it
+
+**env variables** (`config.rs:33`):
+- Loaded at `main.rs:262`
+- Dropped immediately
+- Never passed to `container::create()` as `-e` flags
+- Docker create args at `container.rs:147-167` have no env support
+
+### Gap 5: Hardcoded Container Commands
+
+**Location**: `src/shell.rs:2-4`
+
+```rust
+const CONTAINER_COMMANDS: &[&str] = &[
+    "npm", "npx", "pnpm", "node", "python", "python3", "pip", "pip3", "curl", "make",
+];
+```
+
+No mechanism to:
+- Add project-specific commands (go, cargo, rustc, etc.)
+- Configure per-repo
+- Extend via plugins
+
+### Gap 6: Tmux Tight Coupling
+
+**Observations**:
+1. `src/tmux.rs` is imported and called directly — no abstraction layer
+2. Session names computed at call sites using `tmux::session_name()`
+3. `print_workspace_status()` calls `tmux::is_alive()` for each workspace
+4. `cmd_destroy()` calls `tmux::destroy()` directly
+5. No trait or interface that could swap for zellij
+6. Session only gets one pane — no customization of layout
+
+**SPEC Vision** (SPEC.md:269-294):
+- `TmuxBackend` (default)
+- `ZellijBackend` (future)
+- `BasicBackend` (fallback — no multiplexer)
+
+None implemented as traits. The word "zellij" appears nowhere in codebase.
+
+### Gap 7: Bare Tmux Sessions
+
+**What's Created**: `tmux new-session -d -s {name} -c {cwd}` (single pane, default shell)
+
+**What Users Want** (from research docs):
+- Pattern C: Editor + Claude + Shell
+- Pattern D: Editor + Multiple Shells
+- Pattern E: Multi-Window
+- Custom layouts per repo
+
+**Missing**:
+- Second pane for editor (nvim)
+- Third pane for Claude Code
+- Window layout configuration
+- Hook for post-attach commands
+- Per-repo session config
+
+### Gap 8: Zero Plugin Infrastructure
+
+**Current State**:
+- No traits for behavior injection
+- No lifecycle hooks
+- No plugin discovery or loading
+- No middleware chain
+- No observer pattern
+- No command extension
+- No configuration-driven behavior
+
+Only extension point: `.dual.toml` data fields.
+
+---
+
+## What's Working Well
+
+### 1. Atomic State Management
+
+`src/state.rs:188-225` — Atomic save with advisory file locking:
+1. Serialize to TOML
+2. Acquire lock via `fs2::FileExt`
+3. Write to `.tmp` file
+4. Backup existing to `.toml.bak`
+5. Atomic rename `.tmp` → `.toml`
+6. Release lock
+
+Prevents concurrent write corruption.
+
+### 2. Transparent Command Routing
+
+`src/shell.rs:63-74` — Generated shell functions:
+```bash
+npm() {
+    if [ -t 1 ]; then
+        command docker exec -t -w /workspace dual-lightfast-main npm "$@"
+    else
+        command docker exec -w /workspace dual-lightfast-main npm "$@"
+    fi
+}
+```
+
+TTY detection, argument forwarding, exit code preservation. Claude Code never knows commands route to containers.
+
+### 3. Multi-Port Reverse Proxy
+
+`src/proxy.rs:85-157` — Subdomain-based routing:
+- Listens on all configured ports
+- Routes `{workspace_id}.localhost:{port}` → container IP
+- WebSocket support (preserves upgrades)
+- Dynamic routing table updates
+
+No `/etc/hosts` modification needed (`*.localhost` resolves to 127.0.0.1 natively).
+
+### 4. Shared Config Propagation
+
+`src/shared.rs` — Solves gitignored file sharing:
+- Main workspace: move to `~/.dual/shared/{repo}/`, symlink back
+- Branch workspaces: copy from shared dir
+- Handles directories recursively
+- Unix symlinks, Windows copies
+
+Works for `.vercel`, `.env.local`, etc.
+
+### 5. Two Workspace Types
+
+| Type | Created By | `path` | Clone | Destroy |
+|------|-----------|--------|-------|---------|
+| Main | `dual add` | `Some(path)` | None | Preserves dir |
+| Branch | `dual create` | `None` | On launch | Removes dir |
+
+Clean separation of user-managed vs Dual-managed clones.
+
+### 6. Container Isolation
+
+Each workspace gets isolated container:
+- Own network namespace (all can bind `:3000`)
+- Workspace bind mount (`/workspace`)
+- Anonymous `node_modules` volume
+- Named `dual-{repo}-{branch}`
+
+15 containers running simultaneously with no port conflicts.
+
+### 7. Test Coverage
+
+99 unit tests + 2 integration tests (requires Docker + tmux):
+- State: parsing, validation, CRUD (24 tests)
+- Config: parsing, encoding, I/O (18 tests)
+- CLI: argument parsing (16 tests)
+- Shared: init, copy, overwrite (13 tests)
+- Shell: classification, RC gen (10 tests)
+- Others: tmux (6), proxy (5), container (4), clone (3)
+
+CI in GitHub Actions with Docker + tmux installed.
+
+---
+
+## Key Code Patterns and Conventions
+
+### Pattern 1: Three-Layer Module Design
+
+```
+main.rs (orchestration)
+├── cli.rs (command parsing)
+├── state.rs (global state)
+├── config.rs (per-repo config + naming)
+├── {operation}.rs (specialized logic)
+└── lib.rs (public exports)
+```
+
+All modules are leaf dependencies of `main.rs`. Only `config.rs` is shared (for naming).
+
+### Pattern 2: Naming Through Config Module
+
+Every identifier flows through `src/config.rs`:
+- `workspace_id()` — user-facing identifier
+- `container_name()` — Docker container name
+- `session_name()` — Tmux session name (in tmux.rs but uses encode_branch)
+- `encode_branch()` — filesystem-safe branch names
+- `workspace_dir()` — clone location
+
+Ensures consistency across Docker, tmux, state, filesystem.
+
+### Pattern 3: Dual Path Resolution
+
+Two workspace directory patterns:
+1. Explicit: `entry.path.unwrap()` — user's existing clone
+2. Computed: `config::workspace_dir(workspace_root, repo, branch)` — Dual-managed clone
+
+Used throughout:
+- `state::WorkspaceState::workspace_dir()` at `state.rs:65-71`
+- `cmd_launch()` at `main.rs:241-259`
+- `print_workspace_status()` at `main.rs:698-706`
+
+### Pattern 4: Thiserror for Domain Errors
+
+Each module defines error enum:
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum StateError {
+    #[error("Failed to read {path}: {err}", path = .0.display(), err = .1)]
+    ReadError(PathBuf, std::io::Error),
+    ...
+}
+```
+
+Propagates with `?` operator, displays with context.
+
+### Pattern 5: Build + Execute Separation
+
+Several modules expose argument builders for testing:
+- `clone::build_clone_args()` at `clone.rs:86-99`
+- `container::build_create_args()` at `container.rs:147-167`
+- `container::build_exec_args()` at `container.rs:170-180`
+- `tmux::build_new_session_args()` at `tmux.rs:110-119`
+
+Enables testing without Docker/tmux/git installed.
+
+### Pattern 6: Default + Deserialize
+
+Config structs use serde defaults:
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct RepoHints {
+    #[serde(default = "default_image")]
+    pub image: String,
+    
+    #[serde(default)]
+    pub ports: Vec<u16>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+}
+```
+
+Allows partial TOML files, backward compatibility.
+
+### Pattern 7: Command Status Via External Tools
+
+All status queries shell out:
+- Container: `docker inspect --format {{.State.Running}}`
+- Tmux: `tmux has-session -t {name}`
+- Clone: Check for `.git/` directory
+
+No daemon, no state cache. Truth is in Docker/tmux/filesystem.
+
+### Pattern 8: Tracing for Output
+
+Uses `tracing` crate for all output:
+```rust
+info!("Added workspace: {ws_id}");
+warn!("failed to write .dual.toml: {e}");
+error!("clone failed: {e}");
+debug!(repo = %entry.repo, "resolved workspace");
+```
+
+Configured via `DUAL_LOG` env var (default: info). Structured logging with context.
+
+---
+
+## Related Documentation
+
+**SPEC.md** (`/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/SPEC.md`):
+- Lines 16-27: Core invariant (Claude must never know about containers)
+- Lines 32-38: One workspace = one container = one machine
+- Lines 84-108: Command routing rules (file ops → host, runtime → container)
+- Lines 113-148: Full clones not worktrees, filesystem layout
+- Lines 269-294: Backend trait contract (TmuxBackend, ZellijBackend, BasicBackend)
+- Lines 298-346: User experience flows (first launch, workspace switching, CLI commands)
+- Lines 372-402: Implementation phases (Phase 1-4)
+
+**Research Docs** (untracked):
+- `thoughts/shared/research/2026-02-15-architecture-rethink-bugs-tui-plugins.md` — Earlier architecture analysis
+- `thoughts/shared/research/2026-02-15-v3-architecture-rethink.md` — Complete v3 planning with all user workflows
+
+---
+
+## Summary: Current State Assessment
+
+**Strengths**:
+- Solid foundation for container + tmux orchestration
+- Transparent command routing that hides Docker from tools
+- Multi-port reverse proxy with subdomain routing
+- Atomic state management with file locking
+- Shared config propagation across workspaces
+- Two workspace types (main vs branch) cleanly separated
+- Good test coverage (99 unit + 2 integration tests)
+
+**Critical Bugs**:
+1. Branch creation fails for non-origin branches (`git clone -b` requires remote branch)
+2. CLI requires explicit repo/branch args despite having context detection functions
+3. Default `.dual.toml` is confusing (empty sections, no comments, Node.js assumed)
+
+**Major Gaps**:
+- `setup` and `env` config fields are unimplemented
+- Container commands are hardcoded (no per-project customization)
+- Tmux is tightly coupled (no backend abstraction for zellij)
+- Tmux sessions are bare (single pane, no layout customization)
+- Zero plugin infrastructure
+- No TUI (CLI-only)
+- No meta-key workspace switching
+
+**Architecture Ready For**:
+- Bug fixes (branch model, context detection, config defaults)
+- Backend trait extraction (tmux → TmuxBackend, add ZellijBackend, BasicBackend)
+- TUI addition (ratatui + crossterm stack already researched)
+- Plugin system design (lifecycle hooks, trait-based extension points)
+- Config field implementation (wire `setup` and `env` to container creation)
+
+The codebase is well-structured for evolution. Modules are cleanly separated. Naming conventions are consistent. Error handling is robust. The foundation is solid for the v3 architecture rethink documented in the research files.</result>
+<usage>total_tokens: 90009
+tool_uses: 16
+duration_ms: 174471</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a0a4102.output
+
+---
+
+done with v2.2.0. whats next from here?
+
+---
+
+<task-notification>
+<task-id>af6ec1c</task-id>
+<status>completed</status>
+<summary>Agent "Analyze tmux integration points" completed</summary>
+<result>Now I have a complete view of the codebase. Let me create a comprehensive mapping document.
+
+## Analysis: Tmux Integration Points in Dual
+
+### Overview
+Dual uses tmux as the terminal multiplexer for managing workspace sessions. The tmux module (`src/tmux.rs`) provides a complete abstraction over tmux operations, and main.rs integrates it into the workspace lifecycle. Session names follow the same naming convention as containers: `dual-{repo}-{encoded_branch}`.
+
+### Entry Points
+- **`src/tmux.rs`** - Complete tmux abstraction module with 10 public functions
+- **`src/main.rs:265`** - Session name generation in `cmd_launch`
+- **`src/main.rs:402`** - Session liveness check in `cmd_launch`
+- **`src/main.rs:404`** - Session creation in `cmd_launch`
+- **`src/main.rs:412`** - Session attach in `cmd_launch`
+- **`src/main.rs:478`** - Session name generation in `cmd_destroy`
+- **`src/main.rs:481`** - Session liveness check in `cmd_destroy`
+- **`src/main.rs:483`** - Session destruction in `cmd_destroy`
+- **`src/main.rs:835`** - Session name generation in `print_workspace_status`
+- **`src/main.rs:846`** - Session liveness check in `print_workspace_status`
+- **`src/lib.rs:9`** - Public module export
+- **`src/config.rs`** - No tmux-specific naming (session names generated in tmux module)
+
+---
+
+## Core Implementation: src/tmux.rs
+
+### Constants
+- **Line 5**: `SESSION_PREFIX = "dual-"`
+  - Used to namespace all dual-managed sessions
+  - Matches container naming convention
+
+### Public Functions (10 total)
+
+#### 1. `is_available() -> bool` (Lines 8-13)
+- **Purpose**: Check if tmux is installed on the system
+- **Implementation**: Runs `tmux -V` and checks exit status
+- **Used by**: Tests at line 334, 359
+- **Trait abstraction**: Could be `Multiplexer::is_available() -> bool`
+
+#### 2. `create_session(session_name: &str, cwd: &Path, shell_rc: Option<&str>) -> Result<(), TmuxError>` (Lines 20-46)
+- **Purpose**: Create a new detached tmux session
+- **Tmux commands**: 
+  - `tmux new-session -d -s {session_name} -c {cwd}`
+  - Optionally: `tmux send-keys -t {session_name} {shell_rc} Enter`
+- **Arguments**:
+  - `session_name`: Session identifier (e.g., "dual-lightfast-main")
+  - `cwd`: Working directory for the session
+  - `shell_rc`: Optional shell source command to run on creation
+- **Used by**: `main.rs:404` in `cmd_launch`
+- **Trait abstraction**: `Multiplexer::create_session(name, cwd, init_command) -> Result<()>`
+
+#### 3. `attach(session_name: &str) -> Result<(), TmuxError>` (Lines 52-73)
+- **Purpose**: Attach to an existing session (or switch if already in tmux)
+- **Tmux commands**: 
+  - If inside tmux: `tmux switch-client -t {session_name}`
+  - If outside tmux: `tmux attach-session -t {session_name}`
+- **Decision logic**: Calls `is_inside_tmux()` to determine command
+- **Used by**: `main.rs:412` in `cmd_launch`
+- **Trait abstraction**: `Multiplexer::attach(name) -> Result<()>`
+
+#### 4. `is_inside_tmux() -> bool` (Lines 76-78)
+- **Purpose**: Check if currently inside a tmux session
+- **Implementation**: Checks if `$TMUX` env var is non-empty
+- **Used by**: `attach()` function internally at line 53
+- **Trait abstraction**: `Multiplexer::is_inside() -> bool`
+
+#### 5. `detach(session_name: &str) -> Result<(), TmuxError>` (Lines 81-83)
+- **Purpose**: Detach current client from a session
+- **Tmux commands**: `tmux detach-client -s {session_name}`
+- **Used by**: Not used in main.rs (available for future use)
+- **Trait abstraction**: `Multiplexer::detach(name) -> Result<()>`
+
+#### 6. `destroy(session_name: &str) -> Result<(), TmuxError>` (Lines 86-88)
+- **Purpose**: Kill a tmux session and all its processes
+- **Tmux commands**: `tmux kill-session -t {session_name}`
+- **Used by**: `main.rs:483` in `cmd_destroy`
+- **Trait abstraction**: `Multiplexer::destroy(name) -> Result<()>`
+
+#### 7. `is_alive(session_name: &str) -> bool` (Lines 91-96)
+- **Purpose**: Check if a session exists
+- **Tmux commands**: `tmux has-session -t {session_name}`
+- **Used by**: 
+  - `main.rs:402` in `cmd_launch` (conditional session creation)
+  - `main.rs:481` in `cmd_destroy` (conditional destruction)
+  - `main.rs:846` in `print_workspace_status` (status display)
+- **Trait abstraction**: `Multiplexer::is_alive(name) -> bool`
+
+#### 8. `list_sessions() -> Vec<String>` (Lines 100-116)
+- **Purpose**: List all dual-managed sessions (prefix filter)
+- **Tmux commands**: `tmux list-sessions -F "#{session_name}"`
+- **Filtering**: Only returns sessions starting with `SESSION_PREFIX`
+- **Used by**: Not used in main.rs (available for status queries)
+- **Trait abstraction**: `Multiplexer::list_sessions() -> Vec<String>`
+
+#### 9. `send_keys(session_name: &str, keys: &str) -> Result<(), TmuxError>` (Lines 119-121)
+- **Purpose**: Send a command to a session pane
+- **Tmux commands**: `tmux send-keys -t {session_name} {keys} Enter`
+- **Used by**: 
+  - Internally by `create_session` at line 42 (shell RC sourcing)
+  - Test at `tests/e2e.rs:373`
+- **Trait abstraction**: `Multiplexer::send_keys(name, command) -> Result<()>`
+
+#### 10. `session_name(repo: &str, branch: &str) -> String` (Lines 136-139)
+- **Purpose**: Generate session name from repo and branch
+- **Format**: `dual-{repo}-{encoded_branch}` where `/` → `__`
+- **Consistency**: Matches `config::container_name()` format
+- **Used by**: 
+  - `main.rs:265` in `cmd_launch`
+  - `main.rs:478` in `cmd_destroy`
+  - `main.rs:835` in `print_workspace_status`
+- **Trait abstraction**: Not needed (naming is a config concern, not multiplexer concern)
+
+### Helper Functions
+
+#### `build_new_session_args(session_name: &str, cwd: &Path) -> Vec<String>` (Lines 124-133)
+- **Purpose**: Build argument list for `tmux new-session`
+- **Visibility**: Public (exposed for testing)
+- **Returns**: `["new-session", "-d", "-s", session_name, "-c", cwd]`
+- **Trait abstraction**: Internal implementation detail
+
+#### `tmux_simple(args: &[&str]) -> Result<(), TmuxError>` (Lines 141-162)
+- **Purpose**: Execute simple tmux commands with error handling
+- **Used by**: `detach`, `destroy`, `send_keys`
+- **Trait abstraction**: Internal implementation detail
+
+### Error Types
+
+#### `TmuxError` enum (Lines 164-175)
+- **`NotFound(String)`** - tmux binary not found
+- **`Failed { operation, session, stderr }`** - Command execution failed
+- **Trait abstraction**: Replace with generic `MultiplexerError`
+
+---
+
+## Integration Points: src/main.rs
+
+### 1. Module Import (Line 12)
+```rust
+use dual::tmux;
+```
+- **Context**: Top-level imports
+- **Trait migration**: Change to `use dual::multiplexer::Multiplexer;`
+
+### 2. Session Name Generation - `cmd_launch` (Line 265)
+```rust
+let session_name = tmux::session_name(&entry.repo, &entry.branch);
+```
+- **Context**: Launch command after resolving workspace entry
+- **Arguments**: `&entry.repo`, `&entry.branch`
+- **Result**: Stored in `session_name` variable
+- **Trait migration**: Move to config module or keep as-is (not multiplexer-specific)
+
+### 3. Session Liveness Check - `cmd_launch` (Line 402)
+```rust
+if !tmux::is_alive(&session_name) {
+```
+- **Context**: Conditional session creation (skip if already exists)
+- **Arguments**: `&session_name`
+- **Result**: Boolean used in conditional
+- **Trait migration**: `if !multiplexer.is_alive(&session_name) {`
+
+### 4. Shell RC Preparation - `cmd_launch` (Line 403)
+```rust
+let source_cmd = shell::source_file_command(&rc_path);
+```
+- **Context**: Prepare shell init command before session creation
+- **Arguments**: RC file path
+- **Result**: Command string passed to `create_session`
+- **Trait migration**: No change (shell module responsibility)
+
+### 5. Session Creation - `cmd_launch` (Line 404)
+```rust
+if let Err(e) = tmux::create_session(&session_name, &workspace_dir, Some(&source_cmd)) {
+    error!("tmux session creation failed: {e}");
+    return 1;
+}
+```
+- **Context**: Create detached session with shell RC
+- **Arguments**: 
+  - `&session_name` - Session identifier
+  - `&workspace_dir` - Working directory
+  - `Some(&source_cmd)` - Optional shell init command
+- **Result**: Error handling with early exit
+- **Trait migration**: `multiplexer.create_session(&session_name, &workspace_dir, Some(&source_cmd))?`
+
+### 6. Session Attach - `cmd_launch` (Line 412)
+```rust
+if let Err(e) = tmux::attach(&session_name) {
+    error!("tmux attach failed: {e}");
+    return 1;
+}
+```
+- **Context**: Final step of launch flow (takes over terminal)
+- **Arguments**: `&session_name`
+- **Result**: Error handling with early exit (but attach should block)
+- **Trait migration**: `multiplexer.attach(&session_name)?`
+
+### 7. Session Name Generation - `cmd_destroy` (Line 478)
+```rust
+let session_name = tmux::session_name(&entry.repo, &entry.branch);
+```
+- **Context**: Destroy command after resolving workspace entry
+- **Arguments**: `&entry.repo`, `&entry.branch`
+- **Result**: Stored in `session_name` variable
+- **Trait migration**: Same as #2 (config concern)
+
+### 8. Session Liveness Check - `cmd_destroy` (Line 481)
+```rust
+if tmux::is_alive(&session_name) {
+```
+- **Context**: Conditional destruction (skip if not running)
+- **Arguments**: `&session_name`
+- **Result**: Boolean used in conditional
+- **Trait migration**: `if multiplexer.is_alive(&session_name) {`
+
+### 9. Session Destruction - `cmd_destroy` (Line 483)
+```rust
+if let Err(e) = tmux::destroy(&session_name) {
+    warn!("tmux destroy failed: {e}");
+}
+```
+- **Context**: Kill session before container cleanup
+- **Arguments**: `&session_name`
+- **Result**: Error logged but not fatal (continue with cleanup)
+- **Trait migration**: `multiplexer.destroy(&session_name).ok();` (ignore errors)
+
+### 10. Session Name Generation - `print_workspace_status` (Line 835)
+```rust
+let session_name = tmux::session_name(&ws.repo, &ws.branch);
+```
+- **Context**: Status display helper for list/default commands
+- **Arguments**: `&ws.repo`, `&ws.branch`
+- **Result**: Used for liveness check
+- **Trait migration**: Same as #2 (config concern)
+
+### 11. Session Liveness Check - `print_workspace_status` (Line 846)
+```rust
+let tmux_alive = tmux::is_alive(&session_name);
+```
+- **Context**: Status display to show session state
+- **Arguments**: `&session_name`
+- **Result**: Boolean stored and used in status formatting
+- **Trait migration**: `let session_alive = multiplexer.is_alive(&session_name);`
+
+---
+
+## Data Flow
+
+### Launch Flow (main.rs:225-418)
+1. **Resolve workspace** → State lookup
+2. **Clone/locate directory** → Clone module
+3. **Ensure container** → Container module
+4. **Write shell RC** → Shell module (`shell::write_rc_file`)
+5. **Generate session name** → `tmux::session_name()` at line 265
+6. **Check session exists** → `tmux::is_alive()` at line 402
+7. **Create session (if needed)** → `tmux::create_session()` at line 404
+8. **Attach to session** → `tmux::attach()` at line 412
+
+### Destroy Flow (main.rs:441-527)
+1. **Resolve workspace** → State lookup
+2. **Generate session name** → `tmux::session_name()` at line 478
+3. **Check session exists** → `tmux::is_alive()` at line 481
+4. **Destroy session (if exists)** → `tmux::destroy()` at line 483
+5. **Stop/remove container** → Container module
+6. **Remove clone** → Clone module
+7. **Update state** → State module
+
+### Status Display Flow (main.rs:820-875)
+1. **Load state** → State module
+2. **For each workspace**:
+   - Generate container name → `config::container_name()`
+   - Generate session name → `tmux::session_name()` at line 835
+   - Check clone exists → Clone module
+   - Check container status → Container module
+   - Check session alive → `tmux::is_alive()` at line 846
+3. **Format status** → Combine all checks into human-readable output
+
+---
+
+## Key Patterns
+
+### 1. Consistent Naming Convention
+- **Session names match container names**: Both use `dual-{repo}-{encoded_branch}` format
+- **Tested at `src/tmux.rs:215-226`**: Explicitly verifies session/container name consistency
+- **Encoding**: `/` in branch names → `__` (e.g., `feat/auth` → `feat__auth`)
+
+### 2. Session Lifecycle Management
+- **Creation**: Detached by default (no automatic attach)
+- **Liveness checking**: Always check `is_alive` before create/destroy
+- **Idempotent operations**: Skip create if exists, skip destroy if not alive
+- **Error handling**: Session errors are non-fatal in destroy flow (warn and continue)
+
+### 3. Shell Integration
+- **Shell RC sourcing**: Passed to session creation via `shell_rc` parameter
+- **Automatic sourcing**: Uses `send_keys` to run `source` command in new session
+- **Ordering**: Shell RC write → session create → attach (ensures RC is ready)
+
+### 4. Multiplexer Detection
+- **Inside tmux check**: Uses `$TMUX` env var to detect nested sessions
+- **Smart attach**: Uses `switch-client` when inside tmux, `attach-session` when outside
+- **Rationale**: Prevents nested tmux sessions (UX anti-pattern)
+
+### 5. Test Isolation
+- **Prefix-based namespacing**: Tests use `dual-test-{uuid}` prefix
+- **RAII cleanup**: TestFixture registers sessions and cleans up on Drop
+- **Sweep function**: `cleanup_sweep()` removes orphaned test sessions after abnormal termination
+
+---
+
+## Trait Abstraction Requirements
+
+### Trait Methods (Required)
+```rust
+pub trait Multiplexer {
+    fn is_available() -> bool;
+    fn create_session(&self, name: &str, cwd: &Path, init_command: Option<&str>) -> Result<()>;
+    fn attach(&self, name: &str) -> Result<()>;
+    fn is_inside(&self) -> bool;
+    fn detach(&self, name: &str) -> Result<()>;
+    fn destroy(&self, name: &str) -> Result<()>;
+    fn is_alive(&self, name: &str) -> bool;
+    fn list_sessions(&self) -> Vec<String>;
+    fn send_keys(&self, name: &str, command: &str) -> Result<()>;
+}
+```
+
+### Session Naming (Not in Trait)
+- **`session_name(repo, branch)`** should remain in `config` module
+- Naming is a config/convention concern, not a multiplexer capability
+- Both tmux and zellij implementations will use the same naming
+
+### Error Type (Generic)
+```rust
+pub enum MultiplexerError {
+    NotFound(String),
+    OperationFailed { operation: String, session: String, details: String },
+}
+```
+
+### Implementation Structure
+```
+src/
+  multiplexer/
+    mod.rs          # Trait definition, error types
+    tmux.rs         # TmuxMultiplexer implementation
+    zellij.rs       # ZellijMultiplexer implementation (future)
+```
+
+### Call Site Changes (main.rs)
+
+**Before:**
+```rust
+use dual::tmux;
+let session_name = tmux::session_name(&repo, &branch);
+if !tmux::is_alive(&session_name) {
+    tmux::create_session(&session_name, &cwd, Some(&cmd))?;
+}
+tmux::attach(&session_name)?;
+```
+
+**After:**
+```rust
+use dual::multiplexer::Multiplexer;
+use dual::config;
+let session_name = config::session_name(&repo, &branch);
+if !multiplexer.is_alive(&session_name) {
+    multiplexer.create_session(&session_name, &cwd, Some(&cmd))?;
+}
+multiplexer.attach(&session_name)?;
+```
+
+---
+
+## Configuration Points
+
+### src/config.rs
+- **No tmux-specific logic**: Session naming should move here
+- **Consistency**: `container_name()` and `session_name()` should live together
+- **New function**: Add `pub fn session_name(repo: &str, branch: &str) -> String`
+
+### Future: Multiplexer Selection
+- **Config file**: `.dual.toml` could add `multiplexer = "tmux"` or `"zellij"`
+- **Auto-detection**: Check `$TMUX` vs `$ZELLIJ` env vars
+- **Command-line flag**: `dual launch --multiplexer tmux`
+
+---
+
+## Testing Surface
+
+### Unit Tests (src/tmux.rs:177-266)
+- **Argument formatting**: `build_new_session_args` correctness
+- **Session naming**: Format and encoding tests
+- **Container name consistency**: Verifies session/container name match
+- **Environment detection**: `is_inside_tmux` with mock env vars
+
+### E2E Tests (tests/e2e.rs:328-391)
+- **Session lifecycle**: Create → is_alive → destroy → !is_alive
+- **Send keys**: Command execution in detached session
+- **Requires tmux**: Tests are `#[ignore]` by default
+
+### Test Harness (tests/harness/mod.rs)
+- **Session name generation**: `TestFixture::session_name()` at line 46
+- **RAII cleanup**: Drop handler kills test sessions at line 105-108
+- **Cleanup sweep**: Removes orphaned `dual-test-*` sessions at line 134-145
+
+---
+
+## Summary
+
+All tmux integration is centralized in `src/tmux.rs` with 10 public functions. Main.rs calls tmux functions at exactly 11 locations across 3 commands:
+- **Launch**: 4 calls (session_name, is_alive, create_session, attach)
+- **Destroy**: 3 calls (session_name, is_alive, destroy)
+- **Status display**: 2 calls (session_name, is_alive)
+
+Every function in the tmux module can be abstracted behind a trait method except `session_name()` (which is a config concern, not a multiplexer capability). The session naming convention is consistent with container naming and is tested for exact match.
+
+For trait extraction:
+1. Move `session_name()` from `tmux.rs` to `config.rs`
+2. Define `Multiplexer` trait with 9 methods
+3. Implement `TmuxMultiplexer` struct with trait
+4. Update 11 call sites in main.rs to use trait object
+5. Update test harness to use trait</result>
+<usage>total_tokens: 49922
+tool_uses: 10
+duration_ms: 113057</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/af6ec1c.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Context**: The user had already read the v3 architecture rethink research document. The conversation starts with a `/clear` followed by `/create_plan` command referencing the research document.
+
+2. **User's Request**: Create a plan for smaller version jumps to get to the full v3 re-architecture, focusing on:
+   - Linear project update
+   - v2.0.0 fixes before v3 rewrite
+   - Incrementally adding new features
+   - What should be v2 vs v3
+   - What needs to be removed from current architecture
+
+3. **Research Phase**: I launched parallel research tasks:
+   - Codebase analyzer to understand v2.0.0 state
+   - Linear project/issues/milestones queries
+   - Read the architecture rethink research docs
+   - Read SPEC.md
+
+4. **Key Findings**:
+   - Linear project "Dual v0" is stale, needs renaming to "Dual"
+   - 6 "In Progress" issues are actually shipped in v2.0.0
+   - 3 fundamental bugs: branch model, context detection, config defaults
+   - Unimplemented fields: env vars, setup command
+   - Hardcoded container commands and node_modules volume
+   - Tmux tightly coupled with no abstraction
+
+5. **User Questions & Answers**:
+   - Clone source: "Local main (Recommended)" - clone from local main workspace
+   - Linear project: "Rename to 'Dual' (Recommended)"
+   - node_modules: "Make configurable (Recommended)" - add anonymous_volumes field
+
+6. **v2-to-v3 Roadmap Plan Created**: Written to `thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md`
+   - Phase 0: Linear Cleanup
+   - v2.1.0: Bug Fixes & Completions (6 changes)
+   - v2.2.0: Context Awareness & UX (4 changes)
+   - v3.0.0: Architecture Rewrite (scoped only)
+
+7. **User Completed v2.1 and v2.2**: The plan file was modified by the user - they checked off automated verification boxes for both phases and Phase 0. User said "done with v2.2.0. whats next from here?"
+
+8. **v3 Planning Phase**: User chose:
+   - "Detailed plan first (Recommended)" for v3 approach
+   - "TUI + multiplexer trait" as highest priority
+
+9. **v3 Research**: Launched two parallel research agents:
+   - Tmux integration analysis (completed successfully - mapped all 10 public functions, 11 call sites)
+   - Ratatui TUI patterns research (completed with some 404 errors on URLs but got enough info)
+
+10. **v3 Plan Created**: Written to `thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md`
+    - Phase 1: Multiplexer Trait Extraction
+    - Phase 2: TUI Scaffold
+    - Phase 3: TUI ↔ Tmux Transition
+
+11. **Key refinement noted**: `session_name()` should move to `config.rs` not be on the trait (naming concern, not multiplexer concern)
+
+12. **Current state**: Both research agents completed. Plan written and presented. Waiting for user feedback/approval to start implementing.
+
+Let me now compile all the important details.
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/create_plan` referencing `thoughts/shared/research/2026-02-15-v3-architecture-rethink.md` requesting a plan for smaller version jumps from v2.0.0 toward v3 full re-architecture. Five specific focus areas:
+   1. Linear project update to reflect current state
+   2. All version fixes in v2.0.0 before v3 rewrite
+   3. Incrementally adding new features
+   4. What should be done in v2 vs what needs v3 architecture
+   5. What needs to be removed from current architecture
+
+   After the v2.x plan was completed and the user confirmed both v2.1.0 and v2.2.0 were done, they asked "whats next from here?" — leading to v3.0.0 detailed planning focused on TUI + multiplexer trait (user's chosen priority).
+
+2. Key Technical Concepts:
+   - **Dual**: Terminal workspace orchestrator managing Docker containers + tmux sessions + shell command routing (~3,600 LOC Rust)
+   - **Three fundamental bugs**: Branch model (`git clone -b` fails for non-origin branches), context-unaware CLI, confusing default `.dual.toml`
+   - **Unimplemented config fields**: `env` vars loaded then dropped, `setup` command never executed
+   - **Multiplexer trait extraction**: `MultiplexerBackend` trait to abstract tmux behind an interface (10 public functions, 11 call sites in main.rs)
+   - **Ratatui TUI**: `ratatui::init()` / `ratatui::restore()` for terminal state management; immediate-mode rendering
+   - **TUI ↔ Tmux transition (Model B)**: Dual manages terminal directly — `ratatui::restore()` → `tmux attach` (blocks) → tmux detach returns → `ratatui::init()` → TUI resumes
+   - **Session naming**: `session_name()` should live in `config.rs` alongside `container_name()` (naming concern, not multiplexer concern)
+   - **Linear project management**: Team "dual" (ID: `0aeeaf19-2b41-432d-80bb-ee55421894d5`), Project renamed from "Dual v0" to "Dual"
+
+3. Files and Code Sections:
+
+   - **`thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md`** (CREATED)
+     - The main v2.x roadmap plan covering Phase 0 (Linear cleanup), v2.1.0 (bug fixes), v2.2.0 (context awareness), v3.0.0 (scoped)
+     - User modified this file to check off completed items (Phase 0 all checked, v2.1 automated checks done, v2.2 automated checks done, manual verification items remain unchecked)
+
+   - **`thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md`** (CREATED)
+     - Detailed v3.0.0 implementation plan with 3 phases
+     - Phase 1: Multiplexer trait extraction (new `src/backend.rs`, `src/tmux_backend.rs`, replace all tmux:: calls)
+     - Phase 2: TUI scaffold (ratatui + crossterm, `src/tui/` module with app.rs, ui.rs, event.rs)
+     - Phase 3: TUI ↔ Tmux transition (suspend/resume loop, panic hooks, inside-tmux detection)
+
+   - **`thoughts/shared/research/2026-02-15-v3-architecture-rethink.md`** (READ)
+     - Comprehensive research document covering all 3 bugs, complete module map, tmux integration, TUI design, plugin system requirements
+     - Referenced as the source of truth for the architecture rethink
+
+   - **`thoughts/shared/research/2026-02-15-architecture-rethink-bugs-tui-plugins.md`** (READ)
+     - Earlier version of the architecture rethink research
+     - Contains same bug analysis with code-level detail
+
+   - **`SPEC.md`** (READ)
+     - Lines 269-294: Runtime Backend Contract (trait interface spec)
+     - Lines 298-320: User Experience flows (first launch, workspace switching)
+     - Lines 396-401: Phase 4 (TUI, zellij, BasicBackend)
+
+   - **Key code from v3 plan — MultiplexerBackend trait** (`src/backend.rs`):
+     ```rust
+     pub trait MultiplexerBackend {
+         fn is_available(&self) -> bool;
+         fn create_session(&self, session_name: &str, cwd: &Path, init_cmd: Option<&str>) -> Result<(), BackendError>;
+         fn attach(&self, session_name: &str) -> Result<(), BackendError>;
+         fn detach(&self, session_name: &str) -> Result<(), BackendError>;
+         fn destroy(&self, session_name: &str) -> Result<(), BackendError>;
+         fn is_alive(&self, session_name: &str) -> bool;
+         fn list_sessions(&self) -> Vec<String>;
+         fn send_keys(&self, session_name: &str, keys: &str) -> Result<(), BackendError>;
+         fn session_name(&self, repo: &str, branch: &str) -> String; // NOTE: should move to config.rs
+         fn is_inside(&self) -> bool;
+     }
+     ```
+
+   - **Key code from v3 plan — TUI suspend/resume loop** (`src/main.rs`):
+     ```rust
+     fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
+         loop {
+             state = match state::load() { ... };
+             match tui::run(&state, backend) {
+                 Ok(Some(workspace_id)) => {
+                     // TUI called ratatui::restore() before returning
+                     let exit_code = cmd_launch_by_id(&workspace_id, backend);
+                     if exit_code != 0 {
+                         eprintln!("Launch failed...");
+                         let _ = std::io::stdin().read_line(&mut String::new());
+                     }
+                     continue; // Loop back to TUI after tmux detach
+                 }
+                 Ok(None) => return 0,
+                 Err(e) => { error!("TUI error: {e}"); return 1; }
+             }
+         }
+     }
+     ```
+
+   - **Current `src/cli.rs`** (READ by agent — shows v2.2.0 changes already done):
+     ```rust
+     Create {
+         branch: String,
+         #[arg(long)]
+         repo: Option<String>,
+     },
+     Launch {
+         workspace: Option<String>,
+     },
+     Destroy {
+         workspace: Option<String>,
+     },
+     ```
+
+   - **Current `src/tmux.rs`** (analyzed by agent):
+     - 10 public functions: `is_available`, `create_session`, `attach`, `is_inside_tmux`, `detach`, `destroy`, `is_alive`, `list_sessions`, `send_keys`, `session_name`
+     - `attach()` already handles `$TMUX` detection with `switch-client` (v2.2.0 feature)
+     - `is_inside_tmux()` at lines 76-78 checks `$TMUX` env var
+
+4. Errors and Fixes:
+   - **TUI design research file not found**: `thoughts/shared/research/2026-02-15-dual-tui-design.md` was deleted in commit `27125d7`. No fix needed — the content was captured in the architecture rethink docs.
+   - **Ratatui research agent had 404 errors**: Multiple WebFetch calls to ratatui docs/examples returned 404. Agent still gathered enough info from GitHub README and docs.rs to understand the patterns. The key pattern (init/restore for suspend/resume) was confirmed.
+
+5. Problem Solving:
+   - **Versioning strategy**: Resolved by separating v2.x fixes (within current architecture) from v3 changes (requires new architecture). Three bugs and unimplemented features are v2.x. Multiplexer trait, TUI, plugin system are v3.
+   - **Linear project staleness**: Resolved by planning project rename, issue status updates, and new milestones.
+   - **TUI ↔ Tmux transition problem**: Resolved by choosing Model B (Dual manages terminal directly) using ratatui's `init()`/`restore()` for clean state transitions. `tmux attach` is a blocking call that returns on detach.
+   - **Nested tmux problem**: Resolved via `is_inside()` check — use `switch-client` when inside tmux, `attach-session` when outside. For TUI context: exit TUI after switch-client (don't loop back since switch is instant).
+   - **session_name() placement**: Identified that it should move from `tmux.rs` to `config.rs` alongside `container_name()` since both use the same naming pattern.
+
+6. All User Messages:
+   - `/clear` then `/create_plan @thoughts/shared/research/2026-02-15-v3-architecture-rethink.md` with description of 5 focus areas (Linear update, v2 fixes, incremental features, v2 vs v3 separation, what to remove)
+   - Answered questions: Clone source = "Local main", Linear project = "Rename to Dual", node_modules = "Make configurable"
+   - "done with v2.2.0. whats next from here?" — indicating both v2.1 and v2.2 are implemented and complete
+   - Answered questions: v3 approach = "Detailed plan first (Recommended)", Priority = "TUI + multiplexer trait"
+
+7. Pending Tasks:
+   - **Implement v3.0.0 Phase 1**: Extract multiplexer trait from tmux module (waiting for user approval of the plan)
+   - **Linear issue creation for v3.0.0**: 9 new issues to create under a v3.0.0 milestone (per the plan)
+   - **Manual verification of v2.1.0 and v2.2.0**: Some manual verification checkboxes remain unchecked in the roadmap plan
+
+8. Current Work:
+   The v3.0.0 implementation plan has been written to `thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md` and presented to the user for review. Both research agents (tmux integration analysis and ratatui TUI patterns) have completed. One refinement was noted: `session_name()` should move to `config.rs` instead of being on the `MultiplexerBackend` trait.
+
+   The user's last message was automatically generated task completion notifications from the two research agents. Before that, I presented the v3 plan summary and said: "Please review — any changes to the phasing, scope, or technical approach?"
+
+9. Optional Next Step:
+   Awaiting user feedback on the v3 plan at `thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md`. Once approved, the next step is implementing Phase 1 (Multiplexer Trait Extraction):
+   - Create `src/backend.rs` with `MultiplexerBackend` trait
+   - Create `src/tmux_backend.rs` with `TmuxBackend` implementation
+   - Move `session_name()` to `src/config.rs`
+   - Replace all 11 `tmux::*` call sites in `src/main.rs` with `backend.*`
+   - Delete `src/tmux.rs`
+
+   As stated in the last assistant message: "The plan is ready at `thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md`. Let me know when you want to proceed — we can start with Phase 1 (multiplexer trait extraction)."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jeevanpillay/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+create new branch + pr associated with the linear issues

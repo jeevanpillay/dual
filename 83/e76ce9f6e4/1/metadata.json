@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "b54b5261-ab92-4c9e-9482-0621f9c1b755",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T11:38:39.62121Z",
+  "branch": "feature/dual-55-multiplexer-trait-extract-tmux-behind-backend-interface",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/backend.rs",
+    "src/config.rs",
+    "src/lib.rs",
+    "src/main.rs",
+    "src/tmux.rs",
+    "src/tmux_backend.rs",
+    "tests/e2e.rs",
+    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md",
+    "thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "fb96ef3f-a813-4137-bb6f-e065d0984ada",
+  "checkpoint_transcript_start": 72,
+  "transcript_lines_at_start": 72,
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 154333,
+    "cache_read_tokens": 5422519,
+    "output_tokens": 7466,
+    "api_call_count": 51
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T11:38:38.305506Z",
+    "agent_lines": 2098,
+    "human_added": 1825,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 3928,
+    "agent_percentage": 53.41140529531568
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/b54b5261-ab92-4c9e-9482-0621f9c1b755.jsonl"
+}
