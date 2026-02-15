@@ -93,7 +93,13 @@ fn container_lifecycle() {
 
     // Create container with explicit name
     let workspace_dir = dual::config::workspace_dir(&ws_root, "test-app", "main");
-    let args = dual::container::build_create_args(&container_name, &workspace_dir, "node:20");
+    let args = dual::container::build_create_args(
+        &container_name,
+        &workspace_dir,
+        "node:20",
+        &std::collections::HashMap::new(),
+        &["node_modules".to_string()],
+    );
     let output = Command::new("docker").args(&args).output().unwrap();
     assert!(
         output.status.success(),
@@ -147,7 +153,13 @@ fn container_exec_exit_codes() {
     f.register_container(container_name.clone());
 
     let workspace_dir = dual::config::workspace_dir(&ws_root, "test-app", "main");
-    let args = dual::container::build_create_args(&container_name, &workspace_dir, "node:20");
+    let args = dual::container::build_create_args(
+        &container_name,
+        &workspace_dir,
+        "node:20",
+        &std::collections::HashMap::new(),
+        &["node_modules".to_string()],
+    );
     let output = Command::new("docker").args(&args).output().unwrap();
     assert!(output.status.success());
 
@@ -184,7 +196,13 @@ fn bind_mount_host_to_container() {
     let container_name = f.container_name();
     f.register_container(container_name.clone());
 
-    let args = dual::container::build_create_args(&container_name, &clone_dir, "node:20");
+    let args = dual::container::build_create_args(
+        &container_name,
+        &clone_dir,
+        "node:20",
+        &std::collections::HashMap::new(),
+        &["node_modules".to_string()],
+    );
     let output = Command::new("docker").args(&args).output().unwrap();
     assert!(output.status.success());
 
@@ -236,8 +254,12 @@ fn network_isolation_same_port() {
     f1.register_container(name1.clone());
     f2.register_container(name2.clone());
 
-    let args1 = dual::container::build_create_args(&name1, &clone1, "node:20");
-    let args2 = dual::container::build_create_args(&name2, &clone2, "node:20");
+    let empty_env = std::collections::HashMap::new();
+    let default_vols = ["node_modules".to_string()];
+    let args1 =
+        dual::container::build_create_args(&name1, &clone1, "node:20", &empty_env, &default_vols);
+    let args2 =
+        dual::container::build_create_args(&name2, &clone2, "node:20", &empty_env, &default_vols);
 
     let out1 = Command::new("docker").args(&args1).output().unwrap();
     let out2 = Command::new("docker").args(&args2).output().unwrap();

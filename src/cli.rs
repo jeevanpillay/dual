@@ -22,17 +22,18 @@ pub enum Command {
 
     /// Create a new branch workspace for an existing repo
     Create {
-        /// Repo name (must already be added)
-        repo: String,
-
         /// Branch name
         branch: String,
+
+        /// Repo name (auto-detected from cwd if omitted)
+        #[arg(long)]
+        repo: Option<String>,
     },
 
     /// Launch a workspace (clone, container, tmux session)
     Launch {
-        /// Workspace to launch (e.g. lightfast-main)
-        workspace: String,
+        /// Workspace to launch (auto-detected from cwd if omitted)
+        workspace: Option<String>,
     },
 
     /// List all workspaces and their status
@@ -40,8 +41,8 @@ pub enum Command {
 
     /// Destroy a workspace (stop container, remove clone)
     Destroy {
-        /// Workspace to destroy (e.g. lightfast-feat__auth)
-        workspace: String,
+        /// Workspace to destroy (auto-detected from cwd if omitted)
+        workspace: Option<String>,
     },
 
     /// Open all services for a workspace in the browser

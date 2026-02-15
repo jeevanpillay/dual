@@ -28,10 +28,10 @@ fn main() {
     let exit_code = match cli.command {
         None => cmd_default(),
         Some(Command::Add { name }) => cmd_add(name.as_deref()),
-        Some(Command::Create { repo, branch }) => cmd_create(&repo, &branch),
-        Some(Command::Launch { workspace }) => cmd_launch(&workspace),
+        Some(Command::Create { branch, repo }) => cmd_create(repo.as_deref(), &branch),
+        Some(Command::Launch { workspace }) => cmd_launch(workspace.as_deref()),
         Some(Command::List) => cmd_list(),
-        Some(Command::Destroy { workspace }) => cmd_destroy(&workspace),
+        Some(Command::Destroy { workspace }) => cmd_destroy(workspace.as_deref()),
         Some(Command::Open { workspace }) => cmd_open(workspace),
         Some(Command::Urls { workspace }) => cmd_urls(workspace),
         Some(Command::Sync { workspace }) => cmd_sync(workspace),
@@ -59,10 +59,10 @@ fn cmd_default() -> i32 {
         return 0;
     }
 
-    info!("Workspaces:\n");
+    println!("Workspaces:\n");
     print_workspace_status(&st);
-    info!("Use `dual launch <workspace>` to start a workspace.");
-    info!("Use `dual add` to register a new repo.");
+    println!("Use `dual launch <workspace>` to start a workspace.");
+    println!("Use `dual add` to register a new repo.");
     0
 }
 
@@ -98,11 +98,10 @@ fn cmd_add(name: Option<&str>) -> i32 {
         return 1;
     }
 
-    // Check for .dual.toml — if missing, create a default one
+    // Check for .dual.toml — if missing, create a default one with helpful comments
     let hints_path = repo_root.join(".dual.toml");
     if !hints_path.exists() {
-        let hints = config::RepoHints::default();
-        if let Err(e) = config::write_hints(&repo_root, &hints) {
+        if let Err(e) = config::write_default_hints(&repo_root) {
             warn!("failed to write .dual.toml: {e}");
         } else {
             info!("Created .dual.toml with defaults (image: node:20)");
@@ -156,7 +155,7 @@ fn cmd_add(name: Option<&str>) -> i32 {
 }
 
 /// Create a new branch workspace for an existing repo.
-fn cmd_create(repo: &str, branch: &str) -> i32 {
+fn cmd_create(repo_arg: Option<&str>, branch: &str) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -165,15 +164,32 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
         }
     };
 
+    // Resolve repo name: use --repo if provided, otherwise auto-detect from cwd
+    let repo = match repo_arg {
+        Some(r) => r.to_string(),
+        None => match detect_repo_from_cwd(&st) {
+            Some(r) => {
+                info!("Auto-detected repo: {r}");
+                r
+            }
+            None => {
+                error!("could not detect repo from current directory");
+                info!("Usage: dual create <branch> --repo <name>");
+                info!("Or run from inside a repo that was added with `dual add`.");
+                return 1;
+            }
+        },
+    };
+
     // Find an existing workspace for this repo
-    let existing = st.workspaces_for_repo(repo);
+    let existing = st.workspaces_for_repo(&repo);
     if existing.is_empty() {
         error!("repo '{repo}' not found. Run `dual add` inside the repo first.");
         return 1;
     }
 
     // Check if this branch already exists
-    if st.has_workspace(repo, branch) {
+    if st.has_workspace(&repo, branch) {
         error!("workspace {repo}/{branch} already exists");
         return 1;
     }
@@ -183,7 +199,7 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
 
     // Add new entry (no explicit path — will be cloned on launch)
     let entry = state::WorkspaceEntry {
-        repo: repo.to_string(),
+        repo: repo.clone(),
         url,
         branch: branch.to_string(),
         path: None,
@@ -199,14 +215,14 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
         return 1;
     }
 
-    let ws_id = config::workspace_id(repo, branch);
+    let ws_id = config::workspace_id(&repo, branch);
     info!("Created workspace: {ws_id}");
     info!("Use `dual launch {ws_id}` to start.");
     0
 }
 
 /// Launch a specific workspace: clone → container → shell RC → tmux → attach.
-fn cmd_launch(workspace: &str) -> i32 {
+fn cmd_launch(workspace_arg: Option<&str>) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -215,16 +231,32 @@ fn cmd_launch(workspace: &str) -> i32 {
         }
     };
 
-    let entry = match st.resolve_workspace(workspace) {
-        Some(e) => e,
-        None => {
-            error!("unknown workspace '{workspace}'");
-            info!("Configured workspaces:");
-            for ws in st.all_workspaces() {
-                let id = config::workspace_id(&ws.repo, &ws.branch);
-                info!("  {id}");
+    // Resolve workspace: use arg if provided, otherwise auto-detect from cwd
+    let entry = if let Some(ws) = workspace_arg {
+        match st.resolve_workspace(ws) {
+            Some(e) => e,
+            None => {
+                error!("unknown workspace '{ws}'");
+                info!("Configured workspaces:");
+                for w in st.all_workspaces() {
+                    let id = config::workspace_id(&w.repo, &w.branch);
+                    info!("  {id}");
+                }
+                return 1;
             }
-            return 1;
+        }
+    } else {
+        match detect_workspace(&st) {
+            Some(e) => {
+                let ws_id = config::workspace_id(&e.repo, &e.branch);
+                info!("Auto-detected workspace: {ws_id}");
+                st.resolve_workspace(&ws_id).unwrap()
+            }
+            None => {
+                error!("could not detect workspace from current directory");
+                info!("Usage: dual launch [workspace]");
+                return 1;
+            }
         }
     };
 
@@ -249,11 +281,39 @@ fn cmd_launch(workspace: &str) -> i32 {
         }
         dir
     } else {
-        match clone::clone_workspace(&workspace_root, &entry.repo, &entry.url, &entry.branch) {
-            Ok(dir) => dir,
-            Err(e) => {
-                error!("clone failed: {e}");
-                return 1;
+        // Try to clone from local main workspace first (fast, hardlinks)
+        let target_dir = config::workspace_dir(&workspace_root, &entry.repo, &entry.branch);
+        let main_workspace_path = st
+            .workspaces_for_repo(&entry.repo)
+            .into_iter()
+            .find(|ws| ws.path.is_some())
+            .and_then(|ws| ws.path.as_ref().map(PathBuf::from));
+
+        match main_workspace_path {
+            Some(main_path) if main_path.join(".git").exists() => {
+                info!("Cloning from local main workspace...");
+                match clone::clone_from_local(&main_path, &target_dir, &entry.branch) {
+                    Ok(dir) => dir,
+                    Err(e) => {
+                        error!("local clone failed: {e}");
+                        return 1;
+                    }
+                }
+            }
+            _ => {
+                // Fallback: clone from remote URL
+                match clone::clone_workspace(
+                    &workspace_root,
+                    &entry.repo,
+                    &entry.url,
+                    &entry.branch,
+                ) {
+                    Ok(dir) => dir,
+                    Err(e) => {
+                        error!("clone failed: {e}");
+                        return 1;
+                    }
+                }
             }
         }
     };
@@ -288,10 +348,20 @@ fn cmd_launch(workspace: &str) -> i32 {
     }
 
     // Step 3: Ensure container exists and is running
+    let is_new_container = matches!(
+        container::status(&container_name),
+        container::ContainerStatus::Missing
+    );
     match container::status(&container_name) {
         container::ContainerStatus::Missing => {
             info!("Creating container {container_name}...");
-            if let Err(e) = container::create(&container_name, &workspace_dir, &hints.image) {
+            if let Err(e) = container::create(
+                &container_name,
+                &workspace_dir,
+                &hints.image,
+                &hints.env,
+                &hints.anonymous_volumes,
+            ) {
                 error!("container create failed: {e}");
                 return 1;
             }
@@ -310,8 +380,17 @@ fn cmd_launch(workspace: &str) -> i32 {
         container::ContainerStatus::Running => {}
     }
 
+    // Step 3.5: Run setup command on new containers
+    if is_new_container && let Some(ref setup) = hints.setup {
+        info!("Running setup: {setup}");
+        if let Err(e) = container::exec_setup(&container_name, setup) {
+            error!("setup failed: {e}");
+            return 1;
+        }
+    }
+
     // Step 4: Write shell RC file
-    let rc_path = match shell::write_rc_file(&container_name) {
+    let rc_path = match shell::write_rc_file(&container_name, &hints.extra_commands) {
         Ok(p) => p,
         Err(e) => {
             error!("failed to write shell RC: {e}");
@@ -359,7 +438,7 @@ fn cmd_list() -> i32 {
 }
 
 /// Destroy a workspace: tmux → container → clone.
-fn cmd_destroy(workspace: &str) -> i32 {
+fn cmd_destroy(workspace_arg: Option<&str>) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
@@ -368,11 +447,29 @@ fn cmd_destroy(workspace: &str) -> i32 {
         }
     };
 
-    let entry = match st.resolve_workspace(workspace) {
-        Some(e) => e.clone(),
-        None => {
-            error!("unknown workspace '{workspace}'");
-            return 1;
+    // Resolve workspace: use arg if provided, otherwise auto-detect from cwd
+    let workspace;
+    let entry = if let Some(ws) = workspace_arg {
+        workspace = ws.to_string();
+        match st.resolve_workspace(ws) {
+            Some(e) => e.clone(),
+            None => {
+                error!("unknown workspace '{ws}'");
+                return 1;
+            }
+        }
+    } else {
+        match detect_workspace(&st) {
+            Some(e) => {
+                workspace = config::workspace_id(&e.repo, &e.branch);
+                info!("Auto-detected workspace: {workspace}");
+                e
+            }
+            None => {
+                error!("could not detect workspace from current directory");
+                info!("Usage: dual destroy [workspace]");
+                return 1;
+            }
         }
     };
 
@@ -535,7 +632,7 @@ fn cmd_proxy() -> i32 {
 
 /// Output shell RC for a container (used by `eval "$(dual shell-rc <name>)"`).
 fn cmd_shell_rc(container_name: &str) -> i32 {
-    print!("{}", shell::generate_rc(container_name));
+    print!("{}", shell::generate_rc(container_name, &[]));
     0
 }
 
@@ -665,6 +762,38 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
     0
 }
 
+/// Detect the repo name from the current working directory.
+///
+/// Matches the git remote URL of the cwd against known workspace URLs in state.
+fn detect_repo_from_cwd(st: &state::WorkspaceState) -> Option<String> {
+    let (_, url, _) = detect_git_repo().ok()?;
+
+    // Match against known workspace URLs
+    for ws in st.all_workspaces() {
+        if ws.url == url {
+            return Some(ws.repo.clone());
+        }
+    }
+
+    // Also try matching by git root path against workspace paths
+    let cwd = std::env::current_dir().ok()?;
+    let root = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| PathBuf::from(String::from_utf8_lossy(&o.stdout).trim().to_string()))?;
+
+    for ws in st.all_workspaces() {
+        let ws_dir = st.workspace_dir(ws);
+        if ws_dir == root || ws_dir == cwd {
+            return Some(ws.repo.clone());
+        }
+    }
+
+    None
+}
+
 /// Detect which workspace the current directory belongs to.
 fn detect_workspace(st: &state::WorkspaceState) -> Option<state::WorkspaceEntry> {
     let cwd = std::env::current_dir().ok()?;
@@ -687,35 +816,61 @@ fn detect_workspace(st: &state::WorkspaceState) -> Option<state::WorkspaceEntry>
     None
 }
 
-/// Print workspace status table.
+/// Print workspace status grouped by repo.
 fn print_workspace_status(st: &state::WorkspaceState) {
     let workspace_root = st.workspace_root();
+
+    // Collect unique repo names in order of first appearance
+    let mut repos: Vec<String> = Vec::new();
     for ws in st.all_workspaces() {
-        let workspace_id = config::workspace_id(&ws.repo, &ws.branch);
-        let container_name = config::container_name(&ws.repo, &ws.branch);
-        let session_name = tmux::session_name(&ws.repo, &ws.branch);
+        if !repos.contains(&ws.repo) {
+            repos.push(ws.repo.clone());
+        }
+    }
 
-        let clone_exists = if ws.path.is_some() {
-            // Explicit path — check if the path exists
-            ws.path
-                .as_ref()
-                .map(|p| PathBuf::from(p).join(".git").exists())
-                .unwrap_or(false)
-        } else {
-            clone::workspace_exists(&workspace_root, &ws.repo, &ws.branch)
-        };
-        let container_st = container::status(&container_name);
-        let tmux_alive = tmux::is_alive(&session_name);
+    for repo in &repos {
+        println!("{repo}");
+        for ws in st.workspaces_for_repo(repo) {
+            let container_name = config::container_name(&ws.repo, &ws.branch);
+            let session_name = tmux::session_name(&ws.repo, &ws.branch);
 
-        let status_icon = match (&container_st, tmux_alive) {
-            (container::ContainerStatus::Running, true) => "\u{25cf} attached",
-            (container::ContainerStatus::Running, false) => "\u{25cf} running",
-            (container::ContainerStatus::Stopped, _) => "\u{25cb} stopped",
-            (container::ContainerStatus::Missing, _) if clone_exists => "\u{25cb} stopped",
-            (container::ContainerStatus::Missing, _) => "\u{25cc} lazy",
-        };
+            let clone_exists = if ws.path.is_some() {
+                ws.path
+                    .as_ref()
+                    .map(|p| PathBuf::from(p).join(".git").exists())
+                    .unwrap_or(false)
+            } else {
+                clone::workspace_exists(&workspace_root, &ws.repo, &ws.branch)
+            };
+            let container_st = container::status(&container_name);
+            let tmux_alive = tmux::is_alive(&session_name);
 
-        info!("  {workspace_id:<30} {status_icon}");
+            let (icon, status_text) = match (&container_st, tmux_alive) {
+                (container::ContainerStatus::Running, true) => {
+                    ("\u{25cf}", "running  (container: up, tmux: attached)")
+                }
+                (container::ContainerStatus::Running, false) => {
+                    ("\u{25cf}", "running  (container: up, tmux: none)")
+                }
+                (container::ContainerStatus::Stopped, true) => (
+                    "\u{25cb}",
+                    "stopped  (container: stopped, tmux: background)",
+                ),
+                (container::ContainerStatus::Stopped, false) => {
+                    ("\u{25cb}", "stopped  (container: stopped, tmux: none)")
+                }
+                (container::ContainerStatus::Missing, _) if clone_exists => {
+                    ("\u{25cb}", "stopped  (not launched)")
+                }
+                (container::ContainerStatus::Missing, _) => {
+                    ("\u{25cc}", "lazy     (not cloned yet)")
+                }
+            };
+
+            let branch_display = config::decode_branch(&config::encode_branch(&ws.branch));
+            println!("  {branch_display:<24} {icon} {status_text}");
+        }
+        println!();
     }
 }
 
@@ -786,7 +941,17 @@ mod tests {
     fn launch_subcommand() {
         let cli = Cli::parse_from(["dual", "launch", "lightfast-main"]);
         if let Some(Command::Launch { workspace }) = cli.command {
-            assert_eq!(workspace, "lightfast-main");
+            assert_eq!(workspace.as_deref(), Some("lightfast-main"));
+        } else {
+            panic!("expected Launch command");
+        }
+    }
+
+    #[test]
+    fn launch_no_workspace() {
+        let cli = Cli::parse_from(["dual", "launch"]);
+        if let Some(Command::Launch { workspace }) = cli.command {
+            assert!(workspace.is_none());
         } else {
             panic!("expected Launch command");
         }
@@ -796,7 +961,17 @@ mod tests {
     fn destroy_subcommand() {
         let cli = Cli::parse_from(["dual", "destroy", "lightfast-main"]);
         if let Some(Command::Destroy { workspace }) = cli.command {
-            assert_eq!(workspace, "lightfast-main");
+            assert_eq!(workspace.as_deref(), Some("lightfast-main"));
+        } else {
+            panic!("expected Destroy command");
+        }
+    }
+
+    #[test]
+    fn destroy_no_workspace() {
+        let cli = Cli::parse_from(["dual", "destroy"]);
+        if let Some(Command::Destroy { workspace }) = cli.command {
+            assert!(workspace.is_none());
         } else {
             panic!("expected Destroy command");
         }
@@ -824,10 +999,21 @@ mod tests {
 
     #[test]
     fn create_subcommand() {
-        let cli = Cli::parse_from(["dual", "create", "lightfast", "feat/auth"]);
-        if let Some(Command::Create { repo, branch }) = cli.command {
-            assert_eq!(repo, "lightfast");
+        let cli = Cli::parse_from(["dual", "create", "feat/auth", "--repo", "lightfast"]);
+        if let Some(Command::Create { branch, repo }) = cli.command {
             assert_eq!(branch, "feat/auth");
+            assert_eq!(repo.as_deref(), Some("lightfast"));
+        } else {
+            panic!("expected Create command");
+        }
+    }
+
+    #[test]
+    fn create_no_repo() {
+        let cli = Cli::parse_from(["dual", "create", "feat/auth"]);
+        if let Some(Command::Create { branch, repo }) = cli.command {
+            assert_eq!(branch, "feat/auth");
+            assert!(repo.is_none());
         } else {
             panic!("expected Create command");
         }
