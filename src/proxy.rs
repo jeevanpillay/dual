@@ -10,8 +10,9 @@ use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use crate::config::{self, DualConfig};
+use crate::config;
 use crate::container;
+use crate::state::WorkspaceState;
 
 /// Routing entry: subdomain → container IP.
 type RouteMap = HashMap<String, String>;
@@ -23,12 +24,12 @@ pub struct ProxyState {
 }
 
 impl ProxyState {
-    /// Build routing table from config and running containers.
-    pub fn from_config(config: &DualConfig) -> Self {
+    /// Build routing table from workspace state and running containers.
+    pub fn from_state(state: &WorkspaceState) -> Self {
         let mut routes: HashMap<u16, RouteMap> = HashMap::new();
 
-        for (repo, branch) in config.all_workspaces() {
-            let container_name = DualConfig::container_name(&repo.name, branch);
+        for entry in state.all_workspaces() {
+            let container_name = config::container_name(&entry.repo, &entry.branch);
 
             // Only route to running containers
             if container::status(&container_name) != container::ContainerStatus::Running {
@@ -40,13 +41,16 @@ impl ProxyState {
                 None => continue,
             };
 
-            let subdomain = format!("{}-{}", repo.name, config::encode_branch(branch));
+            // Load hints to get ports
+            let ws_dir = state.workspace_dir(entry);
+            let hints = config::load_hints(&ws_dir).unwrap_or_default();
 
-            for &port in &repo.ports {
+            let workspace_id = config::workspace_id(&entry.repo, &entry.branch);
+            for &port in &hints.ports {
                 routes
                     .entry(port)
                     .or_default()
-                    .insert(subdomain.clone(), ip.clone());
+                    .insert(workspace_id.clone(), ip.clone());
             }
         }
 
@@ -68,26 +72,23 @@ impl ProxyState {
 }
 
 /// Start the reverse proxy, listening on all configured ports.
-pub async fn start(config: &DualConfig) -> Result<(), Box<dyn std::error::Error>> {
-    let state = ProxyState::from_config(config);
-    let ports = state.ports();
+pub async fn start(state: &WorkspaceState) -> Result<(), Box<dyn std::error::Error>> {
+    let proxy_state = ProxyState::from_state(state);
+    let ports = proxy_state.ports();
 
     if ports.is_empty() {
-        println!("No ports configured for proxy. Add 'ports' to repo config in dual.toml.");
-        println!("Example:");
-        println!("  [[repos]]");
-        println!("  name = \"my-app\"");
-        println!("  url = \"...\"");
-        println!("  branches = [\"main\"]");
+        println!("No ports configured for proxy. Add 'ports' to .dual.toml in your repo.");
+        println!("Example .dual.toml:");
+        println!("  image = \"node:20\"");
         println!("  ports = [3000, 3001]");
         return Ok(());
     }
 
-    let state = Arc::new(state);
+    let proxy_state = Arc::new(proxy_state);
 
     println!("Starting reverse proxy...\n");
     println!("Routes:");
-    for (&port, routes) in &state.routes {
+    for (&port, routes) in &proxy_state.routes {
         for (subdomain, ip) in routes {
             println!("  {subdomain}.localhost:{port} → {ip}:{port}");
         }
@@ -97,7 +98,7 @@ pub async fn start(config: &DualConfig) -> Result<(), Box<dyn std::error::Error>
     let mut handles = Vec::new();
 
     for port in ports {
-        let state = Arc::clone(&state);
+        let state = Arc::clone(&proxy_state);
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
         let listener = TcpListener::bind(addr).await?;
@@ -274,16 +275,20 @@ fn extract_subdomain(host: &str) -> Option<&str> {
 }
 
 /// Get all configured URLs for workspaces.
-pub fn workspace_urls(config: &DualConfig) -> Vec<(String, Vec<String>)> {
+pub fn workspace_urls(state: &WorkspaceState) -> Vec<(String, Vec<String>)> {
     let mut result = Vec::new();
 
-    for (repo, branch) in config.all_workspaces() {
-        let container_name = DualConfig::container_name(&repo.name, branch);
-        let workspace_id = format!("{}-{}", repo.name, config::encode_branch(branch));
+    for entry in state.all_workspaces() {
+        let container_name = config::container_name(&entry.repo, &entry.branch);
+        let workspace_id = config::workspace_id(&entry.repo, &entry.branch);
         let is_running = container::status(&container_name) == container::ContainerStatus::Running;
 
+        // Load hints to get ports
+        let ws_dir = state.workspace_dir(entry);
+        let hints = config::load_hints(&ws_dir).unwrap_or_default();
+
         let mut urls = Vec::new();
-        for &port in &repo.ports {
+        for &port in &hints.ports {
             let status = if is_running { "\u{25cf}" } else { "\u{25cb}" };
             urls.push(format!("  {status} {workspace_id}.localhost:{port}"));
         }

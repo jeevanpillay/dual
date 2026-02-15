@@ -73,17 +73,24 @@ impl TestFixture {
         self.tmux_sessions.push(name);
     }
 
-    /// Create a DualConfig with workspace_root set to a test directory.
-    pub fn test_config(
+    /// Create a WorkspaceState with workspace_root set to a test directory.
+    pub fn test_state(
         workspace_root: &std::path::Path,
-        toml_extra: &str,
-    ) -> dual::config::DualConfig {
-        let toml_str = format!(
-            "workspace_root = \"{}\"\n{}",
-            workspace_root.display(),
-            toml_extra
-        );
-        dual::config::parse(&toml_str).expect("failed to parse test config")
+        workspaces: &[(&str, &str, &str)],
+    ) -> dual::state::WorkspaceState {
+        let mut state = dual::state::WorkspaceState::new();
+        state.workspace_root = Some(workspace_root.to_string_lossy().to_string());
+        for (repo, url, branch) in workspaces {
+            state
+                .add_workspace(dual::state::WorkspaceEntry {
+                    repo: repo.to_string(),
+                    url: url.to_string(),
+                    branch: branch.to_string(),
+                    path: None,
+                })
+                .expect("test workspace should not duplicate");
+        }
+        state
     }
 }
 

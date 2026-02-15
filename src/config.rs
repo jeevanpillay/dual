@@ -1,87 +1,91 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-const CONFIG_FILENAME: &str = "dual.toml";
-const DEFAULT_WORKSPACE_ROOT: &str = "dual-workspaces";
+const HINTS_FILENAME: &str = ".dual.toml";
+const DEFAULT_IMAGE: &str = "node:20";
 
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct DualConfig {
-    /// Root directory for all workspaces (default: ~/dual-workspaces)
-    pub workspace_root: Option<String>,
+/// Per-repo runtime hints, read from .dual.toml in a workspace directory.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct RepoHints {
+    /// Docker image to use for containers (default: "node:20")
+    #[serde(default = "default_image")]
+    pub image: String,
 
-    /// Repository definitions
-    #[serde(default)]
-    pub repos: Vec<RepoConfig>,
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct RepoConfig {
-    /// Short name for the repo (e.g. "lightfast-platform")
-    pub name: String,
-
-    /// Git URL or local path to clone from
-    pub url: String,
-
-    /// Branches to create workspaces for
-    #[serde(default)]
-    pub branches: Vec<String>,
-
-    /// Ports that services bind to inside the container (for reverse proxy)
+    /// Ports that services bind to inside the container
     #[serde(default)]
     pub ports: Vec<u16>,
+
+    /// Setup command to run after container creation (e.g. "pnpm install")
+    pub setup: Option<String>,
+
+    /// Environment variables for the container
+    #[serde(default)]
+    pub env: HashMap<String, String>,
 }
 
-impl DualConfig {
-    /// Resolve the workspace root directory as an absolute path.
-    /// Uses the configured value or defaults to ~/dual-workspaces.
-    pub fn workspace_root(&self) -> PathBuf {
-        if let Some(ref root) = self.workspace_root {
-            let expanded = shellexpand(root);
-            PathBuf::from(expanded)
-        } else {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(DEFAULT_WORKSPACE_ROOT)
+fn default_image() -> String {
+    DEFAULT_IMAGE.to_string()
+}
+
+impl Default for RepoHints {
+    fn default() -> Self {
+        Self {
+            image: DEFAULT_IMAGE.to_string(),
+            ports: Vec::new(),
+            setup: None,
+            env: HashMap::new(),
         }
     }
+}
 
-    /// Get the workspace directory for a repo + branch combination.
-    /// Layout: {workspace_root}/{repo}/{encoded_branch}/
-    pub fn workspace_dir(&self, repo: &str, branch: &str) -> PathBuf {
-        self.workspace_root().join(repo).join(encode_branch(branch))
+/// Load RepoHints from a workspace directory's .dual.toml.
+/// Returns default hints if the file doesn't exist.
+pub fn load_hints(workspace_dir: &Path) -> Result<RepoHints, HintsError> {
+    let path = workspace_dir.join(HINTS_FILENAME);
+
+    if !path.exists() {
+        return Ok(RepoHints::default());
     }
 
-    /// Get the container name for a repo + branch combination.
-    /// Pattern: dual-{repo}-{encoded_branch}
-    pub fn container_name(repo: &str, branch: &str) -> String {
-        format!("dual-{}-{}", repo, encode_branch(branch))
-    }
+    let contents =
+        std::fs::read_to_string(&path).map_err(|e| HintsError::ReadError(path.clone(), e))?;
+    let hints: RepoHints =
+        toml::from_str(&contents).map_err(|e| HintsError::ParseError(path, e))?;
+    Ok(hints)
+}
 
-    /// Resolve a workspace identifier (e.g. "lightfast-main") to the matching
-    /// repo config and branch name. Matches against container name format
-    /// (without the "dual-" prefix).
-    pub fn resolve_workspace(&self, identifier: &str) -> Option<(&RepoConfig, String)> {
-        for repo in &self.repos {
-            for branch in &repo.branches {
-                let name = format!("{}-{}", repo.name, encode_branch(branch));
-                if name == identifier {
-                    return Some((repo, branch.clone()));
-                }
-            }
-        }
-        None
-    }
+/// Write RepoHints to a workspace directory's .dual.toml.
+pub fn write_hints(workspace_dir: &Path, hints: &RepoHints) -> Result<(), HintsError> {
+    let path = workspace_dir.join(HINTS_FILENAME);
+    let contents = toml::to_string_pretty(hints).map_err(HintsError::SerializeError)?;
+    std::fs::write(&path, contents).map_err(|e| HintsError::WriteError(path, e))?;
+    Ok(())
+}
 
-    /// Iterate all configured workspaces as (repo_config, branch) pairs.
-    pub fn all_workspaces(&self) -> Vec<(&RepoConfig, &str)> {
-        let mut result = Vec::new();
-        for repo in &self.repos {
-            for branch in &repo.branches {
-                result.push((repo, branch.as_str()));
-            }
-        }
-        result
-    }
+/// Parse hints from TOML string (for testing).
+pub fn parse_hints(toml_str: &str) -> Result<RepoHints, HintsError> {
+    let hints: RepoHints = toml::from_str(toml_str)
+        .map_err(|e| HintsError::ParseError(PathBuf::from("<string>"), e))?;
+    Ok(hints)
+}
+
+/// Compute the workspace identifier from repo + branch.
+/// e.g. ("lightfast", "feat/auth") → "lightfast-feat__auth"
+pub fn workspace_id(repo: &str, branch: &str) -> String {
+    format!("{}-{}", repo, encode_branch(branch))
+}
+
+/// Get the workspace directory for a repo + branch combination.
+/// Layout: {workspace_root}/{repo}/{encoded_branch}/
+pub fn workspace_dir(workspace_root: &Path, repo: &str, branch: &str) -> PathBuf {
+    workspace_root.join(repo).join(encode_branch(branch))
+}
+
+/// Compute the container name for a repo + branch combination.
+/// Pattern: dual-{repo}-{encoded_branch}
+pub fn container_name(repo: &str, branch: &str) -> String {
+    format!("dual-{}-{}", repo, encode_branch(branch))
 }
 
 /// Encode a branch name for filesystem use.
@@ -98,149 +102,36 @@ pub fn decode_branch(encoded: &str) -> String {
     encoded.replace("__", "/")
 }
 
-/// Discover and load the config file.
-/// Search order: current directory, then ~/.config/dual/
-pub fn load() -> Result<DualConfig, ConfigError> {
-    let paths = discovery_paths();
-
-    for path in &paths {
-        if path.exists() {
-            let contents = std::fs::read_to_string(path)
-                .map_err(|e| ConfigError::ReadError(path.clone(), e))?;
-            let config: DualConfig =
-                toml::from_str(&contents).map_err(|e| ConfigError::ParseError(path.clone(), e))?;
-            validate(&config)?;
-            return Ok(config);
-        }
-    }
-
-    Err(ConfigError::NotFound(paths))
-}
-
-/// Load config from a specific path.
-pub fn load_from(path: &Path) -> Result<DualConfig, ConfigError> {
-    let contents =
-        std::fs::read_to_string(path).map_err(|e| ConfigError::ReadError(path.to_path_buf(), e))?;
-    let config: DualConfig =
-        toml::from_str(&contents).map_err(|e| ConfigError::ParseError(path.to_path_buf(), e))?;
-    validate(&config)?;
-    Ok(config)
-}
-
-/// Parse config from a TOML string (useful for testing).
-pub fn parse(toml_str: &str) -> Result<DualConfig, ConfigError> {
-    let config: DualConfig = toml::from_str(toml_str)
-        .map_err(|e| ConfigError::ParseError(PathBuf::from("<string>"), e))?;
-    validate(&config)?;
-    Ok(config)
-}
-
-fn validate(config: &DualConfig) -> Result<(), ConfigError> {
-    for (i, repo) in config.repos.iter().enumerate() {
-        if repo.name.is_empty() {
-            return Err(ConfigError::Validation(format!(
-                "repos[{i}]: 'name' cannot be empty"
-            )));
-        }
-        if repo.url.is_empty() {
-            return Err(ConfigError::Validation(format!(
-                "repos[{i}] ({}): 'url' cannot be empty",
-                repo.name
-            )));
-        }
-    }
-    Ok(())
-}
-
-fn discovery_paths() -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    // Current directory
-    paths.push(PathBuf::from(CONFIG_FILENAME));
-
-    // ~/.config/dual/dual.toml
-    if let Some(config_dir) = dirs::config_dir() {
-        paths.push(config_dir.join("dual").join(CONFIG_FILENAME));
-    }
-
-    paths
-}
-
-/// Minimal ~ expansion for workspace_root paths.
-fn shellexpand(path: &str) -> String {
-    if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = dirs::home_dir()
-    {
-        return home.join(rest).to_string_lossy().into_owned();
-    }
-    path.to_string()
-}
-
 #[derive(Debug)]
-pub enum ConfigError {
-    NotFound(Vec<PathBuf>),
+pub enum HintsError {
     ReadError(PathBuf, std::io::Error),
+    WriteError(PathBuf, std::io::Error),
     ParseError(PathBuf, toml::de::Error),
-    Validation(String),
+    SerializeError(toml::ser::Error),
 }
 
-impl std::fmt::Display for ConfigError {
+impl std::fmt::Display for HintsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigError::NotFound(paths) => {
-                write!(f, "No dual.toml found. Searched:")?;
-                for p in paths {
-                    write!(f, "\n  - {}", p.display())?;
-                }
-                Ok(())
-            }
-            ConfigError::ReadError(path, err) => {
+            HintsError::ReadError(path, err) => {
                 write!(f, "Failed to read {}: {err}", path.display())
             }
-            ConfigError::ParseError(path, err) => {
+            HintsError::WriteError(path, err) => {
+                write!(f, "Failed to write {}: {err}", path.display())
+            }
+            HintsError::ParseError(path, err) => {
                 write!(f, "Failed to parse {}: {err}", path.display())
             }
-            ConfigError::Validation(msg) => write!(f, "Invalid config: {msg}"),
+            HintsError::SerializeError(err) => write!(f, "Failed to serialize hints: {err}"),
         }
     }
 }
 
-impl std::error::Error for ConfigError {}
+impl std::error::Error for HintsError {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_minimal_config() {
-        let config = parse("").unwrap();
-        assert!(config.repos.is_empty());
-        assert!(config.workspace_root.is_none());
-    }
-
-    #[test]
-    fn parse_full_config() {
-        let toml = r#"
-workspace_root = "~/my-workspaces"
-
-[[repos]]
-name = "lightfast"
-url = "git@github.com:org/lightfast.git"
-branches = ["main", "feat/auth", "fix/memory-leak"]
-
-[[repos]]
-name = "agent-os"
-url = "/local/path/to/agent-os"
-branches = ["main", "v2-rewrite"]
-"#;
-        let config = parse(toml).unwrap();
-        assert_eq!(config.workspace_root.as_deref(), Some("~/my-workspaces"));
-        assert_eq!(config.repos.len(), 2);
-        assert_eq!(config.repos[0].name, "lightfast");
-        assert_eq!(config.repos[0].branches.len(), 3);
-        assert_eq!(config.repos[1].name, "agent-os");
-        assert_eq!(config.repos[1].url, "/local/path/to/agent-os");
-    }
 
     #[test]
     fn encode_branch_with_slash() {
@@ -257,125 +148,105 @@ branches = ["main", "v2-rewrite"]
 
     #[test]
     fn container_name_format() {
+        assert_eq!(container_name("lightfast", "main"), "dual-lightfast-main");
         assert_eq!(
-            DualConfig::container_name("lightfast", "main"),
-            "dual-lightfast-main"
-        );
-        assert_eq!(
-            DualConfig::container_name("lightfast", "feat/auth"),
+            container_name("lightfast", "feat/auth"),
             "dual-lightfast-feat__auth"
         );
     }
 
     #[test]
     fn workspace_dir_format() {
-        let config = parse("").unwrap();
-        let dir = config.workspace_dir("lightfast", "feat/auth");
-        // Should end with lightfast/feat__auth
-        assert!(dir.ends_with("lightfast/feat__auth"));
+        let dir = workspace_dir(Path::new("/tmp/ws"), "lightfast", "feat/auth");
+        assert_eq!(dir, PathBuf::from("/tmp/ws/lightfast/feat__auth"));
     }
 
     #[test]
-    fn validation_rejects_empty_name() {
+    fn workspace_id_format() {
+        assert_eq!(workspace_id("lightfast", "main"), "lightfast-main");
+        assert_eq!(
+            workspace_id("lightfast", "feat/auth"),
+            "lightfast-feat__auth"
+        );
+    }
+
+    #[test]
+    fn default_hints() {
+        let hints = RepoHints::default();
+        assert_eq!(hints.image, "node:20");
+        assert!(hints.ports.is_empty());
+        assert!(hints.setup.is_none());
+        assert!(hints.env.is_empty());
+    }
+
+    #[test]
+    fn parse_hints_minimal() {
+        let hints = parse_hints("").unwrap();
+        assert_eq!(hints.image, "node:20");
+        assert!(hints.ports.is_empty());
+    }
+
+    #[test]
+    fn parse_hints_full() {
         let toml = r#"
-[[repos]]
-name = ""
-url = "https://example.com/repo.git"
+image = "python:3.12"
+ports = [3000, 3001]
+setup = "pnpm install"
+
+[env]
+NODE_ENV = "development"
 "#;
-        let err = parse(toml).unwrap_err();
-        assert!(err.to_string().contains("'name' cannot be empty"));
+        let hints = parse_hints(toml).unwrap();
+        assert_eq!(hints.image, "python:3.12");
+        assert_eq!(hints.ports, vec![3000, 3001]);
+        assert_eq!(hints.setup.as_deref(), Some("pnpm install"));
+        assert_eq!(hints.env.get("NODE_ENV").unwrap(), "development");
     }
 
     #[test]
-    fn validation_rejects_empty_url() {
+    fn parse_hints_missing_fields_use_defaults() {
+        let toml = r#"ports = [8080]"#;
+        let hints = parse_hints(toml).unwrap();
+        assert_eq!(hints.image, "node:20");
+        assert_eq!(hints.ports, vec![8080]);
+        assert!(hints.setup.is_none());
+    }
+
+    #[test]
+    fn load_hints_from_missing_file() {
+        let hints = load_hints(Path::new("/tmp/dual-test-nonexistent")).unwrap();
+        assert_eq!(hints, RepoHints::default());
+    }
+
+    #[test]
+    fn write_and_load_hints() {
+        let dir = std::env::temp_dir().join("dual-test-hints-roundtrip");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let hints = RepoHints {
+            image: "rust:latest".to_string(),
+            ports: vec![8080, 9090],
+            setup: Some("cargo build".to_string()),
+            env: HashMap::from([("RUST_LOG".to_string(), "debug".to_string())]),
+        };
+
+        write_hints(&dir, &hints).unwrap();
+        let loaded = load_hints(&dir).unwrap();
+        assert_eq!(hints, loaded);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_hints_unknown_fields_ignored() {
         let toml = r#"
-[[repos]]
-name = "test"
-url = ""
+image = "node:20"
+ports = [3000]
+unknown_field = "should be ignored"
 "#;
-        let err = parse(toml).unwrap_err();
-        assert!(err.to_string().contains("'url' cannot be empty"));
-    }
-
-    #[test]
-    fn invalid_toml_produces_parse_error() {
-        let err = parse("this is not valid toml [[[").unwrap_err();
-        assert!(err.to_string().contains("Failed to parse"));
-    }
-
-    #[test]
-    fn workspace_root_defaults_to_home() {
-        let config = parse("").unwrap();
-        let root = config.workspace_root();
-        let home = dirs::home_dir().unwrap();
-        assert_eq!(root, home.join("dual-workspaces"));
-    }
-
-    #[test]
-    fn workspace_root_custom() {
-        let config = parse("workspace_root = \"/tmp/my-workspaces\"").unwrap();
-        assert_eq!(config.workspace_root(), PathBuf::from("/tmp/my-workspaces"));
-    }
-
-    #[test]
-    fn resolve_workspace_found() {
-        let config = parse(
-            r#"
-[[repos]]
-name = "lightfast"
-url = "https://example.com/lightfast.git"
-branches = ["main", "feat/auth"]
-"#,
-        )
-        .unwrap();
-
-        let (repo, branch) = config.resolve_workspace("lightfast-main").unwrap();
-        assert_eq!(repo.name, "lightfast");
-        assert_eq!(branch, "main");
-
-        let (repo, branch) = config.resolve_workspace("lightfast-feat__auth").unwrap();
-        assert_eq!(repo.name, "lightfast");
-        assert_eq!(branch, "feat/auth");
-    }
-
-    #[test]
-    fn resolve_workspace_not_found() {
-        let config = parse(
-            r#"
-[[repos]]
-name = "lightfast"
-url = "https://example.com/lightfast.git"
-branches = ["main"]
-"#,
-        )
-        .unwrap();
-        assert!(config.resolve_workspace("unknown-workspace").is_none());
-    }
-
-    #[test]
-    fn all_workspaces_iterates_all() {
-        let config = parse(
-            r#"
-[[repos]]
-name = "lightfast"
-url = "https://example.com/lightfast.git"
-branches = ["main", "feat/auth"]
-
-[[repos]]
-name = "agent-os"
-url = "/local/agent-os"
-branches = ["main"]
-"#,
-        )
-        .unwrap();
-
-        let workspaces = config.all_workspaces();
-        assert_eq!(workspaces.len(), 3);
-        assert_eq!(workspaces[0].0.name, "lightfast");
-        assert_eq!(workspaces[0].1, "main");
-        assert_eq!(workspaces[1].0.name, "lightfast");
-        assert_eq!(workspaces[1].1, "feat/auth");
-        assert_eq!(workspaces[2].0.name, "agent-os");
-        assert_eq!(workspaces[2].1, "main");
+        // serde by default ignores unknown fields
+        let hints = parse_hints(toml).unwrap();
+        assert_eq!(hints.image, "node:20");
     }
 }

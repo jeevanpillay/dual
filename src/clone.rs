@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::config::{DualConfig, RepoConfig};
+use crate::config;
 
 /// Check if a URL looks like a local filesystem path (vs a remote git URL).
 pub fn is_local_path(url: &str) -> bool {
@@ -13,22 +13,9 @@ pub fn is_local_path(url: &str) -> bool {
 }
 
 /// Check if a workspace clone already exists on disk.
-pub fn workspace_exists(config: &DualConfig, repo: &str, branch: &str) -> bool {
-    let dir = config.workspace_dir(repo, branch);
+pub fn workspace_exists(workspace_root: &Path, repo: &str, branch: &str) -> bool {
+    let dir = config::workspace_dir(workspace_root, repo, branch);
     dir.join(".git").exists()
-}
-
-/// List all existing workspace clones for a given repo.
-/// Returns a vec of (branch_name, path) tuples for clones that exist on disk.
-pub fn list_existing_workspaces(config: &DualConfig, repo: &RepoConfig) -> Vec<(String, PathBuf)> {
-    let mut workspaces = Vec::new();
-    for branch in &repo.branches {
-        let dir = config.workspace_dir(&repo.name, branch);
-        if dir.join(".git").exists() {
-            workspaces.push((branch.clone(), dir));
-        }
-    }
-    workspaces
 }
 
 /// Create a full git clone for a workspace.
@@ -36,14 +23,14 @@ pub fn list_existing_workspaces(config: &DualConfig, repo: &RepoConfig) -> Vec<(
 /// - Local paths use `git clone --local` for hardlink-based fast clones
 /// - Remote URLs use standard `git clone`
 /// - Branch is checked out via `-b` flag
-/// - Target directory is determined by config.workspace_dir()
+/// - Target directory is determined by workspace_root + repo + branch
 pub fn clone_workspace(
-    config: &DualConfig,
+    workspace_root: &Path,
     repo: &str,
     url: &str,
     branch: &str,
 ) -> Result<PathBuf, CloneError> {
-    let target_dir = config.workspace_dir(repo, branch);
+    let target_dir = config::workspace_dir(workspace_root, repo, branch);
 
     // Don't re-clone if it already exists
     if target_dir.join(".git").exists() {
@@ -87,8 +74,8 @@ pub fn clone_workspace(
 }
 
 /// Remove a workspace clone from disk.
-pub fn remove_workspace(config: &DualConfig, repo: &str, branch: &str) -> Result<(), CloneError> {
-    let dir = config.workspace_dir(repo, branch);
+pub fn remove_workspace(workspace_root: &Path, repo: &str, branch: &str) -> Result<(), CloneError> {
+    let dir = config::workspace_dir(workspace_root, repo, branch);
     if dir.exists() {
         std::fs::remove_dir_all(&dir).map_err(|e| CloneError::Filesystem(dir, e))?;
     }
@@ -145,7 +132,6 @@ impl std::error::Error for CloneError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config;
 
     #[test]
     fn local_path_detection() {
@@ -200,24 +186,10 @@ mod tests {
 
     #[test]
     fn workspace_exists_returns_false_for_missing() {
-        let config = config::parse("workspace_root = \"/tmp/dual-test-nonexistent\"").unwrap();
-        assert!(!workspace_exists(&config, "nonexistent", "main"));
-    }
-
-    #[test]
-    fn list_existing_empty_when_no_clones() {
-        let config = config::parse(
-            r#"
-workspace_root = "/tmp/dual-test-nonexistent"
-
-[[repos]]
-name = "test-repo"
-url = "https://example.com/repo.git"
-branches = ["main", "dev"]
-"#,
-        )
-        .unwrap();
-        let workspaces = list_existing_workspaces(&config, &config.repos[0]);
-        assert!(workspaces.is_empty());
+        assert!(!workspace_exists(
+            Path::new("/tmp/dual-test-nonexistent"),
+            "nonexistent",
+            "main"
+        ));
     }
 }

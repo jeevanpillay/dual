@@ -1,9 +1,6 @@
 use std::path::Path;
 use std::process::Command;
 
-use crate::config::DualConfig;
-
-const DEFAULT_IMAGE: &str = "node:20";
 const WORKSPACE_MOUNT: &str = "/workspace";
 
 /// Container status.
@@ -20,18 +17,9 @@ pub enum ContainerStatus {
 /// - Anonymous volume for node_modules isolation
 /// - Sets working directory to /workspace
 /// - Uses bridge network (default) for network namespace isolation
-pub fn create(
-    config: &DualConfig,
-    repo: &str,
-    branch: &str,
-    image: Option<&str>,
-) -> Result<String, ContainerError> {
-    let name = DualConfig::container_name(repo, branch);
-    let workspace_dir = config.workspace_dir(repo, branch);
-    let image = image.unwrap_or(DEFAULT_IMAGE);
-
+pub fn create(name: &str, workspace_dir: &Path, image: &str) -> Result<String, ContainerError> {
     let output = Command::new("docker")
-        .args(build_create_args(&name, &workspace_dir, image))
+        .args(build_create_args(name, workspace_dir, image))
         .output()
         .map_err(|e| ContainerError::DockerNotFound(e.to_string()))?;
 
@@ -39,12 +27,12 @@ pub fn create(
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         return Err(ContainerError::Failed {
             operation: "create".to_string(),
-            name: name.clone(),
+            name: name.to_string(),
             stderr,
         });
     }
 
-    Ok(name)
+    Ok(name.to_string())
 }
 
 /// Start an existing container.
@@ -289,11 +277,6 @@ mod tests {
                 "bash"
             ]
         );
-    }
-
-    #[test]
-    fn default_image_is_node_20() {
-        assert_eq!(DEFAULT_IMAGE, "node:20");
     }
 
     #[test]

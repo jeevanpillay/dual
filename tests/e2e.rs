@@ -20,12 +20,12 @@ fn clone_creates_workspace() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
 
-    let clone_dir = dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
-        .expect("clone should succeed");
+    let clone_dir =
+        dual::clone::clone_workspace(&ws_root, "test-app", &repo_dir.to_string_lossy(), "main")
+            .expect("clone should succeed");
 
     assert!(clone_dir.exists());
     assert!(clone_dir.join(".git").exists());
@@ -40,12 +40,12 @@ fn clone_filesystem_layout() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
 
-    let clone_dir = dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
-        .expect("clone should succeed");
+    let clone_dir =
+        dual::clone::clone_workspace(&ws_root, "test-app", &repo_dir.to_string_lossy(), "main")
+            .expect("clone should succeed");
 
     // Layout: {workspace_root}/test-app/main/
     assert_eq!(clone_dir, workspace_root.join("test-app").join("main"));
@@ -58,13 +58,13 @@ fn clone_idempotent() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
+    let url = repo_dir.to_string_lossy().to_string();
 
-    let dir1 = dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
+    let dir1 = dual::clone::clone_workspace(&ws_root, "test-app", &url, "main")
         .expect("first clone should succeed");
-    let dir2 = dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
+    let dir2 = dual::clone::clone_workspace(&ws_root, "test-app", &url, "main")
         .expect("second clone should succeed (idempotent)");
 
     assert_eq!(dir1, dir2);
@@ -80,20 +80,19 @@ fn container_lifecycle() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
+    let url = repo_dir.to_string_lossy().to_string();
 
     // Clone workspace first (container needs bind mount target)
-    dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
-        .expect("clone should succeed");
+    dual::clone::clone_workspace(&ws_root, "test-app", &url, "main").expect("clone should succeed");
 
     // Use test-prefixed container name
     let container_name = f.container_name();
     f.register_container(container_name.clone());
 
-    // Create container with explicit name (bypassing DualConfig naming)
-    let workspace_dir = config.workspace_dir("test-app", "main");
+    // Create container with explicit name
+    let workspace_dir = dual::config::workspace_dir(&ws_root, "test-app", "main");
     let args = dual::container::build_create_args(&container_name, &workspace_dir, "node:20");
     let output = Command::new("docker").args(&args).output().unwrap();
     assert!(
@@ -138,17 +137,16 @@ fn container_exec_exit_codes() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
+    let url = repo_dir.to_string_lossy().to_string();
 
-    dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
-        .expect("clone should succeed");
+    dual::clone::clone_workspace(&ws_root, "test-app", &url, "main").expect("clone should succeed");
 
     let container_name = f.container_name();
     f.register_container(container_name.clone());
 
-    let workspace_dir = config.workspace_dir("test-app", "main");
+    let workspace_dir = dual::config::workspace_dir(&ws_root, "test-app", "main");
     let args = dual::container::build_create_args(&container_name, &workspace_dir, "node:20");
     let output = Command::new("docker").args(&args).output().unwrap();
     assert!(output.status.success());
@@ -176,11 +174,11 @@ fn bind_mount_host_to_container() {
     let repo_dir = fixtures::create_fixture_repo(&temp);
     let workspace_root = temp.join("workspaces");
 
-    let toml_str =
-        fixtures::fixture_config_toml(&workspace_root, &repo_dir, "test-app", "main", &[3000]);
-    let config = dual::config::parse(&toml_str).unwrap();
+    let state = fixtures::fixture_state(&workspace_root, &repo_dir, "test-app", "main");
+    let ws_root = state.workspace_root();
+    let url = repo_dir.to_string_lossy().to_string();
 
-    let clone_dir = dual::clone::clone_workspace(&config, "test-app", &config.repos[0].url, "main")
+    let clone_dir = dual::clone::clone_workspace(&ws_root, "test-app", &url, "main")
         .expect("clone should succeed");
 
     let container_name = f.container_name();
@@ -217,19 +215,19 @@ fn network_isolation_same_port() {
     let temp1 = f1.temp_dir();
     let repo1 = fixtures::create_fixture_repo(&temp1);
     let ws_root1 = temp1.join("workspaces");
-    let toml1 = fixtures::fixture_config_toml(&ws_root1, &repo1, "test-app-1", "main", &[3000]);
-    let config1 = dual::config::parse(&toml1).unwrap();
+    let state1 = fixtures::fixture_state(&ws_root1, &repo1, "test-app-1", "main");
+    let root1 = state1.workspace_root();
     let clone1 =
-        dual::clone::clone_workspace(&config1, "test-app-1", &config1.repos[0].url, "main")
+        dual::clone::clone_workspace(&root1, "test-app-1", &repo1.to_string_lossy(), "main")
             .unwrap();
 
     let temp2 = f2.temp_dir();
     let repo2 = fixtures::create_fixture_repo(&temp2);
     let ws_root2 = temp2.join("workspaces");
-    let toml2 = fixtures::fixture_config_toml(&ws_root2, &repo2, "test-app-2", "main", &[3000]);
-    let config2 = dual::config::parse(&toml2).unwrap();
+    let state2 = fixtures::fixture_state(&ws_root2, &repo2, "test-app-2", "main");
+    let root2 = state2.workspace_root();
     let clone2 =
-        dual::clone::clone_workspace(&config2, "test-app-2", &config2.repos[0].url, "main")
+        dual::clone::clone_workspace(&root2, "test-app-2", &repo2.to_string_lossy(), "main")
             .unwrap();
 
     // Create and start both containers

@@ -13,6 +13,22 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Register the current repo as a dual workspace
+    Add {
+        /// Short name for the repo (derived from directory name if omitted)
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+
+    /// Create a new branch workspace for an existing repo
+    Create {
+        /// Repo name (must already be added)
+        repo: String,
+
+        /// Branch name
+        branch: String,
+    },
+
     /// Launch a workspace (clone, container, tmux session)
     Launch {
         /// Workspace to launch (e.g. lightfast-main)
