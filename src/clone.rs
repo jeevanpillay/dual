@@ -82,6 +82,71 @@ pub fn remove_workspace(workspace_root: &Path, repo: &str, branch: &str) -> Resu
     Ok(())
 }
 
+/// Clone from a local main workspace using --local (hardlinks), then create a new branch.
+///
+/// This avoids the problem of `git clone -b <branch>` failing when the branch
+/// doesn't exist at the remote. Instead, we clone from the local main workspace
+/// and create the branch locally.
+pub fn clone_from_local(
+    main_workspace_path: &Path,
+    target_dir: &Path,
+    new_branch: &str,
+) -> Result<PathBuf, CloneError> {
+    // Don't re-clone if it already exists
+    if target_dir.join(".git").exists() {
+        return Ok(target_dir.to_path_buf());
+    }
+
+    // Ensure parent directory exists
+    if let Some(parent) = target_dir.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| CloneError::Filesystem(parent.to_path_buf(), e))?;
+    }
+
+    // Step 1: git clone --local <main_workspace_path> <target_dir>
+    let clone_output = Command::new("git")
+        .args(build_local_clone_args(main_workspace_path, target_dir))
+        .output()
+        .map_err(|e| CloneError::GitNotFound(e.to_string()))?;
+
+    if !clone_output.status.success() {
+        let stderr = String::from_utf8_lossy(&clone_output.stderr).to_string();
+        return Err(CloneError::GitFailed {
+            repo: main_workspace_path.to_string_lossy().to_string(),
+            branch: new_branch.to_string(),
+            stderr,
+        });
+    }
+
+    // Step 2: git checkout -b <new_branch> in the cloned directory
+    let checkout_output = Command::new("git")
+        .args(["checkout", "-b", new_branch])
+        .current_dir(target_dir)
+        .output()
+        .map_err(|e| CloneError::GitNotFound(e.to_string()))?;
+
+    if !checkout_output.status.success() {
+        let stderr = String::from_utf8_lossy(&checkout_output.stderr).to_string();
+        return Err(CloneError::GitFailed {
+            repo: main_workspace_path.to_string_lossy().to_string(),
+            branch: new_branch.to_string(),
+            stderr,
+        });
+    }
+
+    Ok(target_dir.to_path_buf())
+}
+
+/// Build the git clone --local arguments (for testing).
+pub fn build_local_clone_args(main_workspace_path: &Path, target: &Path) -> Vec<String> {
+    vec![
+        "clone".to_string(),
+        "--local".to_string(),
+        main_workspace_path.to_string_lossy().to_string(),
+        target.to_string_lossy().to_string(),
+    ]
+}
+
 /// Build the git clone command arguments (for testing/debugging without executing).
 pub fn build_clone_args(url: &str, branch: &str, target: &Path) -> Vec<String> {
     let mut args = vec!["clone".to_string()];
@@ -176,5 +241,22 @@ mod tests {
             "nonexistent",
             "main"
         ));
+    }
+
+    #[test]
+    fn local_clone_args() {
+        let args = build_local_clone_args(
+            Path::new("/home/user/code/lightfast"),
+            Path::new("/tmp/workspaces/lightfast/feat__auth"),
+        );
+        assert_eq!(
+            args,
+            vec![
+                "clone",
+                "--local",
+                "/home/user/code/lightfast",
+                "/tmp/workspaces/lightfast/feat__auth",
+            ]
+        );
     }
 }

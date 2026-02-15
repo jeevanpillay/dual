@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
@@ -14,12 +15,25 @@ pub enum ContainerStatus {
 /// Create a new Docker container for a workspace.
 ///
 /// - Bind mounts workspace dir to /workspace
-/// - Anonymous volume for node_modules isolation
+/// - Anonymous volumes for directory isolation (configurable)
 /// - Sets working directory to /workspace
+/// - Passes environment variables via -e flags
 /// - Uses bridge network (default) for network namespace isolation
-pub fn create(name: &str, workspace_dir: &Path, image: &str) -> Result<String, ContainerError> {
+pub fn create(
+    name: &str,
+    workspace_dir: &Path,
+    image: &str,
+    env: &HashMap<String, String>,
+    anonymous_volumes: &[String],
+) -> Result<String, ContainerError> {
     let output = Command::new("docker")
-        .args(build_create_args(name, workspace_dir, image))
+        .args(build_create_args(
+            name,
+            workspace_dir,
+            image,
+            env,
+            anonymous_volumes,
+        ))
         .output()
         .map_err(|e| ContainerError::DockerNotFound(e.to_string()))?;
 
@@ -143,27 +157,81 @@ pub fn list_all() -> Vec<(String, bool)> {
     }
 }
 
-/// Build the docker create arguments (for testing).
-pub fn build_create_args(name: &str, workspace_dir: &Path, image: &str) -> Vec<String> {
+/// Execute a setup command inside a running container.
+///
+/// Runs `docker exec <name> sh -c "<setup_cmd>"` and waits for completion.
+pub fn exec_setup(name: &str, setup_cmd: &str) -> Result<(), ContainerError> {
+    let output = Command::new("docker")
+        .args(build_exec_setup_args(name, setup_cmd))
+        .output()
+        .map_err(|e| ContainerError::DockerNotFound(e.to_string()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(ContainerError::Failed {
+            operation: "exec setup".to_string(),
+            name: name.to_string(),
+            stderr,
+        });
+    }
+
+    Ok(())
+}
+
+/// Build docker exec setup arguments (for testing).
+pub fn build_exec_setup_args(name: &str, setup_cmd: &str) -> Vec<String> {
     vec![
+        "exec".to_string(),
+        "-w".to_string(),
+        WORKSPACE_MOUNT.to_string(),
+        name.to_string(),
+        "sh".to_string(),
+        "-c".to_string(),
+        setup_cmd.to_string(),
+    ]
+}
+
+/// Build the docker create arguments (for testing).
+pub fn build_create_args(
+    name: &str,
+    workspace_dir: &Path,
+    image: &str,
+    env: &HashMap<String, String>,
+    anonymous_volumes: &[String],
+) -> Vec<String> {
+    let mut args = vec![
         "create".to_string(),
         "--name".to_string(),
         name.to_string(),
         // Bind mount workspace
         "-v".to_string(),
         format!("{}:{WORKSPACE_MOUNT}", workspace_dir.display()),
-        // Anonymous volume for node_modules isolation
-        "-v".to_string(),
-        format!("{WORKSPACE_MOUNT}/node_modules"),
-        // Working directory
-        "-w".to_string(),
-        WORKSPACE_MOUNT.to_string(),
-        // Image
-        image.to_string(),
-        // Keep container running for docker exec
-        "sleep".to_string(),
-        "infinity".to_string(),
-    ]
+    ];
+
+    // Anonymous volumes for directory isolation
+    for vol in anonymous_volumes {
+        args.push("-v".to_string());
+        args.push(format!("{WORKSPACE_MOUNT}/{vol}"));
+    }
+
+    // Environment variables
+    for (key, value) in env {
+        args.push("-e".to_string());
+        args.push(format!("{key}={value}"));
+    }
+
+    // Working directory
+    args.push("-w".to_string());
+    args.push(WORKSPACE_MOUNT.to_string());
+
+    // Image
+    args.push(image.to_string());
+
+    // Keep container running for docker exec
+    args.push("sleep".to_string());
+    args.push("infinity".to_string());
+
+    args
 }
 
 /// Build docker exec arguments (for testing).
@@ -216,10 +284,14 @@ mod tests {
 
     #[test]
     fn create_args_correct() {
+        let env = HashMap::new();
+        let volumes = vec!["node_modules".to_string()];
         let args = build_create_args(
             "dual-lightfast-main",
             Path::new("/home/user/dual-workspaces/lightfast/main"),
             "node:20",
+            &env,
+            &volumes,
         );
         assert_eq!(args[0], "create");
         assert_eq!(args[1], "--name");
@@ -233,6 +305,55 @@ mod tests {
         assert_eq!(args[9], "node:20");
         assert_eq!(args[10], "sleep");
         assert_eq!(args[11], "infinity");
+    }
+
+    #[test]
+    fn create_args_with_env_vars() {
+        let mut env = HashMap::new();
+        env.insert("NODE_ENV".to_string(), "development".to_string());
+        let volumes = vec!["node_modules".to_string()];
+        let args = build_create_args("dual-test", Path::new("/tmp/ws"), "node:20", &env, &volumes);
+        assert!(args.contains(&"-e".to_string()));
+        assert!(args.contains(&"NODE_ENV=development".to_string()));
+    }
+
+    #[test]
+    fn create_args_with_multiple_anonymous_volumes() {
+        let env = HashMap::new();
+        let volumes = vec![
+            "node_modules".to_string(),
+            ".next".to_string(),
+            "target".to_string(),
+        ];
+        let args = build_create_args("dual-test", Path::new("/tmp/ws"), "node:20", &env, &volumes);
+        assert!(args.contains(&"/workspace/node_modules".to_string()));
+        assert!(args.contains(&"/workspace/.next".to_string()));
+        assert!(args.contains(&"/workspace/target".to_string()));
+    }
+
+    #[test]
+    fn create_args_empty_env_no_extra_flags() {
+        let env = HashMap::new();
+        let volumes = vec!["node_modules".to_string()];
+        let args = build_create_args("dual-test", Path::new("/tmp/ws"), "node:20", &env, &volumes);
+        assert!(!args.contains(&"-e".to_string()));
+    }
+
+    #[test]
+    fn exec_setup_args_correct() {
+        let args = build_exec_setup_args("dual-lightfast-main", "pnpm install");
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "-w",
+                "/workspace",
+                "dual-lightfast-main",
+                "sh",
+                "-c",
+                "pnpm install",
+            ]
+        );
     }
 
     #[test]

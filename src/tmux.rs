@@ -46,21 +46,35 @@ pub fn create_session(
 }
 
 /// Attach to an existing tmux session.
+///
+/// If already inside tmux (`$TMUX` is set), uses `switch-client` to avoid
+/// nested sessions. Otherwise uses `attach-session`.
 pub fn attach(session_name: &str) -> Result<(), TmuxError> {
+    let (cmd, op) = if is_inside_tmux() {
+        (["switch-client", "-t", session_name], "switch-client")
+    } else {
+        (["attach-session", "-t", session_name], "attach-session")
+    };
+
     let status = Command::new("tmux")
-        .args(["attach-session", "-t", session_name])
+        .args(cmd)
         .status()
         .map_err(|e| TmuxError::NotFound(e.to_string()))?;
 
     if !status.success() {
         return Err(TmuxError::Failed {
-            operation: "attach-session".to_string(),
+            operation: op.to_string(),
             session: session_name.to_string(),
             stderr: format!("exit code: {}", status.code().unwrap_or(-1)),
         });
     }
 
     Ok(())
+}
+
+/// Check if we're already inside a tmux session.
+pub fn is_inside_tmux() -> bool {
+    std::env::var("TMUX").is_ok_and(|v| !v.is_empty())
 }
 
 /// Detach the current client from a session.
@@ -221,5 +235,32 @@ mod tests {
         // This test just verifies the function doesn't panic
         // It may return true or false depending on the system
         let _available = is_available();
+    }
+
+    #[test]
+    fn is_inside_tmux_detects_env() {
+        // Save and restore TMUX env var
+        let original = std::env::var("TMUX").ok();
+
+        // SAFETY: This test runs single-threaded and restores the original value.
+        unsafe {
+            // When TMUX is set to a non-empty value, we're inside tmux
+            std::env::set_var("TMUX", "/tmp/tmux-1000/default,12345,0");
+            assert!(is_inside_tmux());
+
+            // When TMUX is empty, we're not inside tmux
+            std::env::set_var("TMUX", "");
+            assert!(!is_inside_tmux());
+
+            // When TMUX is unset, we're not inside tmux
+            std::env::remove_var("TMUX");
+            assert!(!is_inside_tmux());
+
+            // Restore original value
+            match original {
+                Some(v) => std::env::set_var("TMUX", v),
+                None => std::env::remove_var("TMUX"),
+            }
+        }
     }
 }
