@@ -1,5 +1,9 @@
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 use crate::config;
 
@@ -139,6 +143,7 @@ pub fn load() -> Result<WorkspaceState, StateError> {
     let state: WorkspaceState =
         toml::from_str(&contents).map_err(|e| StateError::ParseError(path.clone(), e))?;
     validate(&state)?;
+    debug!(count = state.workspaces.len(), "loaded state");
     Ok(state)
 }
 
@@ -156,29 +161,66 @@ pub fn load_from(path: &Path) -> Result<WorkspaceState, StateError> {
     Ok(state)
 }
 
-/// Save state to default location. Creates directory if needed.
+/// Save state to default location. Uses atomic write with backup.
 pub fn save(state: &WorkspaceState) -> Result<(), StateError> {
     let path = state_path().ok_or(StateError::NoHomeDir)?;
 
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| StateError::WriteError(parent.to_path_buf(), e))?;
+        fs::create_dir_all(parent).map_err(|e| StateError::WriteError(parent.to_path_buf(), e))?;
     }
 
-    let contents = toml::to_string_pretty(state).map_err(StateError::SerializeError)?;
-    std::fs::write(&path, contents).map_err(|e| StateError::WriteError(path, e))?;
-    Ok(())
+    atomic_save(state, &path)
 }
 
-/// Save state to a specific path.
+/// Save state to a specific path. Uses atomic write with backup.
 pub fn save_to(state: &WorkspaceState, path: &Path) -> Result<(), StateError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| StateError::WriteError(parent.to_path_buf(), e))?;
+        fs::create_dir_all(parent).map_err(|e| StateError::WriteError(parent.to_path_buf(), e))?;
     }
 
+    atomic_save(state, path)
+}
+
+/// Atomic save: serialize -> write to temp file -> backup existing -> rename.
+///
+/// Uses advisory file locking to prevent concurrent writes.
+/// The lock is held on a lockfile for the duration of the write-backup-rename sequence.
+fn atomic_save(state: &WorkspaceState, path: &Path) -> Result<(), StateError> {
     let contents = toml::to_string_pretty(state).map_err(StateError::SerializeError)?;
-    std::fs::write(path, contents).map_err(|e| StateError::WriteError(path.to_path_buf(), e))?;
+
+    let lock_path = path.with_extension("lock");
+
+    // Acquire advisory lock
+    let lock_file =
+        File::create(&lock_path).map_err(|e| StateError::WriteError(lock_path.clone(), e))?;
+    lock_file
+        .lock_exclusive()
+        .map_err(|e| StateError::WriteError(lock_path.clone(), e))?;
+
+    // Write to temp file in the same directory (same filesystem for rename)
+    let tmp_path = path.with_extension("tmp");
+    let mut tmp_file =
+        File::create(&tmp_path).map_err(|e| StateError::WriteError(tmp_path.clone(), e))?;
+    tmp_file
+        .write_all(contents.as_bytes())
+        .map_err(|e| StateError::WriteError(tmp_path.clone(), e))?;
+    tmp_file
+        .sync_all()
+        .map_err(|e| StateError::WriteError(tmp_path.clone(), e))?;
+
+    // Backup existing file (best-effort — don't fail if original doesn't exist)
+    let bak_path = path.with_extension("toml.bak");
+    if path.exists() {
+        let _ = fs::copy(path, &bak_path);
+    }
+
+    // Atomic rename (POSIX guarantees this is atomic on same filesystem)
+    fs::rename(&tmp_path, path).map_err(|e| StateError::WriteError(path.to_path_buf(), e))?;
+
+    // Release lock (dropped with file, but explicit for clarity)
+    let _ = lock_file.unlock();
+    let _ = fs::remove_file(&lock_path);
+
     Ok(())
 }
 
@@ -223,42 +265,29 @@ fn shellexpand(path: &str) -> String {
     path.to_string()
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum StateError {
+    #[error("Could not determine home directory")]
     NoHomeDir,
+
+    #[error("Failed to read {path}: {err}", path = .0.display(), err = .1)]
     ReadError(PathBuf, std::io::Error),
+
+    #[error("Failed to write {path}: {err}", path = .0.display(), err = .1)]
     WriteError(PathBuf, std::io::Error),
+
+    #[error("Failed to parse {path}: {err}", path = .0.display(), err = .1)]
     ParseError(PathBuf, toml::de::Error),
+
+    #[error("Failed to serialize state: {0}")]
     SerializeError(toml::ser::Error),
+
+    #[error("Invalid state: {0}")]
     Validation(String),
+
+    #[error("Workspace {0}/{1} already exists")]
     DuplicateWorkspace(String, String),
 }
-
-impl std::fmt::Display for StateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StateError::NoHomeDir => write!(f, "Could not determine home directory"),
-            StateError::ReadError(path, err) => {
-                write!(f, "Failed to read {}: {err}", path.display())
-            }
-            StateError::WriteError(path, err) => {
-                write!(f, "Failed to write {}: {err}", path.display())
-            }
-            StateError::ParseError(path, err) => {
-                write!(f, "Failed to parse {}: {err}", path.display())
-            }
-            StateError::SerializeError(err) => {
-                write!(f, "Failed to serialize state: {err}")
-            }
-            StateError::Validation(msg) => write!(f, "Invalid state: {msg}"),
-            StateError::DuplicateWorkspace(repo, branch) => {
-                write!(f, "Workspace {repo}/{branch} already exists")
-            }
-        }
-    }
-}
-
-impl std::error::Error for StateError {}
 
 #[cfg(test)]
 mod tests {

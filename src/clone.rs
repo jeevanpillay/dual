@@ -98,36 +98,21 @@ pub fn build_clone_args(url: &str, branch: &str, target: &Path) -> Vec<String> {
     args
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum CloneError {
+    #[error("git not found: {0}")]
     GitNotFound(String),
+
+    #[error("git clone failed for {repo}/{branch}: {stderr}")]
     GitFailed {
         repo: String,
         branch: String,
         stderr: String,
     },
+
+    #[error("filesystem error at {path}: {err}", path = .0.display(), err = .1)]
     Filesystem(PathBuf, std::io::Error),
 }
-
-impl std::fmt::Display for CloneError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CloneError::GitNotFound(err) => write!(f, "git not found: {err}"),
-            CloneError::GitFailed {
-                repo,
-                branch,
-                stderr,
-            } => {
-                write!(f, "git clone failed for {repo}/{branch}: {stderr}")
-            }
-            CloneError::Filesystem(path, err) => {
-                write!(f, "filesystem error at {}: {err}", path.display())
-            }
-        }
-    }
-}
-
-impl std::error::Error for CloneError {}
 
 #[cfg(test)]
 mod tests {

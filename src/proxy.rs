@@ -10,9 +10,19 @@ use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
+use tracing::{debug, info, warn};
+
 use crate::config;
 use crate::container;
 use crate::state::WorkspaceState;
+
+/// Build a 502 Bad Gateway response with a text body.
+fn bad_gateway(body: impl Into<String>) -> Response<Full<Bytes>> {
+    Response::builder()
+        .status(StatusCode::BAD_GATEWAY)
+        .body(Full::new(Bytes::from(body.into())))
+        .expect("valid status code always produces valid response")
+}
 
 /// Routing entry: subdomain → container IP.
 type RouteMap = HashMap<String, String>;
@@ -77,23 +87,22 @@ pub async fn start(state: &WorkspaceState) -> Result<(), Box<dyn std::error::Err
     let ports = proxy_state.ports();
 
     if ports.is_empty() {
-        println!("No ports configured for proxy. Add 'ports' to .dual.toml in your repo.");
-        println!("Example .dual.toml:");
-        println!("  image = \"node:20\"");
-        println!("  ports = [3000, 3001]");
+        info!("No ports configured for proxy. Add 'ports' to .dual.toml in your repo.");
+        info!("Example .dual.toml:");
+        info!("  image = \"node:20\"");
+        info!("  ports = [3000, 3001]");
         return Ok(());
     }
 
     let proxy_state = Arc::new(proxy_state);
 
-    println!("Starting reverse proxy...\n");
-    println!("Routes:");
+    info!("Starting reverse proxy...");
+    info!("Routes:");
     for (&port, routes) in &proxy_state.routes {
         for (subdomain, ip) in routes {
-            println!("  {subdomain}.localhost:{port} → {ip}:{port}");
+            info!("  {subdomain}.localhost:{port} → {ip}:{port}");
         }
     }
-    println!();
 
     let mut handles = Vec::new();
 
@@ -102,14 +111,14 @@ pub async fn start(state: &WorkspaceState) -> Result<(), Box<dyn std::error::Err
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
         let listener = TcpListener::bind(addr).await?;
-        println!("Listening on {addr}");
+        info!("Listening on {addr}");
 
         handles.push(tokio::spawn(async move {
             loop {
                 let (stream, _) = match listener.accept().await {
                     Ok(conn) => conn,
                     Err(e) => {
-                        eprintln!("accept error on port {port}: {e}");
+                        warn!(port, "accept error: {e}");
                         continue;
                     }
                 };
@@ -130,14 +139,14 @@ pub async fn start(state: &WorkspaceState) -> Result<(), Box<dyn std::error::Err
                         .await
                         && !e.to_string().contains("connection closed")
                     {
-                        eprintln!("connection error: {e}");
+                        debug!("connection error: {e}");
                     }
                 });
             }
         }));
     }
 
-    println!("\nProxy running. Press Ctrl+C to stop.");
+    info!("Proxy running. Press Ctrl+C to stop.");
 
     // Wait for all listeners (runs forever until Ctrl+C)
     for handle in handles {
@@ -161,6 +170,7 @@ async fn handle_request(
         .unwrap_or("");
 
     let subdomain = extract_subdomain(host);
+    debug!(host, port, "routing request");
 
     let container_ip = match subdomain.and_then(|s| state.resolve(port, s)) {
         Some(ip) => ip.to_string(),
@@ -177,10 +187,7 @@ async fn handle_request(
                         .join("\n"))
                     .unwrap_or_default()
             );
-            return Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from(body)))
-                .unwrap());
+            return Ok(bad_gateway(body));
         }
     };
 
@@ -200,10 +207,7 @@ async fn handle_request(
         Ok(s) => s,
         Err(e) => {
             let body = format!("Cannot connect to {container_ip}:{port}: {e}");
-            return Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from(body)))
-                .unwrap());
+            return Ok(bad_gateway(body));
         }
     };
 
@@ -213,10 +217,7 @@ async fn handle_request(
         Ok(c) => c,
         Err(e) => {
             let body = format!("Handshake failed with {container_ip}:{port}: {e}");
-            return Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from(body)))
-                .unwrap());
+            return Ok(bad_gateway(body));
         }
     };
 
@@ -225,7 +226,7 @@ async fn handle_request(
         if let Err(e) = conn.await
             && !e.to_string().contains("connection closed")
         {
-            eprintln!("backend connection error: {e}");
+            warn!("backend connection error: {e}");
         }
     });
 
@@ -239,19 +240,13 @@ async fn handle_request(
                 Ok(collected) => Ok(Response::from_parts(parts, Full::new(collected.to_bytes()))),
                 Err(e) => {
                     let body = format!("Error reading response: {e}");
-                    Ok(Response::builder()
-                        .status(StatusCode::BAD_GATEWAY)
-                        .body(Full::new(Bytes::from(body)))
-                        .unwrap())
+                    Ok(bad_gateway(body))
                 }
             }
         }
         Err(e) => {
             let body = format!("Proxy error: {e}");
-            Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from(body)))
-                .unwrap())
+            Ok(bad_gateway(body))
         }
     }
 }

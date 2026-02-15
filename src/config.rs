@@ -121,32 +121,20 @@ pub fn decode_branch(encoded: &str) -> String {
     encoded.replace("__", "/")
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum HintsError {
+    #[error("Failed to read {path}: {err}", path = .0.display(), err = .1)]
     ReadError(PathBuf, std::io::Error),
+
+    #[error("Failed to write {path}: {err}", path = .0.display(), err = .1)]
     WriteError(PathBuf, std::io::Error),
+
+    #[error("Failed to parse {path}: {err}", path = .0.display(), err = .1)]
     ParseError(PathBuf, toml::de::Error),
+
+    #[error("Failed to serialize hints: {0}")]
     SerializeError(toml::ser::Error),
 }
-
-impl std::fmt::Display for HintsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HintsError::ReadError(path, err) => {
-                write!(f, "Failed to read {}: {err}", path.display())
-            }
-            HintsError::WriteError(path, err) => {
-                write!(f, "Failed to write {}: {err}", path.display())
-            }
-            HintsError::ParseError(path, err) => {
-                write!(f, "Failed to parse {}: {err}", path.display())
-            }
-            HintsError::SerializeError(err) => write!(f, "Failed to serialize hints: {err}"),
-        }
-    }
-}
-
-impl std::error::Error for HintsError {}
 
 #[cfg(test)]
 mod tests {

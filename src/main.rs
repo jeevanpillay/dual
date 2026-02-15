@@ -10,8 +10,19 @@ use dual::shared;
 use dual::shell;
 use dual::state;
 use dual::tmux;
+use tracing::{debug, error, info, warn};
 
 fn main() {
+    // Initialize tracing with DUAL_LOG env var (default: info)
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_env("DUAL_LOG")
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .without_time()
+        .with_target(false)
+        .init();
+
     let cli = Cli::parse();
 
     let exit_code = match cli.command {
@@ -36,22 +47,22 @@ fn cmd_default() -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
-            eprintln!("\nRun `dual add` inside a repo to get started.");
+            error!("{e}");
+            info!("Run `dual add` inside a repo to get started.");
             return 1;
         }
     };
 
     let workspaces = st.all_workspaces();
     if workspaces.is_empty() {
-        println!("No workspaces. Run `dual add` inside a repo to get started.");
+        info!("No workspaces. Run `dual add` inside a repo to get started.");
         return 0;
     }
 
-    println!("Workspaces:\n");
+    info!("Workspaces:\n");
     print_workspace_status(&st);
-    println!("\nUse `dual launch <workspace>` to start a workspace.");
-    println!("Use `dual add` to register a new repo.");
+    info!("Use `dual launch <workspace>` to start a workspace.");
+    info!("Use `dual add` to register a new repo.");
     0
 }
 
@@ -61,7 +72,7 @@ fn cmd_add(name: Option<&str>) -> i32 {
     let (repo_root, url, branch) = match detect_git_repo() {
         Ok(info) => info,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -76,14 +87,14 @@ fn cmd_add(name: Option<&str>) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
 
     // Check for duplicates
     if st.has_workspace(&repo_name, &branch) {
-        eprintln!("error: workspace {}/{} already exists", repo_name, branch);
+        error!("workspace {}/{} already exists", repo_name, branch);
         return 1;
     }
 
@@ -92,10 +103,10 @@ fn cmd_add(name: Option<&str>) -> i32 {
     if !hints_path.exists() {
         let hints = config::RepoHints::default();
         if let Err(e) = config::write_hints(&repo_root, &hints) {
-            eprintln!("warning: failed to write .dual.toml: {e}");
+            warn!("failed to write .dual.toml: {e}");
         } else {
-            println!("Created .dual.toml with defaults (image: node:20)");
-            println!("Edit it to customize ports, image, setup command, and env vars.");
+            info!("Created .dual.toml with defaults (image: node:20)");
+            info!("Edit it to customize ports, image, setup command, and env vars.");
         }
     }
 
@@ -109,13 +120,13 @@ fn cmd_add(name: Option<&str>) -> i32 {
                 match shared::init_from_main(&repo_root, &shared_dir, &shared_config.files) {
                     Ok(moved) => {
                         for f in &moved {
-                            println!("  shared: {f} → ~/.dual/shared/{repo_name}/");
+                            info!("  shared: {f} → ~/.dual/shared/{repo_name}/");
                         }
                     }
-                    Err(e) => eprintln!("warning: shared init failed: {e}"),
+                    Err(e) => warn!("shared init failed: {e}"),
                 }
             }
-            Err(e) => eprintln!("warning: could not create shared directory: {e}"),
+            Err(e) => warn!("could not create shared directory: {e}"),
         }
     }
 
@@ -128,19 +139,19 @@ fn cmd_add(name: Option<&str>) -> i32 {
     };
 
     if let Err(e) = st.add_workspace(entry) {
-        eprintln!("error: {e}");
+        error!("{e}");
         return 1;
     }
 
     // Save state
     if let Err(e) = state::save(&st) {
-        eprintln!("error: failed to save state: {e}");
+        error!("failed to save state: {e}");
         return 1;
     }
 
     let ws_id = config::workspace_id(&repo_name, &branch);
-    println!("Added workspace: {ws_id}");
-    println!("Use `dual launch {ws_id}` to start.");
+    info!("Added workspace: {ws_id}");
+    info!("Use `dual launch {ws_id}` to start.");
     0
 }
 
@@ -149,7 +160,7 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -157,13 +168,13 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
     // Find an existing workspace for this repo
     let existing = st.workspaces_for_repo(repo);
     if existing.is_empty() {
-        eprintln!("error: repo '{repo}' not found. Run `dual add` inside the repo first.");
+        error!("repo '{repo}' not found. Run `dual add` inside the repo first.");
         return 1;
     }
 
     // Check if this branch already exists
     if st.has_workspace(repo, branch) {
-        eprintln!("error: workspace {repo}/{branch} already exists");
+        error!("workspace {repo}/{branch} already exists");
         return 1;
     }
 
@@ -179,18 +190,18 @@ fn cmd_create(repo: &str, branch: &str) -> i32 {
     };
 
     if let Err(e) = st.add_workspace(entry) {
-        eprintln!("error: {e}");
+        error!("{e}");
         return 1;
     }
 
     if let Err(e) = state::save(&st) {
-        eprintln!("error: failed to save state: {e}");
+        error!("failed to save state: {e}");
         return 1;
     }
 
     let ws_id = config::workspace_id(repo, branch);
-    println!("Created workspace: {ws_id}");
-    println!("Use `dual launch {ws_id}` to start.");
+    info!("Created workspace: {ws_id}");
+    info!("Use `dual launch {ws_id}` to start.");
     0
 }
 
@@ -199,7 +210,7 @@ fn cmd_launch(workspace: &str) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -207,11 +218,11 @@ fn cmd_launch(workspace: &str) -> i32 {
     let entry = match st.resolve_workspace(workspace) {
         Some(e) => e,
         None => {
-            eprintln!("error: unknown workspace '{workspace}'");
-            eprintln!("\nConfigured workspaces:");
+            error!("unknown workspace '{workspace}'");
+            info!("Configured workspaces:");
             for ws in st.all_workspaces() {
                 let id = config::workspace_id(&ws.repo, &ws.branch);
-                eprintln!("  {id}");
+                info!("  {id}");
             }
             return 1;
         }
@@ -220,13 +231,18 @@ fn cmd_launch(workspace: &str) -> i32 {
     let workspace_root = st.workspace_root();
     let container_name = config::container_name(&entry.repo, &entry.branch);
     let session_name = tmux::session_name(&entry.repo, &entry.branch);
+    debug!(
+        repo = %entry.repo,
+        branch = %entry.branch,
+        "resolved workspace"
+    );
 
     // Step 1: Resolve workspace directory
     let workspace_dir = if let Some(ref path) = entry.path {
         let dir = PathBuf::from(path);
         if !dir.join(".git").exists() {
-            eprintln!(
-                "error: workspace path {} does not contain a git repo",
+            error!(
+                "workspace path {} does not contain a git repo",
                 dir.display()
             );
             return 1;
@@ -236,7 +252,7 @@ fn cmd_launch(workspace: &str) -> i32 {
         match clone::clone_workspace(&workspace_root, &entry.repo, &entry.url, &entry.branch) {
             Ok(dir) => dir,
             Err(e) => {
-                eprintln!("error: clone failed: {e}");
+                error!("clone failed: {e}");
                 return 1;
             }
         }
@@ -253,20 +269,20 @@ fn cmd_launch(workspace: &str) -> i32 {
             match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
                 Ok(moved) => {
                     for f in &moved {
-                        println!("  shared: {f} → ~/.dual/shared/{}/", entry.repo);
+                        info!("  shared: {f} → ~/.dual/shared/{}/", entry.repo);
                     }
                 }
-                Err(e) => eprintln!("warning: shared init failed: {e}"),
+                Err(e) => warn!("shared init failed: {e}"),
             }
         } else {
             // Branch workspace: copy shared files
             match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
                 Ok(copied) => {
                     for f in &copied {
-                        println!("  shared: copied {f}");
+                        info!("  shared: copied {f}");
                     }
                 }
-                Err(e) => eprintln!("warning: shared copy failed: {e}"),
+                Err(e) => warn!("shared copy failed: {e}"),
             }
         }
     }
@@ -274,20 +290,20 @@ fn cmd_launch(workspace: &str) -> i32 {
     // Step 3: Ensure container exists and is running
     match container::status(&container_name) {
         container::ContainerStatus::Missing => {
-            println!("Creating container {container_name}...");
+            info!("Creating container {container_name}...");
             if let Err(e) = container::create(&container_name, &workspace_dir, &hints.image) {
-                eprintln!("error: container create failed: {e}");
+                error!("container create failed: {e}");
                 return 1;
             }
             if let Err(e) = container::start(&container_name) {
-                eprintln!("error: container start failed: {e}");
+                error!("container start failed: {e}");
                 return 1;
             }
         }
         container::ContainerStatus::Stopped => {
-            println!("Starting container {container_name}...");
+            info!("Starting container {container_name}...");
             if let Err(e) = container::start(&container_name) {
-                eprintln!("error: container start failed: {e}");
+                error!("container start failed: {e}");
                 return 1;
             }
         }
@@ -298,7 +314,7 @@ fn cmd_launch(workspace: &str) -> i32 {
     let rc_path = match shell::write_rc_file(&container_name) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("error: failed to write shell RC: {e}");
+            error!("failed to write shell RC: {e}");
             return 1;
         }
     };
@@ -307,15 +323,15 @@ fn cmd_launch(workspace: &str) -> i32 {
     if !tmux::is_alive(&session_name) {
         let source_cmd = shell::source_file_command(&rc_path);
         if let Err(e) = tmux::create_session(&session_name, &workspace_dir, Some(&source_cmd)) {
-            eprintln!("error: tmux session creation failed: {e}");
+            error!("tmux session creation failed: {e}");
             return 1;
         }
     }
 
     // Step 6: Attach
-    println!("Attaching to {session_name}...");
+    info!("Attaching to {session_name}...");
     if let Err(e) = tmux::attach(&session_name) {
-        eprintln!("error: tmux attach failed: {e}");
+        error!("tmux attach failed: {e}");
         return 1;
     }
 
@@ -327,14 +343,14 @@ fn cmd_list() -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
 
     let workspaces = st.all_workspaces();
     if workspaces.is_empty() {
-        println!("No workspaces configured.");
+        info!("No workspaces configured.");
         return 0;
     }
 
@@ -347,7 +363,7 @@ fn cmd_destroy(workspace: &str) -> i32 {
     let mut st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -355,7 +371,7 @@ fn cmd_destroy(workspace: &str) -> i32 {
     let entry = match st.resolve_workspace(workspace) {
         Some(e) => e.clone(),
         None => {
-            eprintln!("error: unknown workspace '{workspace}'");
+            error!("unknown workspace '{workspace}'");
             return 1;
         }
     };
@@ -366,28 +382,28 @@ fn cmd_destroy(workspace: &str) -> i32 {
 
     // Destroy tmux session
     if tmux::is_alive(&session_name) {
-        println!("Destroying tmux session {session_name}...");
+        info!("Destroying tmux session {session_name}...");
         if let Err(e) = tmux::destroy(&session_name) {
-            eprintln!("warning: tmux destroy failed: {e}");
+            warn!("tmux destroy failed: {e}");
         }
     }
 
     // Stop and remove container
     match container::status(&container_name) {
         container::ContainerStatus::Running => {
-            println!("Stopping container {container_name}...");
+            info!("Stopping container {container_name}...");
             if let Err(e) = container::stop(&container_name) {
-                eprintln!("warning: container stop failed: {e}");
+                warn!("container stop failed: {e}");
             }
-            println!("Removing container {container_name}...");
+            info!("Removing container {container_name}...");
             if let Err(e) = container::destroy(&container_name) {
-                eprintln!("warning: container remove failed: {e}");
+                warn!("container remove failed: {e}");
             }
         }
         container::ContainerStatus::Stopped => {
-            println!("Removing container {container_name}...");
+            info!("Removing container {container_name}...");
             if let Err(e) = container::destroy(&container_name) {
-                eprintln!("warning: container remove failed: {e}");
+                warn!("container remove failed: {e}");
             }
         }
         container::ContainerStatus::Missing => {}
@@ -396,9 +412,9 @@ fn cmd_destroy(workspace: &str) -> i32 {
     // Remove clone (only for non-explicit-path workspaces)
     if entry.path.is_none() && clone::workspace_exists(&workspace_root, &entry.repo, &entry.branch)
     {
-        println!("Removing clone...");
+        info!("Removing clone...");
         if let Err(e) = clone::remove_workspace(&workspace_root, &entry.repo, &entry.branch) {
-            eprintln!("error: failed to remove clone: {e}");
+            error!("failed to remove clone: {e}");
             return 1;
         }
     }
@@ -406,10 +422,10 @@ fn cmd_destroy(workspace: &str) -> i32 {
     // Remove from state
     st.remove_workspace(&entry.repo, &entry.branch);
     if let Err(e) = state::save(&st) {
-        eprintln!("warning: failed to save state: {e}");
+        warn!("failed to save state: {e}");
     }
 
-    println!("Workspace '{workspace}' destroyed.");
+    info!("Workspace '{workspace}' destroyed.");
     0
 }
 
@@ -418,14 +434,14 @@ fn cmd_open(workspace: Option<String>) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
 
     let url_groups = proxy::workspace_urls(&st);
     if url_groups.is_empty() {
-        println!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
+        info!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
         return 0;
     }
 
@@ -437,7 +453,7 @@ fn cmd_open(workspace: Option<String>) -> i32 {
 
     if filtered.is_empty() {
         if let Some(ws) = &workspace {
-            eprintln!("error: no URLs for workspace '{ws}'");
+            error!("no URLs for workspace '{ws}'");
         }
         return 1;
     }
@@ -457,7 +473,7 @@ fn cmd_open(workspace: Option<String>) -> i32 {
             let _ = std::process::Command::new("xdg-open")
                 .arg(&http_url)
                 .spawn();
-            println!("Opening {http_url}");
+            info!("Opening {http_url}");
         }
     }
 
@@ -469,14 +485,14 @@ fn cmd_urls(workspace: Option<String>) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
 
     let url_groups = proxy::workspace_urls(&st);
     if url_groups.is_empty() {
-        println!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
+        info!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
         return 0;
     }
 
@@ -487,11 +503,11 @@ fn cmd_urls(workspace: Option<String>) -> i32 {
     };
 
     for (workspace_id, urls) in &filtered {
-        println!("{workspace_id}");
+        info!("{workspace_id}");
         for url in urls {
-            println!("{url}");
+            info!("{url}");
         }
-        println!();
+        info!("");
     }
 
     0
@@ -502,7 +518,7 @@ fn cmd_proxy() -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -511,7 +527,7 @@ fn cmd_proxy() -> i32 {
     match rt.block_on(proxy::start(&st)) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("error: proxy failed: {e}");
+            error!("proxy failed: {e}");
             1
         }
     }
@@ -528,7 +544,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -538,7 +554,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         match st.resolve_workspace(&ws) {
             Some(e) => e.clone(),
             None => {
-                eprintln!("error: unknown workspace '{ws}'");
+                error!("unknown workspace '{ws}'");
                 return 1;
             }
         }
@@ -546,8 +562,8 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         match detect_workspace(&st) {
             Some(e) => e,
             None => {
-                eprintln!("error: not inside a dual workspace");
-                eprintln!("Usage: dual sync [workspace]");
+                error!("not inside a dual workspace");
+                info!("Usage: dual sync [workspace]");
                 return 1;
             }
         }
@@ -559,7 +575,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
     let shared_config = match &hints.shared {
         Some(s) if !s.files.is_empty() => s,
         _ => {
-            eprintln!("error: no [shared] section in .dual.toml (or files list is empty)");
+            error!("no [shared] section in .dual.toml (or files list is empty)");
             return 1;
         }
     };
@@ -567,7 +583,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
     let shared_dir = match shared::ensure_shared_dir(&entry.repo) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("error: {e}");
+            error!("{e}");
             return 1;
         }
     };
@@ -579,11 +595,11 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
             Ok(moved) => {
                 for f in &moved {
-                    println!("  moved {f} → shared/");
+                    info!("  moved {f} → shared/");
                 }
             }
             Err(e) => {
-                eprintln!("error: {e}");
+                error!("{e}");
                 return 1;
             }
         }
@@ -596,10 +612,11 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
             .collect();
 
         if branches.is_empty() {
-            println!("No branch workspaces to sync.");
+            info!("No branch workspaces to sync.");
             return 0;
         }
 
+        // Interactive prompt — use println! directly since this is user interaction
         println!(
             "\nSync shared files to ALL {} branch workspace(s)? [y/N]",
             branches.len()
@@ -607,7 +624,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap_or(0);
         if !input.trim().eq_ignore_ascii_case("y") {
-            println!("Cancelled.");
+            info!("Cancelled.");
             return 0;
         }
 
@@ -619,9 +636,9 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
             let ws_id = config::workspace_id(&branch_entry.repo, &branch_entry.branch);
             match shared::copy_to_branch(&branch_dir, &shared_dir, &shared_config.files) {
                 Ok(copied) => {
-                    println!("{ws_id}: synced {} file(s)", copied.len());
+                    info!("{ws_id}: synced {} file(s)", copied.len());
                 }
-                Err(e) => eprintln!("{ws_id}: error: {e}"),
+                Err(e) => error!("{ws_id}: {e}"),
             }
         }
     } else {
@@ -629,17 +646,17 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
             Ok(copied) => {
                 if copied.is_empty() {
-                    println!(
+                    info!(
                         "No shared files available yet. Run `dual sync` in the main workspace first."
                     );
                 } else {
                     for f in &copied {
-                        println!("  synced {f}");
+                        info!("  synced {f}");
                     }
                 }
             }
             Err(e) => {
-                eprintln!("error: {e}");
+                error!("{e}");
                 return 1;
             }
         }
@@ -698,7 +715,7 @@ fn print_workspace_status(st: &state::WorkspaceState) {
             (container::ContainerStatus::Missing, _) => "\u{25cc} lazy",
         };
 
-        println!("  {workspace_id:<30} {status_icon}");
+        info!("  {workspace_id:<30} {status_icon}");
     }
 }
 
