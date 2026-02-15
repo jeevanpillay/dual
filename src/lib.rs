@@ -3,6 +3,7 @@ pub mod clone;
 pub mod config;
 pub mod container;
 pub mod proxy;
+pub mod shared;
 pub mod shell;
 pub mod state;
 pub mod tmux;

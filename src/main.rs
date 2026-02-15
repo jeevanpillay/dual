@@ -6,6 +6,7 @@ use dual::clone;
 use dual::config;
 use dual::container;
 use dual::proxy;
+use dual::shared;
 use dual::shell;
 use dual::state;
 use dual::tmux;
@@ -22,6 +23,7 @@ fn main() {
         Some(Command::Destroy { workspace }) => cmd_destroy(&workspace),
         Some(Command::Open { workspace }) => cmd_open(workspace),
         Some(Command::Urls { workspace }) => cmd_urls(workspace),
+        Some(Command::Sync { workspace }) => cmd_sync(workspace),
         Some(Command::Proxy) => cmd_proxy(),
         Some(Command::ShellRc { container }) => cmd_shell_rc(&container),
     };
@@ -94,6 +96,26 @@ fn cmd_add(name: Option<&str>) -> i32 {
         } else {
             println!("Created .dual.toml with defaults (image: node:20)");
             println!("Edit it to customize ports, image, setup command, and env vars.");
+        }
+    }
+
+    // Initialize shared directory if [shared] is configured
+    let hints = config::load_hints(&repo_root).unwrap_or_default();
+    if let Some(ref shared_config) = hints.shared
+        && !shared_config.files.is_empty()
+    {
+        match shared::ensure_shared_dir(&repo_name) {
+            Ok(shared_dir) => {
+                match shared::init_from_main(&repo_root, &shared_dir, &shared_config.files) {
+                    Ok(moved) => {
+                        for f in &moved {
+                            println!("  shared: {f} → ~/.dual/shared/{repo_name}/");
+                        }
+                    }
+                    Err(e) => eprintln!("warning: shared init failed: {e}"),
+                }
+            }
+            Err(e) => eprintln!("warning: could not create shared directory: {e}"),
         }
     }
 
@@ -220,8 +242,34 @@ fn cmd_launch(workspace: &str) -> i32 {
         }
     };
 
-    // Step 2: Load hints for image
+    // Step 2: Handle shared files
     let hints = config::load_hints(&workspace_dir).unwrap_or_default();
+    if let Some(ref shared_config) = hints.shared
+        && !shared_config.files.is_empty()
+        && let Ok(shared_dir) = shared::ensure_shared_dir(&entry.repo)
+    {
+        if entry.path.is_some() {
+            // Main workspace: ensure shared files are initialized
+            match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
+                Ok(moved) => {
+                    for f in &moved {
+                        println!("  shared: {f} → ~/.dual/shared/{}/", entry.repo);
+                    }
+                }
+                Err(e) => eprintln!("warning: shared init failed: {e}"),
+            }
+        } else {
+            // Branch workspace: copy shared files
+            match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
+                Ok(copied) => {
+                    for f in &copied {
+                        println!("  shared: copied {f}");
+                    }
+                }
+                Err(e) => eprintln!("warning: shared copy failed: {e}"),
+            }
+        }
+    }
 
     // Step 3: Ensure container exists and is running
     match container::status(&container_name) {
@@ -475,6 +523,153 @@ fn cmd_shell_rc(container_name: &str) -> i32 {
     0
 }
 
+/// Sync shared config files for a workspace.
+fn cmd_sync(workspace_arg: Option<String>) -> i32 {
+    let st = match state::load() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 1;
+        }
+    };
+
+    // Resolve which workspace we're syncing
+    let entry = if let Some(ws) = workspace_arg {
+        match st.resolve_workspace(&ws) {
+            Some(e) => e.clone(),
+            None => {
+                eprintln!("error: unknown workspace '{ws}'");
+                return 1;
+            }
+        }
+    } else {
+        match detect_workspace(&st) {
+            Some(e) => e,
+            None => {
+                eprintln!("error: not inside a dual workspace");
+                eprintln!("Usage: dual sync [workspace]");
+                return 1;
+            }
+        }
+    };
+
+    // Load hints
+    let workspace_dir = st.workspace_dir(&entry);
+    let hints = config::load_hints(&workspace_dir).unwrap_or_default();
+    let shared_config = match &hints.shared {
+        Some(s) if !s.files.is_empty() => s,
+        _ => {
+            eprintln!("error: no [shared] section in .dual.toml (or files list is empty)");
+            return 1;
+        }
+    };
+
+    let shared_dir = match shared::ensure_shared_dir(&entry.repo) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 1;
+        }
+    };
+
+    let is_main = entry.path.is_some();
+
+    if is_main {
+        // Main workspace: init shared dir, then prompt to sync all branches
+        match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
+            Ok(moved) => {
+                for f in &moved {
+                    println!("  moved {f} → shared/");
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 1;
+            }
+        }
+
+        // Prompt to sync all branches
+        let branches: Vec<_> = st
+            .workspaces_for_repo(&entry.repo)
+            .into_iter()
+            .filter(|ws| ws.path.is_none())
+            .collect();
+
+        if branches.is_empty() {
+            println!("No branch workspaces to sync.");
+            return 0;
+        }
+
+        println!(
+            "\nSync shared files to ALL {} branch workspace(s)? [y/N]",
+            branches.len()
+        );
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap_or(0);
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("Cancelled.");
+            return 0;
+        }
+
+        for branch_entry in &branches {
+            let branch_dir = st.workspace_dir(branch_entry);
+            if !branch_dir.exists() {
+                continue; // Not yet cloned
+            }
+            let ws_id = config::workspace_id(&branch_entry.repo, &branch_entry.branch);
+            match shared::copy_to_branch(&branch_dir, &shared_dir, &shared_config.files) {
+                Ok(copied) => {
+                    println!("{ws_id}: synced {} file(s)", copied.len());
+                }
+                Err(e) => eprintln!("{ws_id}: error: {e}"),
+            }
+        }
+    } else {
+        // Branch workspace: copy from shared dir
+        match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
+            Ok(copied) => {
+                if copied.is_empty() {
+                    println!(
+                        "No shared files available yet. Run `dual sync` in the main workspace first."
+                    );
+                } else {
+                    for f in &copied {
+                        println!("  synced {f}");
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 1;
+            }
+        }
+    }
+
+    0
+}
+
+/// Detect which workspace the current directory belongs to.
+fn detect_workspace(st: &state::WorkspaceState) -> Option<state::WorkspaceEntry> {
+    let cwd = std::env::current_dir().ok()?;
+
+    // Try git root first (handles being in subdirectories)
+    let root = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| PathBuf::from(String::from_utf8_lossy(&o.stdout).trim().to_string()))
+        .unwrap_or(cwd);
+
+    for ws in st.all_workspaces() {
+        let ws_dir = st.workspace_dir(ws);
+        if ws_dir == root {
+            return Some(ws.clone());
+        }
+    }
+    None
+}
+
 /// Print workspace status table.
 fn print_workspace_status(st: &state::WorkspaceState) {
     let workspace_root = st.workspace_root();
@@ -674,6 +869,26 @@ mod tests {
             assert_eq!(container, "dual-lightfast-main");
         } else {
             panic!("expected ShellRc command");
+        }
+    }
+
+    #[test]
+    fn sync_subcommand_no_args() {
+        let cli = Cli::parse_from(["dual", "sync"]);
+        if let Some(Command::Sync { workspace }) = cli.command {
+            assert!(workspace.is_none());
+        } else {
+            panic!("expected Sync command");
+        }
+    }
+
+    #[test]
+    fn sync_subcommand_with_workspace() {
+        let cli = Cli::parse_from(["dual", "sync", "lightfast-feat__auth"]);
+        if let Some(Command::Sync { workspace }) = cli.command {
+            assert_eq!(workspace.as_deref(), Some("lightfast-feat__auth"));
+        } else {
+            panic!("expected Sync command");
         }
     }
 

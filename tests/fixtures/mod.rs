@@ -105,6 +105,7 @@ pub fn create_fixture_hints(repo_dir: &Path, ports: &[u16]) {
         ports: ports.to_vec(),
         setup: None,
         env: std::collections::HashMap::new(),
+        shared: None,
     };
     dual::config::write_hints(repo_dir, &hints).expect("failed to write fixture hints");
 }
