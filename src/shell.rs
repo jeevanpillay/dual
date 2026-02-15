@@ -220,7 +220,10 @@ mod tests {
         assert!(path.exists());
         // Verify it's under ~/.dual/rc/
         let path_str = path.to_string_lossy();
-        assert!(path_str.contains(".dual/rc/"), "RC file should be under ~/.dual/rc/, got: {path_str}");
+        assert!(
+            path_str.contains(".dual/rc/"),
+            "RC file should be under ~/.dual/rc/, got: {path_str}"
+        );
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(content.contains("export DUAL_CONTAINER=\"dual-test-write-rc\""));
         assert!(content.contains("npm()"));
@@ -237,7 +240,8 @@ mod tests {
 
     #[test]
     fn source_file_command_handles_spaces() {
-        let path = std::path::Path::new("/Users/user/Library/Application Support/dual/rc/dual-test.sh");
+        let path =
+            std::path::Path::new("/Users/user/Library/Application Support/dual/rc/dual-test.sh");
         let cmd = source_file_command(path);
         assert_eq!(
             cmd,
