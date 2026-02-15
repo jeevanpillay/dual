@@ -63,3 +63,11 @@ Let me chronologically analyze the conversation:
 
 create new branch + pr associated with the linear issues
 
+### Prompt 7
+
+whats next?
+
+### Prompt 8
+
+yes, start phase 2 in new branch and associate to linear issue
+

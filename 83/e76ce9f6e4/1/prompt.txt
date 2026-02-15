@@ -1709,3 +1709,11 @@ Please continue the conversation from where we left off without asking the user 
 ---
 
 create new branch + pr associated with the linear issues
+
+---
+
+whats next?
+
+---
+
+yes, start phase 2 in new branch and associate to linear issue

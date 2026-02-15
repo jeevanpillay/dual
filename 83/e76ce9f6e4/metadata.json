@@ -2,21 +2,20 @@
   "cli_version": "0.4.4",
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
-  "branch": "feature/dual-55-multiplexer-trait-extract-tmux-behind-backend-interface",
-  "checkpoints_count": 5,
+  "branch": "feature/dual-56-tui-ratatui-based-workspace-browser",
+  "checkpoints_count": 4,
   "files_touched": [
     ".DS_Store",
     "Cargo.toml",
-    "src/backend.rs",
     "src/cli.rs",
-    "src/config.rs",
     "src/lib.rs",
     "src/main.rs",
     "src/tmux.rs",
-    "src/tmux_backend.rs",
-    "tests/e2e.rs",
-    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md",
-    "thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md"
+    "src/tui/app.rs",
+    "src/tui/event.rs",
+    "src/tui/mod.rs",
+    "src/tui/ui.rs",
+    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md"
   ],
   "sessions": [
     {
@@ -35,10 +34,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 145,
-    "cache_creation_tokens": 253403,
-    "cache_read_tokens": 14319304,
-    "output_tokens": 13656,
-    "api_call_count": 123
+    "input_tokens": 115,
+    "cache_creation_tokens": 129522,
+    "cache_read_tokens": 13027603,
+    "output_tokens": 13145,
+    "api_call_count": 99
   }
 }
