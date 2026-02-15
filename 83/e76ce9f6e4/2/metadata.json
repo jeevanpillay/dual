@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "33496438-ad64-405a-946d-b38b3e73219d",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T15:16:06.455483Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/shell.rs",
+    "thoughts/shared/research/2026-02-16-port-routing-container-isolation.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 5333,
+    "cache_creation_tokens": 66865,
+    "cache_read_tokens": 2668064,
+    "output_tokens": 5351,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T15:16:06.256692Z",
+    "agent_lines": 274,
+    "human_added": 12,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 286,
+    "agent_percentage": 95.8041958041958
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/33496438-ad64-405a-946d-b38b3e73219d.jsonl"
+}

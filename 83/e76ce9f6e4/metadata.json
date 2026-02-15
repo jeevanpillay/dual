@@ -3,15 +3,17 @@
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     ".DS_Store",
     "Cargo.toml",
     "README.md",
     "src/cli.rs",
     "src/main.rs",
+    "src/shell.rs",
     "src/tmux.rs",
-    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md"
+    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md",
+    "thoughts/shared/research/2026-02-16-port-routing-container-isolation.md"
   ],
   "sessions": [
     {
@@ -27,13 +29,20 @@
       "context": "/83/e76ce9f6e4/1/context.md",
       "content_hash": "/83/e76ce9f6e4/1/content_hash.txt",
       "prompt": "/83/e76ce9f6e4/1/prompt.txt"
+    },
+    {
+      "metadata": "/83/e76ce9f6e4/2/metadata.json",
+      "transcript": "/83/e76ce9f6e4/2/full.jsonl",
+      "context": "/83/e76ce9f6e4/2/context.md",
+      "content_hash": "/83/e76ce9f6e4/2/content_hash.txt",
+      "prompt": "/83/e76ce9f6e4/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 88,
-    "cache_creation_tokens": 100064,
-    "cache_read_tokens": 9401859,
-    "output_tokens": 6236,
-    "api_call_count": 76
+    "input_tokens": 5421,
+    "cache_creation_tokens": 166929,
+    "cache_read_tokens": 12069923,
+    "output_tokens": 11587,
+    "api_call_count": 109
   }
 }
