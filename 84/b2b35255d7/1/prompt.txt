@@ -1,0 +1,297 @@
+# Implement Plan
+
+You are tasked with implementing an approved technical plan from `thoughts/shared/plans/`. These plans contain phases with specific changes and success criteria.
+
+## Getting Started
+
+When given a plan path:
+- Read the plan completely and check for any existing checkmarks (- [x])
+- Read the original ticket and all files mentioned in the plan
+- **Read files fully** - never use limit/offset parameters, you need complete context
+- Think deeply about how the pieces fit together
+- Create a todo list to track your progress
+- Start implementing if you understand what needs to be done
+
+If no plan path provided, ask for one.
+
+## Implementation Philosophy
+
+Plans are carefully designed, but reality can be messy. Your job is to:
+- Follow the plan's intent while adapting to what you find
+- Implement each phase fully before moving to the next
+- Verify your work makes sense in the broader codebase context
+- Update checkboxes in the plan as you complete sections
+
+When things don't match the plan exactly, think about why and communicate clearly. The plan is your guide, but your judgment matters too.
+
+If you encounter a mismatch:
+- STOP and think deeply about why the plan can't be followed
+- Present the issue clearly:
+  ```
+  Issue in Phase [N]:
+  Expected: [what the plan says]
+  Found: [actual situation]
+  Why this matters: [explanation]
+
+  How should I proceed?
+  ```
+
+## Verification Approach
+
+After implementing a phase:
+- Run the success criteria checks (usually `make check test` covers everything)
+- Fix any issues before proceeding
+- Update your progress in both the plan and your todos
+- Check off completed items in the plan file itself using Edit
+- **Pause for human verification**: After completing all automated verification for a phase, pause and inform the human that the phase is ready for manual testing. Use this format:
+  ```
+  Phase [N] Complete - Ready for Manual Verification
+
+  Automated verification passed:
+  - [List automated checks that passed]
+
+  Please perform the manual verification steps listed in the plan:
+  - [List manual verification items from the plan]
+
+  Let me know when manual testing is complete so I can proceed to Phase [N+1].
+  ```
+
+If instructed to execute multiple phases consecutively, skip the pause until the last phase. Otherwise, assume you are just doing one phase.
+
+do not check off items in the manual testing steps until confirmed by the user.
+
+
+## If You Get Stuck
+
+When something isn't working as expected:
+- First, make sure you've read and understood all the relevant code
+- Consider if the codebase has evolved since the plan was written
+- Present the mismatch clearly and ask for guidance
+
+Use sub-tasks sparingly - mainly for targeted debugging or exploring unfamiliar territory.
+
+## Resuming Work
+
+If the plan has existing checkmarks:
+- Trust that completed work is done
+- Pick up from the first unchecked item
+- Verify previous work only if something seems off
+
+Remember: You're implementing a solution, not just checking boxes. Keep the end goal in mind and maintain forward momentum.
+
+
+ARGUMENTS: @thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. The user invoked `/implement_plan` with the plan file `thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md`. This triggered the implement_plan skill which instructs implementing an approved technical plan phase by phase.
+
+2. The plan has 4 phases:
+   - Phase 0: Linear Project Cleanup (Linear-only changes)
+   - Phase 1: v2.1.0 — Bug Fixes & Completions (code changes)
+   - Phase 2: v2.2.0 — Context Awareness & UX (code changes)
+   - Phase 3: v3.0.0 — Architecture Rewrite (scoping only, no implementation)
+
+3. I read all relevant source files: main.rs, clone.rs, config.rs, container.rs, shell.rs, tmux.rs, cli.rs, lib.rs, Cargo.toml, state.rs
+
+4. Phase 0 (Linear Project Cleanup) - COMPLETED:
+   - Renamed project "Dual v0" → "Dual" with updated description
+   - Closed 6 shipped issues (DUAL-19, DUAL-20, DUAL-18, DUAL-23, DUAL-27, DUAL-22)
+   - Updated Phase 1 Docker Layer milestone description
+   - Created 3 new milestones: v2.1, v2.2, v3.0
+   - Created 6 v2.1 issues (DUAL-45 through DUAL-50)
+   - Created 4 v2.2 issues (DUAL-51 through DUAL-54)
+   - Created 5 v3.0 issues (DUAL-55 through DUAL-59)
+   - Also cleaned up DUAL-17 (Canceled) and DUAL-25 (Done)
+   - Checked off all Phase 0 items in the plan file
+
+5. Phase 1 (v2.1.0 — Bug Fixes & Completions) - IN PROGRESS:
+   
+   Change 1: Fix Branch Model (Bug 1) - DONE
+   - Added `clone_from_local()` and `build_local_clone_args()` to clone.rs
+   - Updated `cmd_launch()` in main.rs to try local clone first, fallback to remote
+   - Added `local_clone_args` test
+   
+   Change 2: Fix Default .dual.toml (Bug 3) - DONE
+   - Added `write_default_hints()` to config.rs with hand-crafted commented template
+   - Updated `cmd_add()` in main.rs to use new function
+   - Added `write_default_hints_has_comments` test
+   
+   Change 3: Wire env vars to container creation - DONE
+   - Updated `container::create()` signature to accept `env` and `anonymous_volumes`
+   - Updated `build_create_args()` to accept and use env and anonymous_volumes
+   - Added env var and anonymous volume tests
+   
+   Change 4: Wire setup command execution - DONE
+   - Added `exec_setup()` and `build_exec_setup_args()` to container.rs
+   - Wired into `cmd_launch()` - runs after container start for new containers
+   - Added `exec_setup_args_correct` test
+   
+   Change 5: Configurable container commands - DONE
+   - Added `extra_commands` field to RepoHints
+   - Updated `generate_rc()` and `write_rc_file()` to accept extra_commands
+   - Merges extra commands with defaults, avoiding duplicates
+   - Added tests for extra commands
+   
+   Change 6: Update cmd_launch() pipeline - DONE
+   - Wired all new parameters through launch pipeline
+   - env + anonymous_volumes → container::create()
+   - setup → container::exec_setup()
+   - extra_commands → shell::write_rc_file()
+
+6. Errors encountered:
+   - Missing fields error in config.rs test (write_and_load_hints) - fixed by adding extra_commands and anonymous_volumes to manual struct construction
+   - Missing fields in tests/fixtures/mod.rs - fixed similarly
+   - Missing arguments in tests/e2e.rs (5 calls to build_create_args) - fixed by adding env and volumes args
+   - Missing argument in main.rs cmd_shell_rc (generate_rc call) - fixed by adding empty slice
+   - Test failure: generate_rc_extra_commands_no_duplicates - "pnpm()" contains "npm()" as substring, causing count mismatch - fixed by searching for "npm() {" instead of "npm()"
+
+7. The last action was fixing the substring matching test. The next step would be to run `cargo test` again to verify all tests pass, then run `cargo clippy` and `cargo fmt --check`.
+
+8. User messages were minimal - just the initial `/implement_plan` command invocation. The user did not provide any additional feedback or corrections during the implementation.
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/implement_plan @thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md` to implement a multi-phase roadmap plan for the Dual project (terminal workspace orchestrator). The plan covers Phase 0 (Linear project cleanup), Phase 1 (v2.1.0 bug fixes & completions), Phase 2 (v2.2.0 context awareness & UX), and Phase 3 (v3.0.0 architecture scoping only). The implement_plan skill instructs implementing one phase at a time, pausing for manual verification between phases.
+
+2. Key Technical Concepts:
+   - Rust CLI application (edition 2024) using clap, serde, toml, thiserror, tracing
+   - Docker container lifecycle management (create, start, stop, exec)
+   - Git clone strategies: `--local` for hardlink-based fast clones vs remote clones
+   - Shell RC file generation for transparent command interception (routing commands to containers)
+   - tmux session management
+   - TOML-based configuration (`.dual.toml` for per-repo hints, `~/.dual/workspaces.toml` for state)
+   - Linear project management via MCP tools
+   - Workspace model: one full git clone per workspace, one container per workspace
+
+3. Files and Code Sections:
+
+   - **`thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md`**
+     - The master plan file. Phase 0 checkboxes were checked off after completion.
+     - Contains detailed implementation specs for all phases.
+
+   - **`src/clone.rs`**
+     - Added `clone_from_local()` function for local cloning with branch creation
+     - Added `build_local_clone_args()` for testing
+     - Key new code:
+     ```rust
+     pub fn clone_from_local(
+         main_workspace_path: &Path,
+         target_dir: &Path,
+         new_branch: &str,
+     ) -> Result<PathBuf, CloneError> {
+         if target_dir.join(".git").exists() {
+             return Ok(target_dir.to_path_buf());
+         }
+         if let Some(parent) = target_dir.parent() {
+             std::fs::create_dir_all(parent)
+                 .map_err(|e| CloneError::Filesystem(parent.to_path_buf(), e))?;
+         }
+         // Step 1: git clone --local <main_workspace_path> <target_dir>
+         let clone_output = Command::new("git")
+             .args(build_local_clone_args(main_workspace_path, target_dir))
+             .output()
+             .map_err(|e| CloneError::GitNotFound(e.to_string()))?;
+         if !clone_output.status.success() {
+             let stderr = String::from_utf8_lossy(&clone_output.stderr).to_string();
+             return Err(CloneError::GitFailed { repo: main_workspace_path.to_string_lossy().to_string(), branch: new_branch.to_string(), stderr });
+         }
+         // Step 2: git checkout -b <new_branch>
+         let checkout_output = Command::new("git")
+             .args(["checkout", "-b", new_branch])
+             .current_dir(target_dir)
+             .output()
+             .map_err(|e| CloneError::GitNotFound(e.to_string()))?;
+         if !checkout_output.status.success() {
+             let stderr = String::from_utf8_lossy(&checkout_output.stderr).to_string();
+             return Err(CloneError::GitFailed { repo: main_workspace_path.to_string_lossy().to_string(), branch: new_branch.to_string(), stderr });
+         }
+         Ok(target_dir.to_path_buf())
+     }
+     
+     pub fn build_local_clone_args(main_workspace_path: &Path, target: &Path) -> Vec<String> {
+         vec!["clone".to_string(), "--local".to_string(), main_workspace_path.to_string_lossy().to_string(), target.to_string_lossy().to_string()]
+     }
+     ```
+
+   - **`src/config.rs`**
+     - Added `extra_commands: Vec<String>` and `anonymous_volumes: Vec<String>` fields to `RepoHints`
+     - Added `default_anonymous_volumes()` function returning `vec!["node_modules"]`
+     - Added `write_default_hints()` function that writes a hand-crafted commented TOML template
+     - Updated `Default` impl to include new fields
+     - Added tests: `write_default_hints_has_comments`, `parse_hints_extra_commands`, `parse_hints_anonymous_volumes`, `parse_hints_anonymous_volumes_default`
+     - Updated `write_and_load_hints` test to include new fields
+
+   - **`src/container.rs`**
+     - Added `use std::collections::HashMap` import
+     - Updated `create()` signature to accept `env: &HashMap<String, String>` and `anonymous_volumes: &[String]`
+     - Updated `build_create_args()` to accept and iterate env vars (as `-e KEY=VALUE`) and anonymous_volumes (as `-v /workspace/{vol}`)
+     - Added `exec_setup()` and `build_exec_setup_args()` for running setup commands via `docker exec sh -c`
+     - Added tests: `create_args_with_env_vars`, `create_args_with_multiple_anonymous_volumes`, `create_args_empty_env_no_extra_flags`, `exec_setup_args_correct`
+
+   - **`src/shell.rs`**
+     - Updated `generate_rc()` signature to accept `extra_commands: &[String]`
+     - Updated `write_rc_file()` signature to accept `extra_commands: &[String]`
+     - Extra commands are merged with defaults, skipping duplicates
+     - Updated all existing tests to pass empty slice for extra_commands
+     - Added tests: `generate_rc_with_extra_commands`, `generate_rc_extra_commands_no_duplicates`
+
+   - **`src/main.rs`**
+     - Updated `cmd_add()` to use `config::write_default_hints()` instead of `config::write_hints(&RepoHints::default())`
+     - Updated `cmd_launch()` clone step to try `clone_from_local()` first when main workspace path exists, fallback to remote clone
+     - Updated container creation call to pass `hints.env` and `hints.anonymous_volumes`
+     - Added setup command execution after new container creation (`container::exec_setup()`)
+     - Updated shell RC file writing to pass `hints.extra_commands`
+     - Updated `cmd_shell_rc()` to pass empty slice to `generate_rc()`
+
+   - **`tests/fixtures/mod.rs`** - Updated `RepoHints` construction to include `extra_commands` and `anonymous_volumes` fields
+   
+   - **`tests/e2e.rs`** - Updated all `build_create_args()` calls to include empty env HashMap and default volumes
+
+   - **`src/cli.rs`**, **`src/lib.rs`**, **`src/state.rs`**, **`src/tmux.rs`**, **`Cargo.toml`** - Read for understanding, not modified in Phase 1.
+
+4. Errors and fixes:
+   - **Missing fields `anonymous_volumes` and `extra_commands` in `config.rs` test**: The `write_and_load_hints` test manually constructs a `RepoHints` struct. Fixed by adding the two new fields to the struct literal.
+   - **Missing fields in `tests/fixtures/mod.rs`**: Same issue as above. Fixed by adding `extra_commands: Vec::new()` and `anonymous_volumes: vec!["node_modules".to_string()]`.
+   - **Missing arguments in `tests/e2e.rs`** (6 occurrences): `build_create_args()` now takes 5 args instead of 3. Fixed by adding `&std::collections::HashMap::new()` and `&["node_modules".to_string()]` to each call.
+   - **Missing argument in `cmd_shell_rc()`**: `generate_rc()` now requires extra_commands parameter. Fixed by passing `&[]`.
+   - **Test `generate_rc_extra_commands_no_duplicates` failure**: `rc.matches("npm()").count()` returned 2 instead of 1 because `"pnpm()"` contains `"npm()"` as a substring. Fixed by changing search to `"npm() {"` which is unambiguous.
+
+5. Problem Solving:
+   - Phase 0 (Linear cleanup) completed successfully - all project management tasks done via Linear MCP tools
+   - Phase 1 code changes are all implemented. The last test fix (substring matching) was the final code change. Need to verify all tests pass.
+
+6. All user messages:
+   - Initial message triggering `/implement_plan @thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md` - This was the only substantive user message. The user did not provide any additional feedback or corrections during implementation.
+
+7. Pending Tasks:
+   - Run `cargo test` to verify all tests pass after the last fix
+   - Run `cargo clippy` for lint checks
+   - Run `cargo fmt --check` for formatting
+   - Check off Phase 1 automated verification items in the plan file
+   - Pause for manual verification (per plan instructions) before proceeding to Phase 2
+   - Phase 2 (v2.2.0) and Phase 3 (v3.0.0 scoping) remain unimplemented
+
+8. Current Work:
+   Working on Phase 1 (v2.1.0 Bug Fixes & Completions) of the implementation plan. All 6 code changes are implemented. The last action was fixing a test failure in `src/shell.rs` where the test `generate_rc_extra_commands_no_duplicates` failed because `"pnpm()"` contains `"npm()"` as a substring. Fixed by changing the search string from `"npm()"` to `"npm() {"`:
+   ```rust
+   #[test]
+   fn generate_rc_extra_commands_no_duplicates() {
+       let extras = vec!["npm".to_string(), "cargo".to_string()];
+       let rc = generate_rc("dual-test", &extras);
+       let npm_count = rc.matches("npm() {").count();
+       assert_eq!(npm_count, 1);
+       assert!(rc.contains("cargo()"));
+   }
+   ```
+
+9. Optional Next Step:
+   Run `cargo test` to verify all tests pass after the substring fix, then run `cargo clippy` and `cargo fmt --check` to complete the automated verification for Phase 1. This directly continues the Phase 1 implementation work — the plan states: "After implementing a phase: Run the success criteria checks (usually `make check test` covers everything). Fix any issues before proceeding."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jeevanpillay/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

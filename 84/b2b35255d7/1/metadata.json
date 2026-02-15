@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "84b2b35255d7",
+  "session_id": "d1c82db5-1442-4a66-b88e-a642a0c04063",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T10:48:53.183489Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/clone.rs",
+    "src/config.rs",
+    "src/container.rs",
+    "src/main.rs",
+    "src/shell.rs",
+    "tests/e2e.rs",
+    "tests/fixtures/mod.rs",
+    "thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 75,
+    "cache_creation_tokens": 193244,
+    "cache_read_tokens": 7549683,
+    "output_tokens": 14630,
+    "api_call_count": 65
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T10:48:52.687383Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 50,
+    "human_removed": 1007,
+    "total_committed": 50,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/d1c82db5-1442-4a66-b88e-a642a0c04063.jsonl"
+}
