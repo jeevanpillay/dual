@@ -150,24 +150,14 @@ fn remove_recursive(path: &Path) -> Result<(), SharedError> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum SharedError {
+    #[error("Could not determine home directory")]
     NoHomeDir,
+
+    #[error("Filesystem error at {path}: {err}", path = .0.display(), err = .1)]
     Filesystem(PathBuf, std::io::Error),
 }
-
-impl std::fmt::Display for SharedError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SharedError::NoHomeDir => write!(f, "Could not determine home directory"),
-            SharedError::Filesystem(path, err) => {
-                write!(f, "Filesystem error at {}: {err}", path.display())
-            }
-        }
-    }
-}
-
-impl std::error::Error for SharedError {}
 
 #[cfg(test)]
 mod tests {

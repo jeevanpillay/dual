@@ -147,30 +147,18 @@ fn tmux_simple(args: &[&str]) -> Result<(), TmuxError> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum TmuxError {
+    #[error("tmux not found: {0}")]
     NotFound(String),
+
+    #[error("tmux {operation} failed for {session}: {stderr}")]
     Failed {
         operation: String,
         session: String,
         stderr: String,
     },
 }
-
-impl std::fmt::Display for TmuxError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TmuxError::NotFound(err) => write!(f, "tmux not found: {err}"),
-            TmuxError::Failed {
-                operation,
-                session,
-                stderr,
-            } => write!(f, "tmux {operation} failed for {session}: {stderr}"),
-        }
-    }
-}
-
-impl std::error::Error for TmuxError {}
 
 #[cfg(test)]
 mod tests {

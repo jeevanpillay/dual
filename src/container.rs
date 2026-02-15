@@ -197,30 +197,18 @@ fn docker_simple(operation: &str, name: &str) -> Result<(), ContainerError> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ContainerError {
+    #[error("docker not found: {0}")]
     DockerNotFound(String),
+
+    #[error("docker {operation} failed for {name}: {stderr}")]
     Failed {
         operation: String,
         name: String,
         stderr: String,
     },
 }
-
-impl std::fmt::Display for ContainerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ContainerError::DockerNotFound(err) => write!(f, "docker not found: {err}"),
-            ContainerError::Failed {
-                operation,
-                name,
-                stderr,
-            } => write!(f, "docker {operation} failed for {name}: {stderr}"),
-        }
-    }
-}
-
-impl std::error::Error for ContainerError {}
 
 #[cfg(test)]
 mod tests {
