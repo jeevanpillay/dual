@@ -2,6 +2,33 @@
 
 All notable changes to Dual are documented in this file.
 
+## [2.2.0] - 2026-02-15
+
+Bug fixes, feature completions, and context-aware CLI improvements.
+
+### Added
+
+- **Context-aware `dual create`** — Repo auto-detected from cwd when `--repo` is omitted. New syntax: `dual create <branch> [--repo NAME]`
+- **Context-aware `dual launch` / `dual destroy`** — Workspace arg now optional, auto-detected from cwd
+- **Tmux nested session detection** — Detects `$TMUX` env var and uses `switch-client` instead of `attach-session` to avoid nesting
+- **Grouped `dual list` output** — Workspaces displayed grouped by repo with detailed container/tmux status
+- **`clone_from_local()`** — New fast clone strategy using `git clone --local` from main workspace + `git checkout -b` for new branches
+- **Commented `.dual.toml` template** — `dual add` creates a `.dual.toml` with helpful inline documentation
+- **Environment variable support** — `[env]` section in `.dual.toml` passed as `-e KEY=VALUE` to `docker create`
+- **Setup command support** — `setup = "pnpm install"` in `.dual.toml` runs via `docker exec` after first container creation
+- **Configurable container commands** — `extra_commands` field in `.dual.toml` merges with default command routing list
+- **Configurable anonymous volumes** — `anonymous_volumes` field in `.dual.toml` replaces hardcoded `node_modules` volume
+
+### Changed
+
+- **`dual create` CLI** — Args changed from `<repo> <branch>` to `<branch> [--repo NAME]` (breaking)
+- **`dual launch` CLI** — Workspace arg now optional (backward compatible)
+- **`dual destroy` CLI** — Workspace arg now optional (backward compatible)
+- **`container::create()` signature** — Now accepts `env` and `anonymous_volumes` parameters
+- **`shell::generate_rc()` / `write_rc_file()`** — Now accept `extra_commands` parameter
+
+---
+
 ## [2.0.0] - 2026-02-15
 
 Complete rewrite from TypeScript to Rust. Dual is now a compiled binary with Docker-based workspace isolation, transparent command routing, and a reverse proxy for browser access.
