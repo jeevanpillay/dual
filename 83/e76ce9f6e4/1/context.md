@@ -159,3 +159,7 @@ i dont mean our dual.toml. is it .dual.toml? or dual.tmol
 
 yes commit both and push
 
+### Prompt 29
+
+should we also add how to add to tmux with meta/prefix + space
+
