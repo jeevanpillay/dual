@@ -2,6 +2,26 @@
 
 All notable changes to Dual are documented in this file.
 
+## [2.3.0] - 2026-02-16
+
+TUI workspace browser and multiplexer abstraction layer.
+
+### Added
+
+- **TUI workspace browser** — `dual` (no args) launches a ratatui-based terminal UI with repo/branch tree view, status colors (green=running, yellow=stopped, gray=lazy), and keyboard navigation (j/k, Enter, q)
+- **MultiplexerBackend trait** — Abstract interface over terminal multiplexers (`is_available`, `create_session`, `attach`, `detach`, `destroy`, `is_alive`, `list_sessions`, `send_keys`, `is_inside`), with `TmuxBackend` as the concrete implementation
+- **TUI suspend/resume loop** — Selecting a workspace suspends the TUI, launches/attaches tmux, and resumes the TUI on detach (Ctrl+b d)
+- **Panic hook** — Terminal state (alternate screen, raw mode) restored on crash
+- **Inside-tmux TUI handling** — When launched from inside tmux, uses `switch-client` and exits cleanly instead of looping
+
+### Changed
+
+- **`dual` (no args)** — Now launches TUI instead of printing usage. `dual list` remains as the non-interactive fallback
+- **Tmux module** — `src/tmux.rs` replaced by `src/backend.rs` (trait) + `src/tmux_backend.rs` (implementation)
+- **`session_name()` moved to config** — Session naming is now in `src/config.rs` alongside `container_name()`
+
+---
+
 ## [2.2.0] - 2026-02-15
 
 Bug fixes, feature completions, and context-aware CLI improvements.
