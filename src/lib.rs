@@ -8,3 +8,4 @@ pub mod shared;
 pub mod shell;
 pub mod state;
 pub mod tmux_backend;
+pub mod tui;

@@ -11,6 +11,7 @@ use dual::shared;
 use dual::shell;
 use dual::state;
 use dual::tmux_backend::TmuxBackend;
+use dual::tui;
 use tracing::{debug, error, info, warn};
 
 fn main() {
@@ -44,7 +45,7 @@ fn main() {
     std::process::exit(exit_code);
 }
 
-/// Default (no subcommand): show workspace list with launch hint.
+/// Default (no subcommand): launch TUI workspace browser.
 fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
     let st = match state::load() {
         Ok(s) => s,
@@ -55,17 +56,22 @@ fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
         }
     };
 
-    let workspaces = st.all_workspaces();
-    if workspaces.is_empty() {
+    if st.all_workspaces().is_empty() {
         info!("No workspaces. Run `dual add` inside a repo to get started.");
         return 0;
     }
 
-    println!("Workspaces:\n");
-    print_workspace_status(&st, backend);
-    println!("Use `dual launch <workspace>` to start a workspace.");
-    println!("Use `dual add` to register a new repo.");
-    0
+    match tui::run(&st, backend) {
+        Ok(Some(workspace_id)) => {
+            // User selected a workspace — launch it
+            cmd_launch(Some(&workspace_id), backend)
+        }
+        Ok(None) => 0, // User quit
+        Err(e) => {
+            error!("TUI error: {e}");
+            1
+        }
+    }
 }
 
 /// Register the current repo as a dual workspace.
