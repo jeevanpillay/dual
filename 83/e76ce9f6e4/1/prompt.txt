@@ -1992,3 +1992,43 @@ lets do new verdsion bump but not go to v3.0.0. we'll test this with a small bum
 ---
 
 yes commit it and publish
+
+---
+
+whas after this
+
+---
+
+actually before that how do is there a meta key i can use to open dual right now already?
+
+---
+
+isnt that meta + d the detach meta?
+
+---
+
+are you sure thats the correct way? should we unbind first?
+
+---
+
+wait. so what is meta in tmux? i was talk about prefix
+
+---
+
+okay now, we need to completely rework @README.md now that we have this new architecture
+
+---
+
+have we update the actual dual.toml with full example
+
+---
+
+i mean the actual dual.toml file itself
+
+---
+
+i dont mean our dual.toml. is it .dual.toml? or dual.tmol
+
+---
+
+yes commit both and push

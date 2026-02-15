@@ -3,11 +3,12 @@
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     ".DS_Store",
-    "CHANGELOG.md",
+    ".dual.toml",
     "Cargo.toml",
+    "README.md",
     "src/cli.rs",
     "src/main.rs",
     "src/tmux.rs",
@@ -30,10 +31,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 108,
-    "cache_creation_tokens": 282265,
-    "cache_read_tokens": 10416634,
-    "output_tokens": 6470,
-    "api_call_count": 88
+    "input_tokens": 124,
+    "cache_creation_tokens": 114136,
+    "cache_read_tokens": 11511261,
+    "output_tokens": 8699,
+    "api_call_count": 94
   }
 }

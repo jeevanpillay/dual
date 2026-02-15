@@ -119,3 +119,43 @@ lets do new verdsion bump but not go to v3.0.0. we'll test this with a small bum
 
 yes commit it and publish
 
+### Prompt 19
+
+whas after this
+
+### Prompt 20
+
+actually before that how do is there a meta key i can use to open dual right now already?
+
+### Prompt 21
+
+isnt that meta + d the detach meta?
+
+### Prompt 22
+
+are you sure thats the correct way? should we unbind first?
+
+### Prompt 23
+
+wait. so what is meta in tmux? i was talk about prefix
+
+### Prompt 24
+
+okay now, we need to completely rework @README.md now that we have this new architecture
+
+### Prompt 25
+
+have we update the actual dual.toml with full example
+
+### Prompt 26
+
+i mean the actual dual.toml file itself
+
+### Prompt 27
+
+i dont mean our dual.toml. is it .dual.toml? or dual.tmol
+
+### Prompt 28
+
+yes commit both and push
+
