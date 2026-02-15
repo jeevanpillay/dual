@@ -15,6 +15,14 @@ use dual::tui;
 use tracing::{debug, error, info, warn};
 
 fn main() {
+    // Install panic hook to restore terminal state if TUI panics
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = crossterm::execute!(std::io::stderr(), crossterm::terminal::LeaveAlternateScreen);
+        let _ = crossterm::terminal::disable_raw_mode();
+        original_hook(panic_info);
+    }));
+
     // Initialize tracing with DUAL_LOG env var (default: info)
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -46,30 +54,56 @@ fn main() {
 }
 
 /// Default (no subcommand): launch TUI workspace browser.
+///
+/// Implements a suspend/resume loop:
+/// 1. Show TUI → user selects workspace
+/// 2. TUI suspends (ratatui::restore) → launch workspace → tmux attach (blocks)
+/// 3. User detaches from tmux → control returns → loop back to step 1
+///
+/// If already inside tmux, switch-client is instant (non-blocking),
+/// so we exit after launch instead of looping.
 fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
-    let st = match state::load() {
-        Ok(s) => s,
-        Err(e) => {
-            error!("{e}");
-            info!("Run `dual add` inside a repo to get started.");
-            return 1;
-        }
-    };
+    let inside_tmux = backend.is_inside();
 
-    if st.all_workspaces().is_empty() {
-        info!("No workspaces. Run `dual add` inside a repo to get started.");
-        return 0;
-    }
+    loop {
+        // Reload state each iteration (workspaces may have changed while in tmux)
+        let st = match state::load() {
+            Ok(s) => s,
+            Err(e) => {
+                error!("{e}");
+                info!("Run `dual add` inside a repo to get started.");
+                return 1;
+            }
+        };
 
-    match tui::run(&st, backend) {
-        Ok(Some(workspace_id)) => {
-            // User selected a workspace — launch it
-            cmd_launch(Some(&workspace_id), backend)
+        if st.all_workspaces().is_empty() {
+            info!("No workspaces. Run `dual add` inside a repo to get started.");
+            return 0;
         }
-        Ok(None) => 0, // User quit
-        Err(e) => {
-            error!("TUI error: {e}");
-            1
+
+        match tui::run(&st, backend) {
+            Ok(Some(workspace_id)) => {
+                // TUI already called ratatui::restore() — terminal is in normal mode
+                let exit_code = cmd_launch(Some(&workspace_id), backend);
+
+                if inside_tmux {
+                    // switch-client is instant — don't loop back to TUI
+                    return exit_code;
+                }
+
+                if exit_code != 0 {
+                    eprintln!("Launch failed (exit code {exit_code}). Press Enter to continue...");
+                    let _ = std::io::stdin().read_line(&mut String::new());
+                }
+
+                // tmux attach returned (user detached) — loop back to TUI
+                continue;
+            }
+            Ok(None) => return 0, // User quit
+            Err(e) => {
+                error!("TUI error: {e}");
+                return 1;
+            }
         }
     }
 }
