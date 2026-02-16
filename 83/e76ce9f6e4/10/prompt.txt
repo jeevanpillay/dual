@@ -81,3 +81,21 @@ Remember: You're implementing a solution, not just checking boxes. Keep the end 
 
 
 ARGUMENTS: @thoughts/shared/plans/2026-02-16-shell-interception-pane-propagation.md note: we have upgraded to devcontainers setup. not sure if that will cause issue but implement solution.
+
+---
+
+commit this note in PR
+
+---
+
+wait, what do you mean by  dual add appends snippet to ~/.zshrc (idempotent — not duplicated on repeat runs)
+
+shouldnt it be the dual first install that does this?
+
+---
+
+i mean during the install-sh command when using curl's install dual not dual addd.
+
+---
+
+post-install hook is fine. continue.

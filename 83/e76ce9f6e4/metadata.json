@@ -17,9 +17,7 @@
     "src/lib.rs",
     "src/main.rs",
     "src/proxy.rs",
-    "src/shell.rs",
     "src/tmux.rs",
-    "src/tmux_backend.rs",
     "tests/fixtures/mod.rs",
     "thoughts/blog/twitter-thread-dual-vs-conductor-20260216-084500.md",
     "thoughts/blog/why-dual-stays-in-the-terminal-20260216-083500.md",
@@ -116,10 +114,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 9283,
-    "cache_creation_tokens": 641556,
-    "cache_read_tokens": 22230803,
-    "output_tokens": 24615,
-    "api_call_count": 234
+    "input_tokens": 9287,
+    "cache_creation_tokens": 594909,
+    "cache_read_tokens": 22724075,
+    "output_tokens": 25694,
+    "api_call_count": 232
   }
 }
