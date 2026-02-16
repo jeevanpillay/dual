@@ -3,31 +3,39 @@
   "checkpoint_id": "83e76ce9f6e4",
   "session_id": "7c33b2f7-462c-4c9d-83ea-5e46f5d14a17",
   "strategy": "manual-commit",
-  "created_at": "2026-02-16T01:01:00.141817Z",
+  "created_at": "2026-02-16T01:20:20.321183Z",
   "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
-    "README.md"
+    "Cargo.toml",
+    "README.md",
+    "src/config.rs",
+    "src/container.rs",
+    "src/devcontainer.rs",
+    "src/lib.rs",
+    "src/main.rs",
+    "tests/fixtures/mod.rs",
+    "thoughts/shared/plans/2026-02-16-devcontainer-json-fallback.md"
   ],
   "agent": "Claude Code",
   "transcript_identifier_at_start": "9fa5473c-c19e-4576-8ace-07efe220f80f",
-  "checkpoint_transcript_start": 304,
-  "transcript_lines_at_start": 304,
+  "checkpoint_transcript_start": 329,
+  "transcript_lines_at_start": 329,
   "token_usage": {
-    "input_tokens": 9,
-    "cache_creation_tokens": 5201,
-    "cache_read_tokens": 668410,
-    "output_tokens": 64,
-    "api_call_count": 5
+    "input_tokens": 12,
+    "cache_creation_tokens": 23260,
+    "cache_read_tokens": 1162475,
+    "output_tokens": 348,
+    "api_call_count": 8
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-16T01:00:59.838336Z",
-    "agent_lines": 15,
-    "human_added": 12,
+    "calculated_at": "2026-02-16T01:20:19.813769Z",
+    "agent_lines": 558,
+    "human_added": 854,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 27,
-    "agent_percentage": 55.55555555555556
+    "total_committed": 1412,
+    "agent_percentage": 39.51841359773371
   },
   "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/7c33b2f7-462c-4c9d-83ea-5e46f5d14a17.jsonl"
 }

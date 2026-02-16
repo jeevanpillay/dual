@@ -37,3 +37,13 @@ anything to update in @README.md ?
 
 seperate commit
 
+### Prompt 7
+
+wait, so devcontaineris just fallback? i thought we're making this an extensions to our dual.toml.
+
+so soluton would be user must define devcontainer.json. and as such, dual.toml has devcontainer path or auto-detect.
+
+### Prompt 8
+
+[Request interrupted by user for tool use]
+
