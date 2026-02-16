@@ -33,6 +33,23 @@ fn main() {
         .with_target(false)
         .init();
 
+    // One-time post-install: ensure shell hook is installed
+    match shell::install_shell_hook() {
+        Ok(true) => {
+            let rc_name = shell::detect_shell_rc()
+                .map(|p| {
+                    p.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .unwrap_or_default();
+            info!("Installed shell hook in ~/{rc_name} for tmux pane interception.");
+        }
+        Ok(false) => {} // Already installed or unsupported shell
+        Err(e) => warn!("could not install shell hook: {e}"),
+    }
+
     let cli = Cli::parse();
     let backend = TmuxBackend::new();
 
@@ -197,23 +214,6 @@ fn cmd_add(name: Option<&str>) -> i32 {
     if let Err(e) = state::save(&st) {
         error!("failed to save state: {e}");
         return 1;
-    }
-
-    // Install shell hook for pane propagation (idempotent)
-    match shell::install_shell_hook() {
-        Ok(true) => {
-            let rc_name = shell::detect_shell_rc()
-                .map(|p| {
-                    p.file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                })
-                .unwrap_or_default();
-            info!("Added shell hook to ~/{rc_name} for tmux pane interception.");
-        }
-        Ok(false) => {} // Already installed or unsupported shell — silent
-        Err(e) => warn!("could not install shell hook: {e}"),
     }
 
     let ws_id = config::workspace_id(&repo_name, &branch);

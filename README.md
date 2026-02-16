@@ -187,7 +187,7 @@ Your editor, git, and credentials stay on the host. The container handles all ru
 
 ### Shell Hook (Pane Propagation)
 
-`dual add` automatically appends a small snippet to your `~/.zshrc` or `~/.bashrc`:
+On first run, `dual` automatically appends a small snippet to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
 # dual: shell interception (auto-generated)
