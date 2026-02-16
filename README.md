@@ -142,6 +142,21 @@ files = [".vercel", ".env.local"]
 | `extra_commands` | Additional commands to route to the container | `[]` |
 | `anonymous_volumes` | Container volumes (e.g., `node_modules`) | `["node_modules"]` |
 
+### `devcontainer.json` (fallback)
+
+If no `.dual.toml` exists, Dual reads `.devcontainer/devcontainer.json` (or `.devcontainer.json`) as a fallback. This gives zero-config compatibility with repos that already have dev container configurations.
+
+| devcontainer.json field | Maps to |
+|---|---|
+| `image` | `image` |
+| `build.dockerfile` | Builds image via `docker build` |
+| `forwardPorts` | `ports` |
+| `containerEnv` | `env` |
+| `postCreateCommand` | `setup` |
+| `mounts` (volume type, `/workspace/*`) | `anonymous_volumes` |
+
+`.dual.toml` always takes priority when both exist.
+
 ### `~/.dual/workspaces.toml` (global state)
 
 Managed by Dual. Tracks all registered workspaces.
