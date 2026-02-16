@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "7c33b2f7-462c-4c9d-83ea-5e46f5d14a17",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T00:59:06.200076Z",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "Cargo.toml",
+    "src/config.rs",
+    "src/container.rs",
+    "src/devcontainer.rs",
+    "src/lib.rs",
+    "src/main.rs",
+    "tests/fixtures/mod.rs",
+    "thoughts/shared/plans/2026-02-16-devcontainer-json-fallback.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7995a843-712c-4c9b-b9f5-dba43188b773",
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 102176,
+    "cache_read_tokens": 7125804,
+    "output_tokens": 9293,
+    "api_call_count": 69
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T00:59:05.897252Z",
+    "agent_lines": 1758,
+    "human_added": 317,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2075,
+    "agent_percentage": 84.72289156626506
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/7c33b2f7-462c-4c9d-83ea-5e46f5d14a17.jsonl"
+}
