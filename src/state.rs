@@ -32,7 +32,7 @@ pub struct WorkspaceEntry {
     /// Branch name (e.g. "main", "feat/auth")
     pub branch: String,
 
-    /// Explicit path to workspace directory (for `dual add` — user's existing clone).
+    /// Explicit path to workspace directory (for `dual init` — user's existing clone).
     /// If None, workspace lives at {workspace_root}/{repo}/{encoded_branch}/
     /// and will be cloned on first launch.
     pub path: Option<String>,

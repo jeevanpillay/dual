@@ -98,16 +98,29 @@ pub fn fixture_state(
     state
 }
 
-/// Write .dual.toml hints into a workspace directory.
+/// Write devcontainer.json + .dual/settings.json for a fixture workspace.
+///
+/// Creates `.devcontainer/devcontainer.json` with image and ports,
+/// and `.dual/settings.json` with DualConfig defaults.
 pub fn create_fixture_hints(repo_dir: &Path, ports: &[u16]) {
-    let hints = dual::config::RepoHints {
-        image: "node:20".to_string(),
-        ports: ports.to_vec(),
-        setup: None,
-        env: std::collections::HashMap::new(),
-        extra_commands: Vec::new(),
-        anonymous_volumes: vec!["node_modules".to_string()],
-        shared: None,
+    // Write devcontainer.json with container config
+    let dc_dir = repo_dir.join(".devcontainer");
+    std::fs::create_dir_all(&dc_dir).expect("failed to create .devcontainer dir");
+
+    let ports_json: Vec<String> = ports.iter().map(|p| p.to_string()).collect();
+    let dc_content = if ports.is_empty() {
+        r#"{"image": "node:20"}"#.to_string()
+    } else {
+        format!(
+            r#"{{"image": "node:20", "forwardPorts": [{}]}}"#,
+            ports_json.join(", ")
+        )
     };
-    dual::config::write_hints(repo_dir, &hints).expect("failed to write fixture hints");
+    std::fs::write(dc_dir.join("devcontainer.json"), dc_content)
+        .expect("failed to write devcontainer.json");
+
+    // Write .dual/settings.json with DualConfig defaults
+    let dual_config = dual::config::DualConfig::default();
+    dual::config::write_dual_config(repo_dir, &dual_config)
+        .expect("failed to write .dual/settings.json");
 }

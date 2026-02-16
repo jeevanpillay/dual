@@ -32,9 +32,9 @@ cargo install --path .
 ## Quick Start
 
 ```bash
-# 1. Register your repo
+# 1. Initialize your repo as a dual workspace
 cd ~/code/my-project
-dual add
+dual init
 
 # 2. Create a branch workspace
 dual create feat/auth
@@ -88,7 +88,7 @@ bind-key Space display-popup -E -w 60% -h 60% "dual"
 | Command | Description |
 |---------|-------------|
 | `dual` | Open TUI workspace browser |
-| `dual add [--name NAME]` | Register current git repo as a workspace |
+| `dual init [--name NAME]` | Initialize current git repo as a workspace |
 | `dual create <branch> [--repo NAME]` | Create a new branch workspace |
 | `dual launch [workspace]` | Launch a workspace (auto-detects from cwd) |
 | `dual list` | List all workspaces with status (non-interactive) |
@@ -100,47 +100,51 @@ bind-key Space display-popup -E -w 60% -h 60% "dual"
 
 ## Configuration
 
-Dual uses two config files:
+Dual uses two config files: `devcontainer.json` for container configuration and `.dual/settings.json` for Dual-specific orchestration.
 
-### `.dual.toml` (per-repo hints)
+### `devcontainer.json` (container config)
 
-Lives in your project root. Committed to git. Controls runtime behavior.
+Primary source for container configuration. Lives in `.devcontainer/devcontainer.json` (or `.devcontainer.json` at project root). Compatible with the [Dev Containers](https://containers.dev/) ecosystem.
 
-```toml
-# Docker image for the container runtime
-image = "node:20"
-
-# Ports your dev server uses (for reverse proxy routing)
-ports = [3000, 3001]
-
-# Shell command to run after container creation (e.g., dependency install)
-setup = "pnpm install"
-
-# Commands to route to the container (in addition to defaults)
-# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
-extra_commands = ["cargo", "go"]
-
-# Directories to isolate with anonymous Docker volumes
-anonymous_volumes = ["node_modules", ".next"]
-
-# Environment variables passed to the container
-[env]
-NODE_ENV = "development"
-
-# Files to share across all workspaces of this repo
-[shared]
-files = [".vercel", ".env.local"]
+```json
+{
+    "image": "node:20",
+    "forwardPorts": [3000, 3001],
+    "postCreateCommand": "pnpm install",
+    "containerEnv": {
+        "NODE_ENV": "development"
+    }
+}
 ```
 
 | Field | Description | Default |
 |-------|-------------|---------|
 | `image` | Docker image for the container | `node:20` |
-| `ports` | Ports that services bind to (for reverse proxy) | `[]` |
-| `setup` | Command to run after first container creation | None |
-| `env` | Environment variables passed to the container | `{}` |
-| `shared.files` | Files/directories to share across branch workspaces | `[]` |
+| `build.dockerfile` | Build image from Dockerfile instead of pulling | None |
+| `forwardPorts` | Ports that services bind to (for reverse proxy) | `[]` |
+| `postCreateCommand` | Command to run after first container creation | None |
+| `containerEnv` | Environment variables passed to the container | `{}` |
+| `mounts` | Volume mounts (volume type, `/workspace/*` targets become anonymous volumes) | `[]` |
+
+### `.dual/settings.json` (orchestration config)
+
+Dual-specific settings that the devcontainer spec can't express. Lives in `.dual/settings.json` in your project root. Created automatically by `dual init`.
+
+```json
+{
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "extra_commands": ["cargo", "go"],
+    "anonymous_volumes": ["node_modules", ".next"],
+    "shared": [".vercel", ".env.local"]
+}
+```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `devcontainer` | Path to devcontainer.json | `".devcontainer/devcontainer.json"` |
 | `extra_commands` | Additional commands to route to the container | `[]` |
 | `anonymous_volumes` | Container volumes (e.g., `node_modules`) | `["node_modules"]` |
+| `shared` | Files/directories to share across branch workspaces | `[]` |
 
 ### `~/.dual/workspaces.toml` (global state)
 
@@ -173,6 +177,21 @@ When you select a workspace (via `dual` or `dual launch`):
 6. **Tmux** — Creates a tmux session in the workspace directory and attaches
 
 Your editor, git, and credentials stay on the host. The container handles all runtime processes. Claude Code never knows it's running inside a container.
+
+### Shell Hook (Pane Propagation)
+
+On first run, `dual` automatically appends a small snippet to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+# dual: shell interception (auto-generated)
+if [ -n "$DUAL_ACTIVE" ] && [ -n "$DUAL_RC_PATH" ] && [ -f "$DUAL_RC_PATH" ]; then
+    source "$DUAL_RC_PATH"
+fi
+```
+
+This ensures that when you split a pane (`Ctrl+b %`) or create a new window (`Ctrl+b c`) inside a Dual tmux session, the new shell automatically loads command interception. Without this, new panes would run commands on the host instead of in the container.
+
+The snippet is a no-op outside Dual sessions — it only activates when `DUAL_ACTIVE` is set (which Dual configures via `tmux set-environment`).
 
 ## Architecture
 

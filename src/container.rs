@@ -234,6 +234,70 @@ pub fn build_create_args(
     args
 }
 
+/// Build a Docker image from a Dockerfile.
+///
+/// Returns the image tag on success.
+pub fn build_image(
+    tag: &str,
+    workspace_dir: &Path,
+    build: &crate::config::DockerfileBuild,
+) -> Result<String, ContainerError> {
+    let args = build_image_args(tag, workspace_dir, build);
+    let output = Command::new("docker")
+        .args(&args)
+        .output()
+        .map_err(|e| ContainerError::DockerNotFound(e.to_string()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(ContainerError::Failed {
+            operation: "build".to_string(),
+            name: tag.to_string(),
+            stderr,
+        });
+    }
+
+    Ok(tag.to_string())
+}
+
+/// Build docker build arguments (public for testing).
+pub fn build_image_args(
+    tag: &str,
+    workspace_dir: &Path,
+    build: &crate::config::DockerfileBuild,
+) -> Vec<String> {
+    // Resolve paths relative to base_dir (devcontainer.json location) or workspace root
+    let base = build.base_dir.as_deref().unwrap_or(workspace_dir);
+
+    let dockerfile_path = base.join(&build.path);
+    let context_path = base.join(&build.context);
+
+    let mut args = vec![
+        "build".to_string(),
+        "-t".to_string(),
+        tag.to_string(),
+        "-f".to_string(),
+        dockerfile_path.display().to_string(),
+    ];
+
+    // Build arguments
+    for (key, value) in &build.args {
+        args.push("--build-arg".to_string());
+        args.push(format!("{key}={value}"));
+    }
+
+    // Target stage
+    if let Some(ref target) = build.target {
+        args.push("--target".to_string());
+        args.push(target.clone());
+    }
+
+    // Build context (last argument)
+    args.push(context_path.display().to_string());
+
+    args
+}
+
 /// Build docker exec arguments (for testing).
 pub fn build_exec_args(name: &str, cmd: &[&str], tty: bool) -> Vec<String> {
     let mut args = vec!["exec".to_string()];
@@ -394,5 +458,84 @@ mod tests {
         assert_eq!(ContainerStatus::Running, ContainerStatus::Running);
         assert_ne!(ContainerStatus::Running, ContainerStatus::Stopped);
         assert_ne!(ContainerStatus::Stopped, ContainerStatus::Missing);
+    }
+
+    #[test]
+    fn build_image_args_basic() {
+        let build = crate::config::DockerfileBuild {
+            path: "Dockerfile".to_string(),
+            context: ".".to_string(),
+            args: HashMap::new(),
+            target: None,
+            base_dir: None,
+        };
+        let args = build_image_args("dual-build-test", Path::new("/tmp/ws"), &build);
+        assert_eq!(args[0], "build");
+        assert_eq!(args[1], "-t");
+        assert_eq!(args[2], "dual-build-test");
+        assert_eq!(args[3], "-f");
+        assert_eq!(args[4], "/tmp/ws/Dockerfile");
+        // Last arg is context
+        assert_eq!(args[args.len() - 1], "/tmp/ws/.");
+    }
+
+    #[test]
+    fn build_image_args_with_build_args() {
+        let mut build_args = HashMap::new();
+        build_args.insert("NODE_VERSION".to_string(), "20".to_string());
+        let build = crate::config::DockerfileBuild {
+            path: "Dockerfile".to_string(),
+            context: ".".to_string(),
+            args: build_args,
+            target: None,
+            base_dir: None,
+        };
+        let args = build_image_args("dual-build-test", Path::new("/tmp/ws"), &build);
+        assert!(args.contains(&"--build-arg".to_string()));
+        assert!(args.contains(&"NODE_VERSION=20".to_string()));
+    }
+
+    #[test]
+    fn build_image_args_with_target() {
+        let build = crate::config::DockerfileBuild {
+            path: "Dockerfile".to_string(),
+            context: ".".to_string(),
+            args: HashMap::new(),
+            target: Some("development".to_string()),
+            base_dir: None,
+        };
+        let args = build_image_args("dual-build-test", Path::new("/tmp/ws"), &build);
+        assert!(args.contains(&"--target".to_string()));
+        assert!(args.contains(&"development".to_string()));
+    }
+
+    #[test]
+    fn build_image_args_with_base_dir() {
+        let build = crate::config::DockerfileBuild {
+            path: "Dockerfile".to_string(),
+            context: "..".to_string(),
+            args: HashMap::new(),
+            target: None,
+            base_dir: Some(std::path::PathBuf::from("/tmp/ws/.devcontainer")),
+        };
+        let args = build_image_args("dual-build-test", Path::new("/tmp/ws"), &build);
+        assert_eq!(args[3], "-f");
+        assert_eq!(args[4], "/tmp/ws/.devcontainer/Dockerfile");
+        // Context resolved relative to base_dir
+        assert_eq!(args[args.len() - 1], "/tmp/ws/.devcontainer/..");
+    }
+
+    #[test]
+    fn build_image_args_without_base_dir_uses_workspace() {
+        let build = crate::config::DockerfileBuild {
+            path: "docker/Dockerfile".to_string(),
+            context: ".".to_string(),
+            args: HashMap::new(),
+            target: None,
+            base_dir: None,
+        };
+        let args = build_image_args("dual-build-test", Path::new("/home/user/repo"), &build);
+        assert_eq!(args[4], "/home/user/repo/docker/Dockerfile");
+        assert_eq!(args[args.len() - 1], "/home/user/repo/.");
     }
 }

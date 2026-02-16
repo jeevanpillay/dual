@@ -1,20 +1,77 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tracing::warn;
 
-const HINTS_FILENAME: &str = ".dual.toml";
-const DEFAULT_IMAGE: &str = "node:20";
-
-/// Shared configuration file propagation settings.
+/// Dockerfile build configuration for building images from source.
+/// Used when devcontainer.json specifies `build.dockerfile`.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct SharedConfig {
-    /// Files and directories to share across workspaces.
-    /// e.g. [".vercel", ".env.local", ".env"]
+pub struct DockerfileBuild {
+    /// Path to the Dockerfile (relative to base_dir or workspace root)
+    pub path: String,
+
+    /// Build context directory (relative to base_dir or workspace root)
+    #[serde(default = "default_build_context")]
+    pub context: String,
+
+    /// Docker build arguments (--build-arg)
     #[serde(default)]
-    pub files: Vec<String>,
+    pub args: HashMap<String, String>,
+
+    /// Target build stage for multi-stage builds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// Base directory for resolving relative paths (set by devcontainer loader).
+    #[serde(skip)]
+    pub base_dir: Option<PathBuf>,
 }
 
-/// Per-repo runtime hints, read from .dual.toml in a workspace directory.
+fn default_build_context() -> String {
+    ".".to_string()
+}
+
+const DUAL_DIR: &str = ".dual";
+const SETTINGS_FILENAME: &str = "settings.json";
+const DEFAULT_IMAGE: &str = "node:20";
+
+/// Dual-specific orchestration config, read from .dual/settings.json.
+///
+/// Container configuration (image, ports, setup, env) lives in devcontainer.json.
+/// This struct contains only Dual-specific fields that devcontainer can't express.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct DualConfig {
+    /// Path to devcontainer.json (required, set by dual init)
+    pub devcontainer: String,
+
+    /// Additional commands to route to the container (merged with defaults)
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+
+    /// Directories to isolate with anonymous Docker volumes
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+
+    /// Shared files to propagate across workspaces
+    #[serde(default)]
+    pub shared: Vec<String>,
+}
+
+impl Default for DualConfig {
+    fn default() -> Self {
+        Self {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            extra_commands: Vec::new(),
+            anonymous_volumes: default_anonymous_volumes(),
+            shared: Vec::new(),
+        }
+    }
+}
+
+/// Per-repo runtime hints — the merged internal representation used by all consumers.
+///
+/// Built from DualConfig (.dual/settings.json) + DevcontainerJson (devcontainer.json).
+/// Consumer code (container, proxy, shell) uses this struct exclusively.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct RepoHints {
     /// Docker image to use for containers (default: "node:20")
@@ -41,8 +98,13 @@ pub struct RepoHints {
     pub anonymous_volumes: Vec<String>,
 
     /// Shared files to propagate across workspaces
+    #[serde(default)]
+    pub shared: Vec<String>,
+
+    /// Dockerfile build config — if set, build image instead of pulling.
+    /// Sourced from devcontainer.json build field.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shared: Option<SharedConfig>,
+    pub dockerfile: Option<DockerfileBuild>,
 }
 
 fn default_image() -> String {
@@ -62,7 +124,8 @@ impl Default for RepoHints {
             env: HashMap::new(),
             extra_commands: Vec::new(),
             anonymous_volumes: default_anonymous_volumes(),
-            shared: None,
+            shared: Vec::new(),
+            dockerfile: None,
         }
     }
 }
@@ -72,77 +135,90 @@ pub fn shared_dir(repo: &str) -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".dual").join("shared").join(repo))
 }
 
-/// Load RepoHints from a workspace directory's .dual.toml.
-/// Returns default hints if the file doesn't exist.
+/// Load RepoHints from a workspace directory.
+///
+/// Loading flow:
+/// 1. Read `.dual/settings.json` → `DualConfig` (error if missing)
+/// 2. Use explicit devcontainer path from DualConfig
+/// 3. Parse devcontainer.json → `RepoHints` for container fields
+/// 4. Merge DualConfig fields + devcontainer RepoHints → final `RepoHints`
 pub fn load_hints(workspace_dir: &Path) -> Result<RepoHints, HintsError> {
-    let path = workspace_dir.join(HINTS_FILENAME);
+    let dual_config = load_dual_config(workspace_dir)?;
+    let dc_path = workspace_dir.join(&dual_config.devcontainer);
+
+    // Load container config from devcontainer.json
+    let dc_hints = if dc_path.exists() {
+        let devcontainer_dir = dc_path.parent().unwrap_or(workspace_dir);
+        let contents = std::fs::read_to_string(&dc_path).ok();
+        contents.and_then(|c| {
+            let dc = crate::devcontainer::parse_devcontainer(&c).ok()?;
+            Some(crate::devcontainer::to_repo_hints(&dc, devcontainer_dir))
+        })
+    } else {
+        warn!(
+            "devcontainer.json not found at '{}' (specified in .dual/settings.json)",
+            dc_path.display()
+        );
+        None
+    };
+
+    Ok(merge_config(&dual_config, dc_hints.as_ref()))
+}
+
+/// Load DualConfig from .dual/settings.json. Returns error if file doesn't exist.
+fn load_dual_config(workspace_dir: &Path) -> Result<DualConfig, HintsError> {
+    let path = workspace_dir.join(DUAL_DIR).join(SETTINGS_FILENAME);
 
     if !path.exists() {
-        return Ok(RepoHints::default());
+        return Err(HintsError::MissingConfig(workspace_dir.to_path_buf()));
     }
 
     let contents =
         std::fs::read_to_string(&path).map_err(|e| HintsError::ReadError(path.clone(), e))?;
-    let hints: RepoHints =
-        toml::from_str(&contents).map_err(|e| HintsError::ParseError(path, e))?;
-    Ok(hints)
+
+    let config: DualConfig =
+        serde_json::from_str(&contents).map_err(|e| HintsError::JsonParseError(path, e))?;
+    Ok(config)
 }
 
-/// Write RepoHints to a workspace directory's .dual.toml.
-pub fn write_hints(workspace_dir: &Path, hints: &RepoHints) -> Result<(), HintsError> {
-    let path = workspace_dir.join(HINTS_FILENAME);
-    let contents = toml::to_string_pretty(hints).map_err(HintsError::SerializeError)?;
+/// Merge DualConfig + devcontainer RepoHints into final RepoHints.
+///
+/// devcontainer.json provides: image, ports, setup, env, dockerfile
+/// DualConfig provides: extra_commands, anonymous_volumes, shared
+fn merge_config(dual: &DualConfig, dc_hints: Option<&RepoHints>) -> RepoHints {
+    let base = dc_hints.cloned().unwrap_or_default();
+
+    RepoHints {
+        // Container fields come from devcontainer.json (or defaults)
+        image: base.image,
+        ports: base.ports,
+        setup: base.setup,
+        env: base.env,
+        dockerfile: base.dockerfile,
+
+        // Dual-specific fields come from .dual/settings.json
+        extra_commands: dual.extra_commands.clone(),
+        anonymous_volumes: dual.anonymous_volumes.clone(),
+        shared: dual.shared.clone(),
+    }
+}
+
+/// Write DualConfig to a workspace directory's .dual/settings.json.
+pub fn write_dual_config(workspace_dir: &Path, config: &DualConfig) -> Result<(), HintsError> {
+    let dual_dir = workspace_dir.join(DUAL_DIR);
+    std::fs::create_dir_all(&dual_dir).map_err(|e| HintsError::WriteError(dual_dir.clone(), e))?;
+
+    let path = dual_dir.join(SETTINGS_FILENAME);
+    let contents = serde_json::to_string_pretty(config).map_err(HintsError::JsonSerializeError)?;
     std::fs::write(&path, contents).map_err(|e| HintsError::WriteError(path, e))?;
     Ok(())
 }
 
-/// Write a default .dual.toml with helpful comments and examples.
-/// Used by `dual add` when creating a new repo config.
-pub fn write_default_hints(repo_root: &Path) -> Result<(), HintsError> {
-    let template = r#"# Dual workspace configuration
-# See: https://github.com/jeevanpillay/dual
-
-# Docker image for the container runtime
-image = "node:20"
-
-# Ports your dev server uses (for reverse proxy routing)
-# Example: ports = [3000, 3001]
-# ports = []
-
-# Shell command to run after container creation (e.g., dependency install)
-# Example: setup = "pnpm install"
-# setup = ""
-
-# Environment variables passed to the container
-# Example:
-# [env]
-# NODE_ENV = "development"
-
-# Commands to route to the container (in addition to defaults)
-# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
-# Example: extra_commands = ["cargo", "go", "ruby"]
-# extra_commands = []
-
-# Directories to isolate with anonymous Docker volumes
-# These directories get their own volume so they don't sync between host/container
-# Example: anonymous_volumes = ["node_modules", ".next", "target"]
-# anonymous_volumes = ["node_modules"]
-
-# Files to share across all workspaces of this repo
-# These are gitignored files that should be available in every branch workspace
-# [shared]
-# files = [".env.local", ".vercel"]
-"#;
-    let hints_path = repo_root.join(HINTS_FILENAME);
-    std::fs::write(&hints_path, template).map_err(|e| HintsError::WriteError(hints_path, e))?;
-    Ok(())
-}
-
-/// Parse hints from TOML string (for testing).
-pub fn parse_hints(toml_str: &str) -> Result<RepoHints, HintsError> {
-    let hints: RepoHints = toml::from_str(toml_str)
-        .map_err(|e| HintsError::ParseError(PathBuf::from("<string>"), e))?;
-    Ok(hints)
+/// Parse DualConfig from JSON string (for testing).
+pub fn parse_dual_config(json_str: &str) -> Result<DualConfig, HintsError> {
+    let config: DualConfig = serde_json::from_str(json_str)
+        .map_err(|e| HintsError::JsonParseError(PathBuf::from("<string>"), e))?;
+    Ok(config)
 }
 
 /// Compute the workspace identifier from repo + branch.
@@ -192,10 +268,13 @@ pub enum HintsError {
     WriteError(PathBuf, std::io::Error),
 
     #[error("Failed to parse {path}: {err}", path = .0.display(), err = .1)]
-    ParseError(PathBuf, toml::de::Error),
+    JsonParseError(PathBuf, serde_json::Error),
 
-    #[error("Failed to serialize hints: {0}")]
-    SerializeError(toml::ser::Error),
+    #[error("Failed to serialize config: {0}")]
+    JsonSerializeError(serde_json::Error),
+
+    #[error("No .dual/settings.json found in {path}. Run `dual init` first.", path = .0.display())]
+    MissingConfig(PathBuf),
 }
 
 #[cfg(test)]
@@ -251,166 +330,271 @@ mod tests {
     }
 
     #[test]
-    fn parse_hints_minimal() {
-        let hints = parse_hints("").unwrap();
-        assert_eq!(hints.image, "node:20");
-        assert!(hints.ports.is_empty());
+    fn default_dual_config() {
+        let config = DualConfig::default();
+        assert_eq!(config.devcontainer, ".devcontainer/devcontainer.json");
+        assert!(config.extra_commands.is_empty());
+        assert_eq!(config.anonymous_volumes, vec!["node_modules".to_string()]);
+        assert!(config.shared.is_empty());
     }
 
     #[test]
-    fn parse_hints_full() {
-        let toml = r#"
-image = "python:3.12"
-ports = [3000, 3001]
-setup = "pnpm install"
-
-[env]
-NODE_ENV = "development"
-"#;
-        let hints = parse_hints(toml).unwrap();
-        assert_eq!(hints.image, "python:3.12");
-        assert_eq!(hints.ports, vec![3000, 3001]);
-        assert_eq!(hints.setup.as_deref(), Some("pnpm install"));
-        assert_eq!(hints.env.get("NODE_ENV").unwrap(), "development");
+    fn parse_dual_config_minimal() {
+        let json = r#"{"devcontainer": ".devcontainer/devcontainer.json"}"#;
+        let config = parse_dual_config(json).unwrap();
+        assert_eq!(config.devcontainer, ".devcontainer/devcontainer.json");
+        assert!(config.extra_commands.is_empty());
+        assert_eq!(config.anonymous_volumes, vec!["node_modules".to_string()]);
+        assert!(config.shared.is_empty());
     }
 
     #[test]
-    fn parse_hints_missing_fields_use_defaults() {
-        let toml = r#"ports = [8080]"#;
-        let hints = parse_hints(toml).unwrap();
-        assert_eq!(hints.image, "node:20");
-        assert_eq!(hints.ports, vec![8080]);
-        assert!(hints.setup.is_none());
+    fn parse_dual_config_missing_devcontainer_errors() {
+        let json = r#"{"extra_commands": ["cargo"]}"#;
+        assert!(parse_dual_config(json).is_err());
     }
 
     #[test]
-    fn load_hints_from_missing_file() {
-        let hints = load_hints(Path::new("/tmp/dual-test-nonexistent")).unwrap();
-        assert_eq!(hints, RepoHints::default());
-    }
-
-    #[test]
-    fn write_and_load_hints() {
-        let dir = std::env::temp_dir().join("dual-test-hints-roundtrip");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        let hints = RepoHints {
-            image: "rust:latest".to_string(),
-            ports: vec![8080, 9090],
-            setup: Some("cargo build".to_string()),
-            env: HashMap::from([("RUST_LOG".to_string(), "debug".to_string())]),
-            extra_commands: vec!["cargo".to_string()],
-            anonymous_volumes: vec!["node_modules".to_string(), "target".to_string()],
-            shared: None,
-        };
-
-        write_hints(&dir, &hints).unwrap();
-        let loaded = load_hints(&dir).unwrap();
-        assert_eq!(hints, loaded);
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn write_default_hints_has_comments() {
-        let dir = std::env::temp_dir().join("dual-test-default-hints");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        write_default_hints(&dir).unwrap();
-
-        let content = std::fs::read_to_string(dir.join(".dual.toml")).unwrap();
-        assert!(content.contains("# Dual workspace configuration"));
-        assert!(content.contains("image = \"node:20\""));
-        assert!(content.contains("# ports = []"));
-        assert!(content.contains("# setup = \"\""));
-        assert!(content.contains("# [env]"));
-        assert!(content.contains("# extra_commands = []"));
-        assert!(content.contains("# anonymous_volumes = [\"node_modules\"]"));
-        assert!(content.contains("# [shared]"));
-
-        // Verify it's still parseable as valid TOML
-        let hints = load_hints(&dir).unwrap();
-        assert_eq!(hints.image, "node:20");
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn parse_hints_unknown_fields_ignored() {
-        let toml = r#"
-image = "node:20"
-ports = [3000]
-unknown_field = "should be ignored"
-"#;
-        // serde by default ignores unknown fields
-        let hints = parse_hints(toml).unwrap();
-        assert_eq!(hints.image, "node:20");
-    }
-
-    #[test]
-    fn parse_hints_extra_commands() {
-        let toml = r#"
-extra_commands = ["cargo", "go", "ruby"]
-"#;
-        let hints = parse_hints(toml).unwrap();
-        assert_eq!(hints.extra_commands, vec!["cargo", "go", "ruby"]);
-    }
-
-    #[test]
-    fn parse_hints_anonymous_volumes() {
-        let toml = r#"
-anonymous_volumes = ["node_modules", ".next", "target"]
-"#;
-        let hints = parse_hints(toml).unwrap();
+    fn parse_dual_config_full() {
+        let json = r#"{
+            "devcontainer": ".devcontainer/devcontainer.json",
+            "extra_commands": ["cargo", "go"],
+            "anonymous_volumes": ["node_modules", ".next", "target"],
+            "shared": [".env.local", ".vercel"]
+        }"#;
+        let config = parse_dual_config(json).unwrap();
+        assert_eq!(config.devcontainer, ".devcontainer/devcontainer.json");
+        assert_eq!(config.extra_commands, vec!["cargo", "go"]);
         assert_eq!(
-            hints.anonymous_volumes,
+            config.anonymous_volumes,
             vec!["node_modules", ".next", "target"]
         );
+        assert_eq!(config.shared, vec![".env.local", ".vercel"]);
     }
 
     #[test]
-    fn parse_hints_anonymous_volumes_default() {
-        let hints = parse_hints("").unwrap();
-        assert_eq!(hints.anonymous_volumes, vec!["node_modules".to_string()]);
+    fn parse_dual_config_extra_commands_only() {
+        let json = r#"{"devcontainer": "dc.json", "extra_commands": ["cargo", "go", "ruby"]}"#;
+        let config = parse_dual_config(json).unwrap();
+        assert_eq!(config.extra_commands, vec!["cargo", "go", "ruby"]);
     }
 
     #[test]
-    fn parse_hints_with_shared() {
-        let toml = r#"
-image = "node:20"
+    fn merge_config_devcontainer_only() {
+        let dual = DualConfig::default();
+        let dc_hints = RepoHints {
+            image: "python:3.12".to_string(),
+            ports: vec![3000, 8080],
+            setup: Some("pnpm install".to_string()),
+            env: HashMap::from([("NODE_ENV".to_string(), "development".to_string())]),
+            ..Default::default()
+        };
 
-[shared]
-files = [".vercel", ".env.local"]
-"#;
-        let hints = parse_hints(toml).unwrap();
-        let shared = hints.shared.unwrap();
-        assert_eq!(shared.files, vec![".vercel", ".env.local"]);
+        let merged = merge_config(&dual, Some(&dc_hints));
+        assert_eq!(merged.image, "python:3.12");
+        assert_eq!(merged.ports, vec![3000, 8080]);
+        assert_eq!(merged.setup.as_deref(), Some("pnpm install"));
+        assert_eq!(merged.env.get("NODE_ENV").unwrap(), "development");
+        // Dual defaults
+        assert!(merged.extra_commands.is_empty());
+        assert_eq!(merged.anonymous_volumes, vec!["node_modules".to_string()]);
     }
 
     #[test]
-    fn parse_hints_without_shared() {
-        let hints = parse_hints("image = \"node:20\"").unwrap();
-        assert!(hints.shared.is_none());
+    fn merge_config_dual_only() {
+        let dual = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            extra_commands: vec!["cargo".to_string()],
+            anonymous_volumes: vec!["node_modules".to_string(), "target".to_string()],
+            shared: vec![".env.local".to_string()],
+        };
+
+        let merged = merge_config(&dual, None);
+        // Container defaults
+        assert_eq!(merged.image, "node:20");
+        assert!(merged.ports.is_empty());
+        assert!(merged.setup.is_none());
+        // Dual fields
+        assert_eq!(merged.extra_commands, vec!["cargo"]);
+        assert_eq!(merged.anonymous_volumes, vec!["node_modules", "target"]);
+        assert_eq!(merged.shared, vec![".env.local"]);
     }
 
     #[test]
-    fn parse_hints_shared_empty_files() {
-        let toml = r#"
-[shared]
-files = []
-"#;
-        let hints = parse_hints(toml).unwrap();
-        let shared = hints.shared.unwrap();
-        assert!(shared.files.is_empty());
+    fn merge_config_both_sources() {
+        let dual = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            extra_commands: vec!["cargo".to_string()],
+            anonymous_volumes: vec!["node_modules".to_string(), "target".to_string()],
+            shared: vec![".env".to_string()],
+        };
+        let dc_hints = RepoHints {
+            image: "rust:latest".to_string(),
+            ports: vec![8080],
+            setup: Some("cargo build".to_string()),
+            env: HashMap::from([("RUST_LOG".to_string(), "debug".to_string())]),
+            ..Default::default()
+        };
+
+        let merged = merge_config(&dual, Some(&dc_hints));
+        // Container fields from devcontainer
+        assert_eq!(merged.image, "rust:latest");
+        assert_eq!(merged.ports, vec![8080]);
+        assert_eq!(merged.setup.as_deref(), Some("cargo build"));
+        assert_eq!(merged.env.get("RUST_LOG").unwrap(), "debug");
+        // Dual fields from .dual/settings.json
+        assert_eq!(merged.extra_commands, vec!["cargo"]);
+        assert_eq!(merged.anonymous_volumes, vec!["node_modules", "target"]);
+        assert_eq!(merged.shared, vec![".env"]);
     }
 
     #[test]
-    fn write_hints_without_shared_omits_section() {
-        let hints = RepoHints::default();
-        let toml_str = toml::to_string_pretty(&hints).unwrap();
-        assert!(!toml_str.contains("[shared]"));
+    fn merge_config_neither_source() {
+        let dual = DualConfig::default();
+        let merged = merge_config(&dual, None);
+        assert_eq!(merged, RepoHints::default());
+    }
+
+    #[test]
+    fn load_hints_from_missing_dir_errors() {
+        let result = load_hints(Path::new("/tmp/dual-test-nonexistent"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_hints_with_settings_and_devcontainer() {
+        let dir = std::env::temp_dir().join("dual-test-dc-settings");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".devcontainer")).unwrap();
+        std::fs::write(
+            dir.join(".devcontainer").join("devcontainer.json"),
+            r#"{"image": "python:3.12", "forwardPorts": [5000]}"#,
+        )
+        .unwrap();
+
+        // Must also have .dual/settings.json
+        let config = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            ..Default::default()
+        };
+        write_dual_config(&dir, &config).unwrap();
+
+        let hints = load_hints(&dir).unwrap();
+        assert_eq!(hints.image, "python:3.12");
+        assert_eq!(hints.ports, vec![5000]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_hints_dual_config_plus_devcontainer() {
+        let dir = std::env::temp_dir().join("dual-test-merged");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".devcontainer")).unwrap();
+
+        // Write devcontainer.json with container config
+        std::fs::write(
+            dir.join(".devcontainer").join("devcontainer.json"),
+            r#"{"image": "node:20", "forwardPorts": [3000], "postCreateCommand": "pnpm install"}"#,
+        )
+        .unwrap();
+
+        // Write .dual/settings.json with orchestration config
+        let dual_config = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            extra_commands: vec!["cargo".to_string()],
+            anonymous_volumes: vec!["node_modules".to_string(), ".next".to_string()],
+            shared: vec![".env.local".to_string()],
+        };
+        write_dual_config(&dir, &dual_config).unwrap();
+
+        let hints = load_hints(&dir).unwrap();
+        // From devcontainer.json
+        assert_eq!(hints.image, "node:20");
+        assert_eq!(hints.ports, vec![3000]);
+        assert_eq!(hints.setup.as_deref(), Some("pnpm install"));
+        // From .dual/settings.json
+        assert_eq!(hints.extra_commands, vec!["cargo"]);
+        assert_eq!(hints.anonymous_volumes, vec!["node_modules", ".next"]);
+        assert_eq!(hints.shared, vec![".env.local"]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_hints_explicit_devcontainer_path() {
+        let dir = std::env::temp_dir().join("dual-test-explicit-dc");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("custom")).unwrap();
+
+        std::fs::write(
+            dir.join("custom").join("devcontainer.json"),
+            r#"{"image": "alpine:latest"}"#,
+        )
+        .unwrap();
+
+        let dual_config = DualConfig {
+            devcontainer: "custom/devcontainer.json".to_string(),
+            ..Default::default()
+        };
+        write_dual_config(&dir, &dual_config).unwrap();
+
+        let hints = load_hints(&dir).unwrap();
+        assert_eq!(hints.image, "alpine:latest");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_and_load_dual_config_roundtrip() {
+        let dir = std::env::temp_dir().join("dual-test-dual-config-roundtrip");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".devcontainer")).unwrap();
+
+        // Write devcontainer.json
+        std::fs::write(
+            dir.join(".devcontainer").join("devcontainer.json"),
+            r#"{"image": "rust:latest", "forwardPorts": [8080], "postCreateCommand": "cargo build", "containerEnv": {"RUST_LOG": "debug"}}"#,
+        )
+        .unwrap();
+
+        // Write DualConfig
+        let config = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            extra_commands: vec!["cargo".to_string()],
+            anonymous_volumes: vec!["node_modules".to_string(), "target".to_string()],
+            shared: Vec::new(),
+        };
+        write_dual_config(&dir, &config).unwrap();
+
+        // Load and verify merged result
+        let hints = load_hints(&dir).unwrap();
+        assert_eq!(hints.image, "rust:latest");
+        assert_eq!(hints.ports, vec![8080]);
+        assert_eq!(hints.setup.as_deref(), Some("cargo build"));
+        assert_eq!(hints.env.get("RUST_LOG").unwrap(), "debug");
+        assert_eq!(hints.extra_commands, vec!["cargo"]);
+        assert_eq!(hints.anonymous_volumes, vec!["node_modules", "target"]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_dual_config_without_shared_has_empty_array() {
+        let config = DualConfig::default();
+        let json_str = serde_json::to_string_pretty(&config).unwrap();
+        assert!(json_str.contains("\"shared\": []"));
+    }
+
+    #[test]
+    fn write_dual_config_with_shared_includes_files() {
+        let config = DualConfig {
+            shared: vec![".env".to_string()],
+            ..Default::default()
+        };
+        let json_str = serde_json::to_string_pretty(&config).unwrap();
+        assert!(json_str.contains("\"shared\""));
+        assert!(json_str.contains(".env"));
     }
 
     #[test]
@@ -436,18 +620,5 @@ files = []
             session_name("lightfast", "feat/auth"),
             container_name("lightfast", "feat/auth")
         );
-    }
-
-    #[test]
-    fn write_hints_with_shared_includes_section() {
-        let hints = RepoHints {
-            shared: Some(SharedConfig {
-                files: vec![".env".to_string()],
-            }),
-            ..Default::default()
-        };
-        let toml_str = toml::to_string_pretty(&hints).unwrap();
-        assert!(toml_str.contains("[shared]"));
-        assert!(toml_str.contains(".env"));
     }
 }

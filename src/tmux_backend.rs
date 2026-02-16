@@ -143,6 +143,12 @@ pub fn build_new_session_args(session_name: &str, cwd: &Path) -> Vec<String> {
     ]
 }
 
+/// Set an environment variable on a tmux session.
+/// New panes/windows in this session will inherit the variable.
+pub fn set_session_env(session_name: &str, key: &str, value: &str) -> Result<(), BackendError> {
+    tmux_simple(&["set-environment", "-t", session_name, key, value])
+}
+
 fn tmux_simple(args: &[&str]) -> Result<(), BackendError> {
     let output = Command::new("tmux")
         .args(args)
@@ -240,5 +246,12 @@ mod tests {
         let backend = TmuxBackend::default();
         // Just verify it compiles and doesn't panic
         let _ = backend.is_inside();
+    }
+
+    #[test]
+    fn set_session_env_exists() {
+        // Verify the function exists and has the right signature.
+        // Actual tmux interaction is covered by manual testing.
+        let _ = set_session_env;
     }
 }

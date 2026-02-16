@@ -31,7 +31,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     let items = app.flatten_items();
 
     if items.is_empty() {
-        let empty = Paragraph::new("  No workspaces. Run `dual add` in a repo to get started.")
+        let empty = Paragraph::new("  No workspaces. Run `dual init` in a repo to get started.")
             .block(block);
         frame.render_widget(empty, chunks[1]);
     } else {

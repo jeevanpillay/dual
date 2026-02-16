@@ -13,11 +13,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Register the current repo as a dual workspace
-    Add {
+    /// Initialize the current repo as a dual workspace
+    Init {
         /// Short name for the repo (derived from directory name if omitted)
         #[arg(short, long)]
         name: Option<String>,
+        /// Accept all defaults without prompts
+        #[arg(short, long)]
+        yes: bool,
     },
 
     /// Create a new branch workspace for an existing repo
