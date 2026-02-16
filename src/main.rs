@@ -396,11 +396,26 @@ fn cmd_launch(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> 
     );
     match container::status(&container_name) {
         container::ContainerStatus::Missing => {
+            // Build image from Dockerfile if configured
+            let effective_image = if let Some(ref build) = hints.dockerfile {
+                let image_tag = format!("dual-build-{container_name}");
+                info!("Building image from Dockerfile...");
+                match container::build_image(&image_tag, &workspace_dir, build) {
+                    Ok(tag) => tag,
+                    Err(e) => {
+                        error!("docker build failed: {e}");
+                        return 1;
+                    }
+                }
+            } else {
+                hints.image.clone()
+            };
+
             info!("Creating container {container_name}...");
             if let Err(e) = container::create(
                 &container_name,
                 &workspace_dir,
-                &hints.image,
+                &effective_image,
                 &hints.env,
                 &hints.anonymous_volumes,
             ) {

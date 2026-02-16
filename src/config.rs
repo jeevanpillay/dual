@@ -2,6 +2,36 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// Dockerfile build configuration for building images from source.
+/// Used when devcontainer.json specifies `build.dockerfile` or when
+/// configured directly in .dual.toml.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct DockerfileBuild {
+    /// Path to the Dockerfile (relative to base_dir or workspace root)
+    pub path: String,
+
+    /// Build context directory (relative to base_dir or workspace root)
+    #[serde(default = "default_build_context")]
+    pub context: String,
+
+    /// Docker build arguments (--build-arg)
+    #[serde(default)]
+    pub args: HashMap<String, String>,
+
+    /// Target build stage for multi-stage builds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// Base directory for resolving relative paths (set by devcontainer loader).
+    /// When loaded from .dual.toml, this is None and paths are relative to workspace root.
+    #[serde(skip)]
+    pub base_dir: Option<PathBuf>,
+}
+
+fn default_build_context() -> String {
+    ".".to_string()
+}
+
 const HINTS_FILENAME: &str = ".dual.toml";
 const DEFAULT_IMAGE: &str = "node:20";
 
@@ -43,6 +73,11 @@ pub struct RepoHints {
     /// Shared files to propagate across workspaces
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shared: Option<SharedConfig>,
+
+    /// Dockerfile build config — if set, build image instead of pulling.
+    /// Can be set via .dual.toml [dockerfile] section or from devcontainer.json build field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dockerfile: Option<DockerfileBuild>,
 }
 
 fn default_image() -> String {
@@ -63,6 +98,7 @@ impl Default for RepoHints {
             extra_commands: Vec::new(),
             anonymous_volumes: default_anonymous_volumes(),
             shared: None,
+            dockerfile: None,
         }
     }
 }
@@ -72,20 +108,31 @@ pub fn shared_dir(repo: &str) -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".dual").join("shared").join(repo))
 }
 
-/// Load RepoHints from a workspace directory's .dual.toml.
-/// Returns default hints if the file doesn't exist.
+/// Load RepoHints from a workspace directory.
+///
+/// Priority order:
+/// 1. `.dual.toml` — Dual-native config (always takes priority)
+/// 2. `.devcontainer/devcontainer.json` or `.devcontainer.json` — fallback
+/// 3. Default hints (node:20, no ports, etc.)
 pub fn load_hints(workspace_dir: &Path) -> Result<RepoHints, HintsError> {
     let path = workspace_dir.join(HINTS_FILENAME);
 
-    if !path.exists() {
-        return Ok(RepoHints::default());
+    // 1. .dual.toml takes priority
+    if path.exists() {
+        let contents =
+            std::fs::read_to_string(&path).map_err(|e| HintsError::ReadError(path.clone(), e))?;
+        let hints: RepoHints =
+            toml::from_str(&contents).map_err(|e| HintsError::ParseError(path, e))?;
+        return Ok(hints);
     }
 
-    let contents =
-        std::fs::read_to_string(&path).map_err(|e| HintsError::ReadError(path.clone(), e))?;
-    let hints: RepoHints =
-        toml::from_str(&contents).map_err(|e| HintsError::ParseError(path, e))?;
-    Ok(hints)
+    // 2. Fall back to devcontainer.json
+    if let Some(hints) = crate::devcontainer::load_devcontainer_as_hints(workspace_dir) {
+        return Ok(hints);
+    }
+
+    // 3. Default
+    Ok(RepoHints::default())
 }
 
 /// Write RepoHints to a workspace directory's .dual.toml.
@@ -303,6 +350,7 @@ NODE_ENV = "development"
             extra_commands: vec!["cargo".to_string()],
             anonymous_volumes: vec!["node_modules".to_string(), "target".to_string()],
             shared: None,
+            dockerfile: None,
         };
 
         write_hints(&dir, &hints).unwrap();

@@ -3,6 +3,7 @@ pub mod cli;
 pub mod clone;
 pub mod config;
 pub mod container;
+pub mod devcontainer;
 pub mod proxy;
 pub mod shared;
 pub mod shell;
