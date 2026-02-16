@@ -1,0 +1,1049 @@
+# Implementation Plan
+
+You are tasked with creating detailed implementation plans through an interactive, iterative process. You should be skeptical, thorough, and work collaboratively with the user to produce high-quality technical specifications.
+
+## Initial Response
+
+When this command is invoked:
+
+1. **Check if parameters were provided**:
+   - If a file path or ticket reference was provided as a parameter, skip the default message
+   - Immediately read any provided files FULLY
+   - Begin the research process
+
+2. **If no parameters provided**, respond with:
+```
+I'll help you create a detailed implementation plan. Let me start by understanding what we're building.
+
+Please provide:
+1. The task/ticket description (or reference to a ticket file)
+2. Any relevant context, constraints, or specific requirements
+3. Links to related research or previous implementations
+
+I'll analyze this information and work with you to create a comprehensive plan.
+
+Tip: You can also invoke this command with a ticket file directly: `/create_plan thoughts/allison/tickets/eng_1234.md`
+For deeper analysis, try: `/create_plan think deeply about thoughts/allison/tickets/eng_1234.md`
+```
+
+Then wait for the user's input.
+
+## Process Steps
+
+### Step 1: Context Gathering & Initial Analysis
+
+1. **Read all mentioned files immediately and FULLY**:
+   - Ticket files (e.g., `thoughts/allison/tickets/eng_1234.md`)
+   - Research documents
+   - Related implementation plans
+   - Any JSON/data files mentioned
+   - **IMPORTANT**: Use the Read tool WITHOUT limit/offset parameters to read entire files
+   - **CRITICAL**: DO NOT spawn sub-tasks before reading these files yourself in the main context
+   - **NEVER** read files partially - if a file is mentioned, read it completely
+
+2. **Spawn initial research tasks to gather context**:
+   Before asking the user any questions, use specialized agents to research in parallel:
+
+   - Use the **codebase-locator** agent to find all files related to the ticket/task
+   - Use the **codebase-analyzer** agent to understand how the current implementation works
+   - If relevant, use the **thoughts-locator** agent to find any existing thoughts documents about this feature
+   - If a Linear ticket is mentioned, use the **linear-ticket-reader** agent to get full details
+
+   These agents will:
+   - Find relevant source files, configs, and tests
+   - Identify the specific directories to focus on (e.g., if WUI is mentioned, they'll focus on humanlayer-wui/)
+   - Trace data flow and key functions
+   - Return detailed explanations with file:line references
+
+3. **Read all files identified by research tasks**:
+   - After research tasks complete, read ALL files they identified as relevant
+   - Read them FULLY into the main context
+   - This ensures you have complete understanding before proceeding
+
+4. **Analyze and verify understanding**:
+   - Cross-reference the ticket requirements with actual code
+   - Identify any discrepancies or misunderstandings
+   - Note assumptions that need verification
+   - Determine true scope based on codebase reality
+
+5. **Present informed understanding and focused questions**:
+   ```
+   Based on the ticket and my research of the codebase, I understand we need to [accurate summary].
+
+   I've found that:
+   - [Current implementation detail with file:line reference]
+   - [Relevant pattern or constraint discovered]
+   - [Potential complexity or edge case identified]
+
+   Questions that my research couldn't answer:
+   - [Specific technical question that requires human judgment]
+   - [Business logic clarification]
+   - [Design preference that affects implementation]
+   ```
+
+   Only ask questions that you genuinely cannot answer through code investigation.
+
+### Step 2: Research & Discovery
+
+After getting initial clarifications:
+
+1. **If the user corrects any misunderstanding**:
+   - DO NOT just accept the correction
+   - Spawn new research tasks to verify the correct information
+   - Read the specific files/directories they mention
+   - Only proceed once you've verified the facts yourself
+
+2. **Create a research todo list** using TodoWrite to track exploration tasks
+
+3. **Spawn parallel sub-tasks for comprehensive research**:
+   - Create multiple Task agents to research different aspects concurrently
+   - Use the right agent for each type of research:
+
+   **For deeper investigation:**
+   - **codebase-locator** - To find more specific files (e.g., "find all files that handle [specific component]")
+   - **codebase-analyzer** - To understand implementation details (e.g., "analyze how [system] works")
+   - **codebase-pattern-finder** - To find similar features we can model after
+
+   **For historical context:**
+   - **thoughts-locator** - To find any research, plans, or decisions about this area
+   - **thoughts-analyzer** - To extract key insights from the most relevant documents
+
+   **For related tickets:**
+   - **linear-searcher** - To find similar issues or past implementations
+
+   Each agent knows how to:
+   - Find the right files and code patterns
+   - Identify conventions and patterns to follow
+   - Look for integration points and dependencies
+   - Return specific file:line references
+   - Find tests and examples
+
+3. **Wait for ALL sub-tasks to complete** before proceeding
+
+4. **Present findings and design options**:
+   ```
+   Based on my research, here's what I found:
+
+   **Current State:**
+   - [Key discovery about existing code]
+   - [Pattern or convention to follow]
+
+   **Design Options:**
+   1. [Option A] - [pros/cons]
+   2. [Option B] - [pros/cons]
+
+   **Open Questions:**
+   - [Technical uncertainty]
+   - [Design decision needed]
+
+   Which approach aligns best with your vision?
+   ```
+
+### Step 3: Plan Structure Development
+
+Once aligned on approach:
+
+1. **Create initial plan outline**:
+   ```
+   Here's my proposed plan structure:
+
+   ## Overview
+   [1-2 sentence summary]
+
+   ## Implementation Phases:
+   1. [Phase name] - [what it accomplishes]
+   2. [Phase name] - [what it accomplishes]
+   3. [Phase name] - [what it accomplishes]
+
+   Does this phasing make sense? Should I adjust the order or granularity?
+   ```
+
+2. **Get feedback on structure** before writing details
+
+### Step 4: Detailed Plan Writing
+
+After structure approval:
+
+1. **Write the plan** to `thoughts/shared/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
+     - YYYY-MM-DD is today's date
+     - ENG-XXXX is the ticket number (omit if no ticket)
+     - description is a brief kebab-case description
+   - Examples:
+     - With ticket: `2025-01-08-ENG-1478-parent-child-tracking.md`
+     - Without ticket: `2025-01-08-improve-error-handling.md`
+2. **Use this template structure**:
+
+````markdown
+# [Feature/Task Name] Implementation Plan
+
+## Overview
+
+[Brief description of what we're implementing and why]
+
+## Current State Analysis
+
+[What exists now, what's missing, key constraints discovered]
+
+## Desired End State
+
+[A Specification of the desired end state after this plan is complete, and how to verify it]
+
+### Key Discoveries:
+- [Important finding with file:line reference]
+- [Pattern to follow]
+- [Constraint to work within]
+
+## What We're NOT Doing
+
+[Explicitly list out-of-scope items to prevent scope creep]
+
+## Implementation Approach
+
+[High-level strategy and reasoning]
+
+## Phase 1: [Descriptive Name]
+
+### Overview
+[What this phase accomplishes]
+
+### Changes Required:
+
+#### 1. [Component/File Group]
+**File**: `path/to/file.ext`
+**Changes**: [Summary of changes]
+
+```[language]
+// Specific code to add/modify
+```
+
+### Success Criteria:
+
+#### Automated Verification:
+- [ ] Migration applies cleanly: `make migrate`
+- [ ] Unit tests pass: `make test-component`
+- [ ] Type checking passes: `npm run typecheck`
+- [ ] Linting passes: `make lint`
+- [ ] Integration tests pass: `make test-integration`
+
+#### Manual Verification:
+- [ ] Feature works as expected when tested via UI
+- [ ] Performance is acceptable under load
+- [ ] Edge case handling verified manually
+- [ ] No regressions in related features
+
+**Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
+
+---
+
+## Phase 2: [Descriptive Name]
+
+[Similar structure with both automated and manual success criteria...]
+
+---
+
+## Testing Strategy
+
+### Unit Tests:
+- [What to test]
+- [Key edge cases]
+
+### Integration Tests:
+- [End-to-end scenarios]
+
+### Manual Testing Steps:
+1. [Specific step to verify feature]
+2. [Another verification step]
+3. [Edge case to test manually]
+
+## Performance Considerations
+
+[Any performance implications or optimizations needed]
+
+## Migration Notes
+
+[If applicable, how to handle existing data/systems]
+
+## References
+
+- Original ticket: `thoughts/allison/tickets/eng_XXXX.md`
+- Related research: `thoughts/shared/research/[relevant].md`
+- Similar implementation: `[file:line]`
+````
+
+### Step 5: Sync and Review
+
+1. **Sync the thoughts directory**:
+   - Run `humanlayer thoughts sync` to sync the newly created plan
+   - This ensures the plan is properly indexed and available
+
+2. **Present the draft plan location**:
+   ```
+   I've created the initial implementation plan at:
+   `thoughts/shared/plans/YYYY-MM-DD-ENG-XXXX-description.md`
+
+   Please review it and let me know:
+   - Are the phases properly scoped?
+   - Are the success criteria specific enough?
+   - Any technical details that need adjustment?
+   - Missing edge cases or considerations?
+   ```
+
+3. **Iterate based on feedback** - be ready to:
+   - Add missing phases
+   - Adjust technical approach
+   - Clarify success criteria (both automated and manual)
+   - Add/remove scope items
+   - After making changes, run `humanlayer thoughts sync` again
+
+4. **Continue refining** until the user is satisfied
+
+## Important Guidelines
+
+1. **Be Skeptical**:
+   - Question vague requirements
+   - Identify potential issues early
+   - Ask "why" and "what about"
+   - Don't assume - verify with code
+
+2. **Be Interactive**:
+   - Don't write the full plan in one shot
+   - Get buy-in at each major step
+   - Allow course corrections
+   - Work collaboratively
+
+3. **Be Thorough**:
+   - Read all context files COMPLETELY before planning
+   - Research actual code patterns using parallel sub-tasks
+   - Include specific file paths and line numbers
+   - Write measurable success criteria with clear automated vs manual distinction
+   - automated steps should use `make` whenever possible - for example `make -C humanlayer-wui check` instead of `cd humanlayer-wui && bun run fmt`
+
+4. **Be Practical**:
+   - Focus on incremental, testable changes
+   - Consider migration and rollback
+   - Think about edge cases
+   - Include "what we're NOT doing"
+
+5. **Track Progress**:
+   - Use TodoWrite to track planning tasks
+   - Update todos as you complete research
+   - Mark planning tasks complete when done
+
+6. **No Open Questions in Final Plan**:
+   - If you encounter open questions during planning, STOP
+   - Research or ask for clarification immediately
+   - Do NOT write the plan with unresolved questions
+   - The implementation plan must be complete and actionable
+   - Every decision must be made before finalizing the plan
+
+## Success Criteria Guidelines
+
+**Always separate success criteria into two categories:**
+
+1. **Automated Verification** (can be run by execution agents):
+   - Commands that can be run: `make test`, `npm run lint`, etc.
+   - Specific files that should exist
+   - Code compilation/type checking
+   - Automated test suites
+
+2. **Manual Verification** (requires human testing):
+   - UI/UX functionality
+   - Performance under real conditions
+   - Edge cases that are hard to automate
+   - User acceptance criteria
+
+**Format example:**
+```markdown
+### Success Criteria:
+
+#### Automated Verification:
+- [ ] Database migration runs successfully: `make migrate`
+- [ ] All unit tests pass: `go test ./...`
+- [ ] No linting errors: `golangci-lint run`
+- [ ] API endpoint returns 200: `curl localhost:8080/api/new-endpoint`
+
+#### Manual Verification:
+- [ ] New feature appears correctly in the UI
+- [ ] Performance is acceptable with 1000+ items
+- [ ] Error messages are user-friendly
+- [ ] Feature works correctly on mobile devices
+```
+
+## Common Patterns
+
+### For Database Changes:
+- Start with schema/migration
+- Add store methods
+- Update business logic
+- Expose via API
+- Update clients
+
+### For New Features:
+- Research existing patterns first
+- Start with data model
+- Build backend logic
+- Add API endpoints
+- Implement UI last
+
+### For Refactoring:
+- Document current behavior
+- Plan incremental changes
+- Maintain backwards compatibility
+- Include migration strategy
+
+## Sub-task Spawning Best Practices
+
+When spawning research sub-tasks:
+
+1. **Spawn multiple tasks in parallel** for efficiency
+2. **Each task should be focused** on a specific area
+3. **Provide detailed instructions** including:
+   - Exactly what to search for
+   - Which directories to focus on
+   - What information to extract
+   - Expected output format
+4. **Be EXTREMELY specific about directories**:
+   - If the ticket mentions "WUI", specify `humanlayer-wui/` directory
+   - If it mentions "daemon", specify `hld/` directory
+   - Never use generic terms like "UI" when you mean "WUI"
+   - Include the full path context in your prompts
+5. **Specify read-only tools** to use
+6. **Request specific file:line references** in responses
+7. **Wait for all tasks to complete** before synthesizing
+8. **Verify sub-task results**:
+   - If a sub-task returns unexpected results, spawn follow-up tasks
+   - Cross-check findings against the actual codebase
+   - Don't accept results that seem incorrect
+
+Example of spawning multiple tasks:
+```python
+# Spawn these tasks concurrently:
+tasks = [
+    Task("Research database schema", db_research_prompt),
+    Task("Find API patterns", api_research_prompt),
+    Task("Investigate UI components", ui_research_prompt),
+    Task("Check test patterns", test_research_prompt)
+]
+```
+
+## Example Interaction Flow
+
+```
+User: /create_plan
+Assistant: I'll help you create a detailed implementation plan...
+
+User: We need to add parent-child tracking for Claude sub-tasks. See thoughts/allison/tickets/eng_1478.md
+Assistant: Let me read that ticket file completely first...
+
+[Reads file fully]
+
+Based on the ticket, I understand we need to track parent-child relationships for Claude sub-task events in the hld daemon. Before I start planning, I have some questions...
+
+[Interactive process continues...]
+```
+
+
+ARGUMENTS: @thoughts/shared/research/2026-02-16-shell-interception-pane-propagation.md note: user doesnt need to think about adding this command to zshrc or bash. should automatically be done on install.
+
+---
+
+<task-notification>
+<task-id>a47345f</task-id>
+<status>completed</status>
+<summary>Agent "Analyze shell interception code" completed</summary>
+<result>Perfect! Now I have all the necessary files. Let me provide a comprehensive analysis:
+
+## Analysis: Shell Interception and RC File Mechanism
+
+### Overview
+Dual implements command routing through generated shell RC files that intercept container-bound commands (npm, pnpm, node, python, curl, etc.) and redirect them to docker exec calls. During workspace launch, an RC file is written to `~/.dual/rc/{container_name}.sh` and sourced in the tmux session initialization command, transparently routing commands without Claude Code needing to know about containers.
+
+### Entry Points
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs:38` - `generate_rc()` function that produces shell interception code
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs:93` - `write_rc_file()` function that persists RC content to disk
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:267` - `cmd_launch()` function that orchestrates workspace creation
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:676` - `cmd_shell_rc()` function that outputs RC to stdout
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:112` - `cmd_add()` function that registers current repo
+
+---
+
+## Core Implementation
+
+### 1. Shell RC Generation (`/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs`)
+
+#### `generate_rc()` function (line 38-64)
+Generates the full shell RC content as a string:
+- Takes `container_name` (e.g., "dual-lightfast-main") and optional `extra_commands` array
+- Returns a complete shell script that defines function wrappers
+- Adds header comment "Generated by dual — do not edit" at line 41
+- Exports `DUAL_CONTAINER` environment variable at line 47
+- Iterates over `CONTAINER_COMMANDS` array (line 50-53) calling `generate_function()` for each
+- Processes `extra_commands` from `.dual.toml` at line 56-60, skipping duplicates at line 57
+
+#### `CONTAINER_COMMANDS` constant (line 2-4)
+Hard-coded list of commands that route to container:
+```rust
+const CONTAINER_COMMANDS: &[&str] = &[
+    "npm", "npx", "pnpm", "node", "python", "python3", "pip", "pip3", "curl", "make",
+];
+```
+
+#### `generate_function()` helper (line 72-83)
+Creates individual shell function wrappers:
+- Uses bash if-statement at line 75: `if [ -t 1 ]; then`
+- Tests if stdout is a TTY with `[ -t 1 ]`
+- If TTY: uses `docker exec -t -w /workspace {container_name} {command} "$@"` (line 76)
+- If not TTY: uses `docker exec -w /workspace {container_name} {command} "$@"` (line 78)
+- The `-t` flag allocates a pseudo-TTY for interactive sessions
+- Working directory always set to `/workspace` inside container
+- `"$@"` preserves all command arguments at line 76 and 78
+
+Example output for `npm`:
+```bash
+npm() {
+    if [ -t 1 ]; then
+        command docker exec -t -w /workspace dual-lightfast-main npm "$@"
+    else
+        command docker exec -w /workspace dual-lightfast-main npm "$@"
+    fi
+}
+```
+
+#### `write_rc_file()` function (line 93-108)
+Persists RC content to filesystem:
+- Resolves home directory with `dirs::home_dir()` at line 97-98
+- Creates directory structure `~/.dual/rc/` at line 99-101
+- Constructs file path: `~/.dual/rc/{container_name}.sh` at line 103
+- Calls `generate_rc()` to produce content at line 104
+- Writes content to file at line 105
+- Returns the `PathBuf` for the written file at line 107
+
+#### `source_file_command()` function (line 111-113)
+Generates bash source command:
+- Takes a `Path` reference to RC file
+- Returns string: `source "{path}"` with quoted path at line 112
+- Handles paths with spaces through double-quoting
+
+#### `source_command()` function (line 87-89)
+Generates eval command for inline RC generation:
+- Takes container name
+- Returns: `eval "$(dual shell-rc {container_name})"` at line 88
+- Used when RC is generated on-demand instead of from file
+
+#### `classify()` function (line 18-27)
+Determines routing target for any command:
+- Strips path prefix from command (e.g., `/usr/bin/npm` → `npm`) at line 20
+- Uses `rsplit('/')` to get base command name
+- Checks if base is in `CONTAINER_COMMANDS` at line 22
+- Returns `RouteTarget::Container` or `RouteTarget::Host` enum
+
+---
+
+### 2. Tmux Backend (`/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tmux_backend.rs`)
+
+#### `create_session()` method (line 32-62)
+Creates detached tmux session and sends initialization command:
+- Builds tmux command arguments via `build_new_session_args()` at line 39
+- Executes `tmux new-session -d -s {session_name} -c {cwd}` at line 38-44
+- The `-d` flag creates detached session (line 138)
+- The `-s` flag sets session name (line 139)
+- The `-c` flag sets initial working directory (line 141-142)
+- Returns error if command fails at line 46-54
+- If `init_cmd` is provided, calls `send_keys()` at line 57-59
+- The init command is sent AFTER session creation completes
+
+#### `build_new_session_args()` function (line 135-144)
+Constructs argument vector for tmux:
+```rust
+vec![
+    "new-session".to_string(),
+    "-d".to_string(),                    // detached
+    "-s".to_string(),                    // session name flag
+    session_name.to_string(),            // session name value
+    "-c".to_string(),                    // working directory flag
+    cwd.to_string_lossy().to_string(),   // working directory path
+]
+```
+
+#### `send_keys()` method (line 125-127)
+Sends keystrokes to tmux session:
+- Calls `tmux_simple()` with arguments: `["send-keys", "-t", session_name, keys, "Enter"]` at line 126
+- The `keys` parameter is the command string to execute
+- Automatically appends "Enter" to execute the command
+- The `-t` flag targets the specific session
+
+---
+
+### 3. MultiplexerBackend Trait (`/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/backend.rs`)
+
+#### Trait definition (line 8-42)
+Defines abstraction over terminal multiplexers:
+
+**`is_available()` method (line 10)**
+- Returns bool indicating if multiplexer binary exists
+
+**`create_session()` method (line 14-19)**
+- Parameters: `session_name`, `cwd` path, optional `init_cmd` string
+- Creates new detached session with working directory
+- Sends initial command if provided
+- Returns `Result<(), BackendError>`
+
+**`attach()` method (line 23)**
+- Attaches current terminal to existing session
+- Uses switch-client if already inside multiplexer
+
+**`send_keys()` method (line 38)**
+- Sends keystrokes to session's active pane
+- Used to inject commands after session creation
+
+**`is_inside()` method (line 41)**
+- Checks if currently inside this multiplexer
+- Used to determine attach vs switch-client behavior
+
+**`destroy()` method (line 29)**
+- Destroys session and all windows/panes
+
+**`is_alive()` method (line 32)**
+- Returns bool indicating if session exists
+
+**`list_sessions()` method (line 35)**
+- Returns vector of dual-managed session names (filtered by `dual-` prefix)
+
+---
+
+### 4. Launch Flow (`/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`)
+
+#### `cmd_launch()` function (line 267-460)
+Orchestrates complete workspace launch:
+
+**Step 1: Resolve workspace (line 276-303)**
+- If workspace argument provided, resolve via `st.resolve_workspace()` at line 278
+- Otherwise auto-detect from current directory at line 291
+- Constructs `container_name` and `session_name` at line 306-307
+
+**Step 2: Clone/resolve workspace directory (line 314-361)**
+- If `entry.path` exists, use that directory at line 315-324
+- Otherwise attempt local clone from main workspace at line 327-343
+  - Finds main workspace path at line 328-332
+  - Calls `clone::clone_from_local()` at line 337
+- Falls back to remote clone if local fails at line 347-358
+
+**Step 3: Handle shared files (line 363-390)**
+- Loads `.dual.toml` hints at line 364
+- Checks for `[shared]` section at line 365-366
+- For main workspace: calls `shared::init_from_main()` at line 371
+- For branch workspace: calls `shared::copy_to_branch()` at line 381
+
+**Step 4: Ensure container running (line 392-423)**
+- Checks container status at line 393-396
+- If missing: creates container with `container::create()` at line 400-406, then starts at line 410
+- If stopped: starts container at line 417
+- Runs setup command on new containers at line 426-431
+
+**Step 5: Write shell RC file (line 434-441)**
+- Calls `shell::write_rc_file(&container_name, &hints.extra_commands)` at line 435
+- Stores returned `PathBuf` in `rc_path` at line 435-436
+- This creates `~/.dual/rc/{container_name}.sh` with all function wrappers
+
+**Step 6: Create tmux session (line 443-450)**
+- Checks if session already alive at line 444
+- If not alive:
+  - Generates source command via `shell::source_file_command(&rc_path)` at line 445
+  - Creates session with init command: `backend.create_session(&session_name, &workspace_dir, Some(&source_cmd))` at line 446
+  - The `source_cmd` is the initialization command sent to the new session
+
+**Step 7: Attach to session (line 452-458)**
+- Calls `backend.attach(&session_name)` at line 454
+- This blocks until user detaches from tmux
+
+#### `cmd_shell_rc()` function (line 676-679)
+Outputs RC content to stdout:
+- Called when user runs `dual shell-rc <container_name>`
+- Calls `shell::generate_rc(container_name, &[])` at line 677
+- Prints result directly with `print!()` (no newline)
+- Enables inline sourcing: `eval "$(dual shell-rc dual-lightfast-main)"`
+
+#### `cmd_add()` function (line 112-197)
+Registers current directory as workspace:
+- Detects git repo info from cwd at line 114-119
+  - Calls `detect_git_repo()` which returns `(repo_root, url, branch)` at line 920
+- Derives repo name from directory or uses `--name` flag at line 123-126
+- Loads or creates state at line 129-135
+- Checks for duplicate workspace at line 138-141
+- Creates `.dual.toml` if missing at line 144-152
+- Initializes shared directory if configured at line 155-172
+- Creates `WorkspaceEntry` struct at line 175-180
+  - Sets `path` to current repo root (this becomes "main" workspace)
+- Saves entry to state at line 182-191
+- Outputs success message at line 193-195
+
+---
+
+### Data Flow
+
+**Workspace Registration (dual add):**
+1. User runs `dual add` in git repo → `cmd_add()` at line 112
+2. Detects repo root, URL, branch via `detect_git_repo()` at line 114
+3. Creates `.dual.toml` if missing at line 144-152
+4. Saves workspace entry with explicit `path` to state at line 175-191
+
+**Workspace Launch (dual launch):**
+1. User runs `dual launch workspace-id` → `cmd_launch()` at line 267
+2. Resolves workspace entry from state at line 276-303
+3. Clones repo if needed at line 314-361
+4. Creates/starts Docker container at line 392-423
+5. Generates RC file → `write_rc_file()` at line 435
+   - Writes to `~/.dual/rc/dual-{repo}-{branch}.sh`
+   - Contains shell functions wrapping docker exec
+6. Generates source command → `source_file_command()` at line 445
+   - Returns: `source "/Users/user/.dual/rc/dual-lightfast-main.sh"`
+7. Creates tmux session with source command as init → `backend.create_session()` at line 446
+   - Calls `TmuxBackend::create_session()` at line 32
+   - Executes: `tmux new-session -d -s dual-lightfast-main -c /path/to/workspace`
+   - Then calls `send_keys()` at line 58 with source command
+   - Executes: `tmux send-keys -t dual-lightfast-main 'source "/Users/user/.dual/rc/dual-lightfast-main.sh"' Enter`
+8. Attaches to session → `backend.attach()` at line 454
+
+**Command Routing (after RC sourced):**
+1. User types `npm install` in tmux session
+2. Shell finds `npm()` function defined by RC file
+3. Function checks if stdout is TTY with `[ -t 1 ]`
+4. Executes `docker exec -t -w /workspace dual-lightfast-main npm install`
+5. Command runs inside container at `/workspace` directory
+
+**Alternative inline sourcing:**
+1. User runs `eval "$(dual shell-rc dual-lightfast-main)"` manually
+2. Calls `cmd_shell_rc()` at line 676
+3. Outputs RC content to stdout
+4. Shell evaluates output, defining interception functions
+
+---
+
+### Key Patterns
+
+**Protected Commands List**
+- Hard-coded in `CONTAINER_COMMANDS` constant at line 2-4 of `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs`
+- Augmented by `.dual.toml` `extra_commands` array
+- Deduplication at line 57 prevents double-definition
+
+**TTY Detection**
+- Uses `[ -t 1 ]` test (file descriptor 1 = stdout) at line 75
+- Interactive sessions get `-t` flag for docker exec
+- Non-interactive (pipes, redirects) omit `-t` flag
+- Prevents docker TTY allocation errors in scripts
+
+**Working Directory Convention**
+- Always uses `-w /workspace` for docker exec at line 76, 78
+- Container bind-mounts repo root to `/workspace`
+- Commands run in same relative context as host
+
+**Session Naming Convention**
+- Prefix: `dual-` (defined in `SESSION_PREFIX` at line 7 of tmux_backend.rs)
+- Format: `dual-{repo}-{branch}` (constructed by `config::session_name()`)
+- Used for filtering in `list_sessions()` at line 117
+
+**Init Command Pattern**
+- Tmux session created first (detached)
+- Init command sent via `send_keys()` after creation
+- Allows session to exist before first command executes
+- Source command executes in session's default shell
+
+---
+
+### Configuration
+
+**RC File Location**
+- Directory: `~/.dual/rc/` (created at line 99-101)
+- Filename: `{container_name}.sh` (e.g., `dual-lightfast-main.sh`)
+- Full path resolved via `dirs::home_dir()` at line 97
+
+**Container Commands**
+- Default list at line 2-4: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+- Extensible via `.dual.toml` `extra_commands` array
+- Loaded from hints at line 435: `&hints.extra_commands`
+
+**Docker Exec Flags**
+- `-t`: Allocate pseudo-TTY (conditional on stdout TTY)
+- `-w /workspace`: Set working directory
+- Container name: `dual-{repo}-{branch}`
+
+**Tmux Flags**
+- `-d`: Create detached session
+- `-s {name}`: Set session name
+- `-c {path}`: Set initial working directory
+- `-t {name}`: Target session for send-keys
+
+---
+
+### Error Handling
+
+**RC File Write Failure**
+- Returns `std::io::Error` from `write_rc_file()` at line 93
+- Caught in `cmd_launch()` at line 435-440
+- Logs error and returns exit code 1
+
+**Session Creation Failure**
+- Returns `BackendError` from `create_session()` at line 19
+- Caught in `cmd_launch()` at line 446-449
+- Logs error and returns exit code 1
+
+**Container Not Found**
+- Checked via `container::status()` at line 393
+- Creates container if missing at line 399-413
+- Starts container if stopped at line 415-420
+
+**Duplicate Workspace**
+- Checked via `st.has_workspace()` in `cmd_add()` at line 138
+- Returns error at line 139-141 before creating entry
+
+**Git Detection Failure**
+- `detect_git_repo()` returns `Result<(PathBuf, String, String), String>` at line 920
+- Error if not in git repo at line 927
+- Caught in `cmd_add()` at line 114-119</result>
+<usage>total_tokens: 36102
+tool_uses: 6
+duration_ms: 101304</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a47345f.output
+
+---
+
+<task-notification>
+<task-id>a7adedb</task-id>
+<status>completed</status>
+<summary>Agent "Find install/setup commands" completed</summary>
+<result>Excellent! Now I have all the information I need. Let me compile the comprehensive file location report.
+
+## File Locations: CLI Subcommands and Shell Configuration
+
+### Overview
+The CLI parsing is handled by `clap` with a derive-based API in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/cli.rs`. The `dual add` subcommand is implemented in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs` (lines 112-199), and shell RC file generation/management lives in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs`.
+
+### 1. CLI Argument Parsing
+
+**Main CLI Definition:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/cli.rs` (75 lines total)
+  - Lines 3-12: `Cli` struct with clap derive
+  - Lines 14-66: `Command` enum defining all subcommands
+    - Line 17: `Add { name: Option<String> }` — Register current repo
+    - Line 24: `Create { branch, repo }` — Create new branch workspace
+    - Line 34: `Launch { workspace }` — Launch workspace
+    - Line 40: `List` — List all workspaces
+    - Line 43: `Destroy { workspace }` — Destroy workspace
+    - Line 49: `Open { workspace }` — Open services in browser
+    - Line 54: `Urls { workspace }` — List running URLs
+    - Line 59: `Sync { workspace }` — Sync shared config files
+    - Line 64: `Proxy` — Start reverse proxy
+    - Line 67: `ShellRc { container }` — Hidden internal command for shell RC generation
+
+### 2. `dual add` Subcommand Implementation
+
+**Implementation File:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`
+  - Lines 112-199: `fn cmd_add(name: Option<&str>) -> i32`
+    - Lines 114-120: Detect git repo info (root, URL, branch)
+    - Lines 122-126: Derive repo name from directory or use provided name
+    - Lines 128-135: Load or create state
+    - Lines 137-141: Check for duplicate workspace
+    - Lines 143-152: Create default `.dual.toml` if missing
+    - Lines 154-196: Initialize shared directory if configured
+  - Line 41: Command router dispatching `Add` to `cmd_add`
+
+**Helper Functions (in main.rs):**
+- Lines 920-956: `fn detect_git_repo()` — Detect git repo root, remote URL, and current branch
+- Lines 958-965: `fn derive_repo_name()` — Extract repo name from path
+
+### 3. Other Subcommand Implementations
+
+**All command handlers in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`:**
+- Line 65: `fn cmd_default()` — Default TUI launcher
+- Line 112: `fn cmd_add()` — Register repo
+- Line 200: `fn cmd_create()` — Create branch workspace
+- Line 267: `fn cmd_launch()` — Launch workspace (clone, container, tmux)
+- Line 463: `fn cmd_list()` — List workspaces
+- Line 483: `fn cmd_destroy()` — Destroy workspace
+- Line 572: `fn cmd_open()` — Open services in browser
+- Line 623: `fn cmd_urls()` — List URLs
+- Line 656: `fn cmd_proxy()` — Start reverse proxy
+- Line 676: `fn cmd_shell_rc()` — Output shell RC content
+- Line 682: `fn cmd_sync()` — Sync shared config files
+
+**Command Router:**
+- Lines 39-51: `match cli.command` — Dispatches subcommands to handlers
+
+### 4. Shell Configuration Files
+
+**Shell RC Generation:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs` (251 lines total)
+  - Lines 2-3: `CONTAINER_COMMANDS` constant — Default commands routed to container
+  - Lines 5-10: `RouteTarget` enum (Container, Host)
+  - Lines 12-26: `fn classify()` — Determine if command runs in container or host
+  - Lines 28-63: `fn generate_rc()` — Generate shell RC content with function interceptors
+  - Lines 65-81: `fn generate_function()` — Generate single shell function wrapper
+  - Lines 83-86: `fn source_command()` — Generate eval command for RC
+  - Lines 88-108: `fn write_rc_file()` — Write RC file to `~/.dual/rc/{container}.sh`
+  - Lines 110-113: `fn source_file_command()` — Generate source command for file path
+
+**Shell RC Usage:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`
+  - Line 435: `shell::write_rc_file()` — Called during workspace launch
+  - Line 445: `shell::source_file_command()` — Generate source command for tmux session
+  - Line 676: `cmd_shell_rc()` — Hidden command that outputs RC content
+
+**RC File Location:**
+- Files written to: `~/.dual/rc/{container_name}.sh`
+- NOT written to `~/.bashrc` or `~/.zshrc` (transparent per-session sourcing)
+
+### 5. Dependencies (Cargo.toml)
+
+**Main file:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/Cargo.toml`
+  - Lines 9-23: Dependencies
+    - Line 10: `clap = { version = "4", features = ["derive"] }` — CLI parsing
+    - Line 11: `crossterm = "0.28"` — Terminal manipulation
+    - Line 12: `dirs = "6"` — Cross-platform directory paths
+    - Line 19: `ratatui = "0.29"` — TUI framework
+    - Line 20: `tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }` — Async runtime
+    - Line 21: `toml = "0.8"` — Config file parsing
+    - Line 22-23: `tracing` + `tracing-subscriber` — Logging
+
+### 6. Tests Related to Shell and Tmux
+
+**Shell Module Tests:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/shell.rs`
+  - Lines 115-251: `mod tests`
+    - Line 119: `test classify_container_commands` — Verify container command routing
+    - Line 132: `test classify_host_commands` — Verify host command routing
+    - Line 142: `test classify_strips_path_prefix` — Verify path stripping
+    - Line 149: `test generate_rc_contains_functions` — Verify RC content structure
+    - Line 165: `test generate_rc_has_tty_detection` — Verify TTY handling
+    - Line 172: `test generate_rc_uses_correct_container` — Verify container name
+    - Line 184: `test generate_rc_with_extra_commands` — Verify extra command support
+    - Line 194: `test generate_rc_extra_commands_no_duplicates` — Verify deduplication
+    - Line 205: `test generated_function_preserves_args` — Verify argument forwarding
+    - Line 211: `test source_command_format` — Verify eval command format
+    - Line 217: `test write_rc_file_creates_file` — Verify file writing
+    - Line 234: `test source_file_command_format` — Verify source command format
+    - Line 241: `test source_file_command_handles_spaces` — Verify path escaping
+
+**Tmux Backend Tests:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tmux_backend.rs`
+  - Lines 173-244: `mod tests`
+    - Line 178: `test new_session_args_correct` — Verify tmux command args
+    - Line 197: `test session_prefix_is_dual` — Verify session naming
+    - Line 202: `test tmux_availability_check_runs` — Verify availability check
+    - Line 209: `test is_inside_detects_env` — Verify tmux detection
+    - Line 238: `test default_impl_works` — Verify default trait impl
+
+**CLI Parsing Tests:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`
+  - Lines 967-1152: Unit tests
+    - Line 1023: `test add_subcommand` — Test `dual add` parsing
+    - Line 1033: `test add_with_name` — Test `dual add --name`
+    - Line 1043: `test create_subcommand` — Test `dual create` parsing
+    - Line 1054: `test create_no_repo` — Test auto-detection
+    - Line 977: `test list_subcommand`
+    - Line 983: `test launch_subcommand`
+    - Line 1003: `test destroy_subcommand`
+    - Line 1065: `test open_without_workspace`
+    - Line 1085: `test urls_without_workspace`
+    - Line 1105: `test proxy_subcommand`
+    - Line 1111: `test shell_rc_subcommand`
+    - Line 1121: `test sync_subcommand_no_args`
+    - Line 1141: `test derive_repo_name_from_path`
+
+**E2E Tests:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/e2e.rs` (14,004 bytes)
+  - Integration tests for clone, container, and workspace lifecycle
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/harness_smoke.rs` (2,499 bytes)
+  - Test harness validation
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/fixture_smoke.rs` (4,079 bytes)
+  - Fixture creation validation
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/harness/mod.rs`
+  - Test utilities and cleanup functions
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/fixtures/`
+  - Fixture repo creation utilities
+
+### 7. Configuration Files
+
+**Default Config Template:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs`
+  - Lines 100-144: `fn write_default_hints()` — Creates default `.dual.toml`
+  - Lines 102-132: Template content with comments
+    - Line 105: `image = "node:20"` — Default Docker image
+    - Line 109: `ports = [3000]` — Default ports
+    - Line 112: `setup = "npm install"` — Setup command example
+    - Line 116: `extra_commands = []` — Extra command routing
+    - Line 120: `anonymous_volumes = ["node_modules"]` — Volume configuration
+
+**Config Loading:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs` (453 lines total)
+  - Lines 14-47: `Hints` struct — `.dual.toml` schema
+  - Lines 49-82: `fn load_hints()` — Load and parse config file
+
+### 8. Related Modules
+
+**State Management:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/state.rs` (669 lines)
+  - Workspace state persistence and queries
+
+**Container Operations:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/container.rs` (398 lines)
+  - Lines 160-177: `fn exec_setup()` — Execute setup command in container
+  - Lines 181-186: `fn build_exec_setup_args()` — Build exec args
+
+**Clone Operations:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/clone.rs` (262 lines)
+  - Git clone and workspace directory management
+
+**TUI:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tui/mod.rs` (47 lines)
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tui/app.rs` (11,445 bytes)
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tui/ui.rs` (4,594 bytes)
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/tui/event.rs` (3,580 bytes)
+
+### Entry Points
+
+**Binary Entry Point:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs`
+  - Lines 17-60: `fn main()` — Entry point, CLI parsing, command dispatch
+
+**Library Entry Point:**
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/lib.rs` (11 lines)
+  - Re-exports public modules
+
+### File Counts by Category
+
+| Category | Files | Location |
+|----------|-------|----------|
+| Core implementation | 11 | `src/*.rs` |
+| TUI components | 4 | `src/tui/*.rs` |
+| Unit tests | Embedded | In implementation files with `#[cfg(test)]` |
+| E2E tests | 3 | `tests/*.rs` |
+| Test harness | 1 | `tests/harness/mod.rs` |
+| Test fixtures | 1 | `tests/fixtures/` |
+
+### Key Shell-Related Code Paths
+
+**No Direct ~/.bashrc or ~/.zshrc Modification:**
+The codebase does NOT modify user shell config files (`~/.bashrc`, `~/.zshrc`, etc.). Instead:
+
+1. Shell functions are written to `~/.dual/rc/{container_name}.sh`
+2. Functions are sourced per tmux session via `source` command
+3. This provides transparent command routing without polluting user shell config
+4. Each workspace gets its own RC file that's active only in that tmux session
+
+**Shell RC File Pattern:**
+- Written to: `~/.dual/rc/{container_name}.sh` (line 103 in shell.rs)
+- Format: Bash function wrappers around `docker exec`
+- Lifecycle: Created on workspace launch, sourced in tmux session</result>
+<usage>total_tokens: 37865
+tool_uses: 31
+duration_ms: 127084</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a7adedb.output
+
+---
+
+go ahead, write the plan

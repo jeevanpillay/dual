@@ -3,7 +3,7 @@
   "checkpoint_id": "83e76ce9f6e4",
   "strategy": "manual-commit",
   "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
-  "checkpoints_count": 9,
+  "checkpoints_count": 10,
   "files_touched": [
     ".DS_Store",
     ".gitignore",
@@ -52,13 +52,20 @@
       "context": "/83/e76ce9f6e4/4/context.md",
       "content_hash": "/83/e76ce9f6e4/4/content_hash.txt",
       "prompt": "/83/e76ce9f6e4/4/prompt.txt"
+    },
+    {
+      "metadata": "/83/e76ce9f6e4/5/metadata.json",
+      "transcript": "/83/e76ce9f6e4/5/full.jsonl",
+      "context": "/83/e76ce9f6e4/5/context.md",
+      "content_hash": "/83/e76ce9f6e4/5/content_hash.txt",
+      "prompt": "/83/e76ce9f6e4/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 150,
-    "cache_creation_tokens": 183196,
-    "cache_read_tokens": 12288088,
-    "output_tokens": 8573,
-    "api_call_count": 113
+    "input_tokens": 172,
+    "cache_creation_tokens": 234049,
+    "cache_read_tokens": 12906054,
+    "output_tokens": 13901,
+    "api_call_count": 125
   }
 }
