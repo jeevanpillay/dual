@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "cc13ef3e9119",
+  "strategy": "manual-commit",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "Cargo.toml",
+    "README.md",
+    "src/cli.rs",
+    "src/config.rs",
+    "src/init.rs",
+    "src/lib.rs",
+    "src/main.rs",
+    "src/state.rs",
+    "src/tui/ui.rs",
+    "tests/fixtures/mod.rs",
+    "thoughts/shared/plans/2026-02-16-DUAL-62-63-rename-init-settings-json.md",
+    "thoughts/shared/plans/2026-02-16-DUAL-64-interactive-init-wizard.md",
+    "thoughts/shared/research/2026-02-16-DUAL-64-65-implementation.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cc/13ef3e9119/0/metadata.json",
+      "transcript": "/cc/13ef3e9119/0/full.jsonl",
+      "context": "/cc/13ef3e9119/0/context.md",
+      "content_hash": "/cc/13ef3e9119/0/content_hash.txt",
+      "prompt": "/cc/13ef3e9119/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1507,
+    "cache_creation_tokens": 129895,
+    "cache_read_tokens": 5585827,
+    "output_tokens": 9211,
+    "api_call_count": 45
+  }
+}
