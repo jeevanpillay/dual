@@ -100,21 +100,39 @@ bind-key Space display-popup -E -w 60% -h 60% "dual"
 
 ## Configuration
 
-Dual uses two config files:
+Dual uses two config files: `devcontainer.json` for container configuration and `.dual.toml` for Dual-specific orchestration.
 
-### `.dual.toml` (per-repo hints)
+### `devcontainer.json` (container config)
 
-Lives in your project root. Committed to git. Controls runtime behavior.
+Primary source for container configuration. Lives in `.devcontainer/devcontainer.json` (or `.devcontainer.json` at project root). Compatible with the [Dev Containers](https://containers.dev/) ecosystem.
+
+```json
+{
+    "image": "node:20",
+    "forwardPorts": [3000, 3001],
+    "postCreateCommand": "pnpm install",
+    "containerEnv": {
+        "NODE_ENV": "development"
+    }
+}
+```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `image` | Docker image for the container | `node:20` |
+| `build.dockerfile` | Build image from Dockerfile instead of pulling | None |
+| `forwardPorts` | Ports that services bind to (for reverse proxy) | `[]` |
+| `postCreateCommand` | Command to run after first container creation | None |
+| `containerEnv` | Environment variables passed to the container | `{}` |
+| `mounts` | Volume mounts (volume type, `/workspace/*` targets become anonymous volumes) | `[]` |
+
+### `.dual.toml` (orchestration config)
+
+Dual-specific settings that the devcontainer spec can't express. Lives in your project root.
 
 ```toml
-# Docker image for the container runtime
-image = "node:20"
-
-# Ports your dev server uses (for reverse proxy routing)
-ports = [3000, 3001]
-
-# Shell command to run after container creation (e.g., dependency install)
-setup = "pnpm install"
+# Explicit path to devcontainer.json (auto-detected if omitted)
+# devcontainer = ".devcontainer/devcontainer.json"
 
 # Commands to route to the container (in addition to defaults)
 # Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
@@ -123,10 +141,6 @@ extra_commands = ["cargo", "go"]
 # Directories to isolate with anonymous Docker volumes
 anonymous_volumes = ["node_modules", ".next"]
 
-# Environment variables passed to the container
-[env]
-NODE_ENV = "development"
-
 # Files to share across all workspaces of this repo
 [shared]
 files = [".vercel", ".env.local"]
@@ -134,28 +148,10 @@ files = [".vercel", ".env.local"]
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `image` | Docker image for the container | `node:20` |
-| `ports` | Ports that services bind to (for reverse proxy) | `[]` |
-| `setup` | Command to run after first container creation | None |
-| `env` | Environment variables passed to the container | `{}` |
-| `shared.files` | Files/directories to share across branch workspaces | `[]` |
+| `devcontainer` | Explicit path to devcontainer.json | Auto-detected |
 | `extra_commands` | Additional commands to route to the container | `[]` |
 | `anonymous_volumes` | Container volumes (e.g., `node_modules`) | `["node_modules"]` |
-
-### `devcontainer.json` (fallback)
-
-If no `.dual.toml` exists, Dual reads `.devcontainer/devcontainer.json` (or `.devcontainer.json`) as a fallback. This gives zero-config compatibility with repos that already have dev container configurations.
-
-| devcontainer.json field | Maps to |
-|---|---|
-| `image` | `image` |
-| `build.dockerfile` | Builds image via `docker build` |
-| `forwardPorts` | `ports` |
-| `containerEnv` | `env` |
-| `postCreateCommand` | `setup` |
-| `mounts` (volume type, `/workspace/*`) | `anonymous_volumes` |
-
-`.dual.toml` always takes priority when both exist.
+| `shared.files` | Files/directories to share across branch workspaces | `[]` |
 
 ### `~/.dual/workspaces.toml` (global state)
 

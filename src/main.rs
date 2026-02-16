@@ -140,14 +140,23 @@ fn cmd_add(name: Option<&str>) -> i32 {
         return 1;
     }
 
-    // Check for .dual.toml — if missing, create a default one with helpful comments
+    // Create .dual.toml if missing (Dual-specific orchestration config)
     let hints_path = repo_root.join(".dual.toml");
     if !hints_path.exists() {
-        if let Err(e) = config::write_default_hints(&repo_root) {
+        if let Err(e) = config::write_default_dual_config(&repo_root) {
             warn!("failed to write .dual.toml: {e}");
         } else {
-            info!("Created .dual.toml with defaults (image: node:20)");
-            info!("Edit it to customize ports, image, setup command, and env vars.");
+            info!("Created .dual.toml (Dual orchestration settings)");
+        }
+    }
+
+    // Create devcontainer.json if no devcontainer config exists (container config)
+    if dual::devcontainer::find_devcontainer_json(&repo_root).is_none() {
+        if let Err(e) = config::write_default_devcontainer(&repo_root) {
+            warn!("failed to write devcontainer.json: {e}");
+        } else {
+            info!("Created .devcontainer/devcontainer.json (image: node:20)");
+            info!("Edit it to customize image, ports, setup command, and env vars.");
         }
     }
 
@@ -624,7 +633,7 @@ fn cmd_open(workspace: Option<String>) -> i32 {
 
     let url_groups = proxy::workspace_urls(&st);
     if url_groups.is_empty() {
-        info!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
+        info!("No URLs configured. Add 'forwardPorts' to devcontainer.json in your repo.");
         return 0;
     }
 
@@ -675,7 +684,7 @@ fn cmd_urls(workspace: Option<String>) -> i32 {
 
     let url_groups = proxy::workspace_urls(&st);
     if url_groups.is_empty() {
-        info!("No URLs configured. Add 'ports' to .dual.toml in your repo.");
+        info!("No URLs configured. Add 'forwardPorts' to devcontainer.json in your repo.");
         return 0;
     }
 

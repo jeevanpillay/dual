@@ -87,10 +87,11 @@ pub async fn start(state: &WorkspaceState) -> Result<(), Box<dyn std::error::Err
     let ports = proxy_state.ports();
 
     if ports.is_empty() {
-        info!("No ports configured for proxy. Add 'ports' to .dual.toml in your repo.");
-        info!("Example .dual.toml:");
-        info!("  image = \"node:20\"");
-        info!("  ports = [3000, 3001]");
+        info!(
+            "No ports configured for proxy. Add 'forwardPorts' to devcontainer.json in your repo."
+        );
+        info!("Example .devcontainer/devcontainer.json:");
+        info!("  {{\"image\": \"node:20\", \"forwardPorts\": [3000, 3001]}}");
         return Ok(());
     }
 
