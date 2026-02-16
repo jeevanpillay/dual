@@ -29,3 +29,11 @@ proceed
 
 create new linear issue + pr + branch.
 
+### Prompt 5
+
+anything to update in @README.md ?
+
+### Prompt 6
+
+seperate commit
+
