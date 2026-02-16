@@ -1,0 +1,1904 @@
+# Research Codebase
+
+You are tasked with conducting comprehensive research across the codebase to answer user questions by spawning parallel sub-agents and synthesizing their findings.
+
+## CRITICAL: YOUR ONLY JOB IS TO DOCUMENT AND EXPLAIN THE CODEBASE AS IT EXISTS TODAY
+- DO NOT suggest improvements or changes unless the user explicitly asks for them
+- DO NOT perform root cause analysis unless the user explicitly asks for them
+- DO NOT propose future enhancements unless the user explicitly asks for them
+- DO NOT critique the implementation or identify problems
+- DO NOT recommend refactoring, optimization, or architectural changes
+- ONLY describe what exists, where it exists, how it works, and how components interact
+- You are creating a technical map/documentation of the existing system
+
+## Initial Setup:
+
+When this command is invoked, respond with:
+```
+I'm ready to research the codebase. Please provide your research question or area of interest, and I'll analyze it thoroughly by exploring relevant components and connections.
+```
+
+Then wait for the user's research query.
+
+## Steps to follow after receiving the research query:
+
+1. **Read any directly mentioned files first:**
+   - If the user mentions specific files (tickets, docs, JSON), read them FULLY first
+   - **IMPORTANT**: Use the Read tool WITHOUT limit/offset parameters to read entire files
+   - **CRITICAL**: Read these files yourself in the main context before spawning any sub-tasks
+   - This ensures you have full context before decomposing the research
+
+2. **Analyze and decompose the research question:**
+   - Break down the user's query into composable research areas
+   - Take time to ultrathink about the underlying patterns, connections, and architectural implications the user might be seeking
+   - Identify specific components, patterns, or concepts to investigate
+   - Create a research plan using TodoWrite to track all subtasks
+   - Consider which directories, files, or architectural patterns are relevant
+
+3. **Spawn parallel sub-agent tasks for comprehensive research:**
+   - Create multiple Task agents to research different aspects concurrently
+   - We now have specialized agents that know how to do specific research tasks:
+
+   **For codebase research:**
+   - Use the **codebase-locator** agent to find WHERE files and components live
+   - Use the **codebase-analyzer** agent to understand HOW specific code works (without critiquing it)
+   - Use the **codebase-pattern-finder** agent to find examples of existing patterns (without evaluating them)
+
+   **IMPORTANT**: All agents are documentarians, not critics. They will describe what exists without suggesting improvements or identifying issues.
+
+   **For thoughts directory:**
+   - Use the **thoughts-locator** agent to discover what documents exist about the topic
+   - Use the **thoughts-analyzer** agent to extract key insights from specific documents (only the most relevant ones)
+
+   **For web research (only if user explicitly asks):**
+   - Use the **web-search-researcher** agent for external documentation and resources
+   - IF you use web-research agents, instruct them to return LINKS with their findings, and please INCLUDE those links in your final report
+
+   **For Linear tickets (if relevant):**
+   - Use the **linear-ticket-reader** agent to get full details of a specific ticket
+   - Use the **linear-searcher** agent to find related tickets or historical context
+
+   The key is to use these agents intelligently:
+   - Start with locator agents to find what exists
+   - Then use analyzer agents on the most promising findings to document how they work
+   - Run multiple agents in parallel when they're searching for different things
+   - Each agent knows its job - just tell it what you're looking for
+   - Don't write detailed prompts about HOW to search - the agents already know
+   - Remind agents they are documenting, not evaluating or improving
+
+4. **Wait for all sub-agents to complete and synthesize findings:**
+   - IMPORTANT: Wait for ALL sub-agent tasks to complete before proceeding
+   - Compile all sub-agent results (both codebase and thoughts findings)
+   - Prioritize live codebase findings as primary source of truth
+   - Use thoughts/ findings as supplementary historical context
+   - Connect findings across different components
+   - Include specific file paths and line numbers for reference
+   - Verify all thoughts/ paths are correct (e.g., thoughts/allison/ not thoughts/shared/ for personal files)
+   - Highlight patterns, connections, and architectural decisions
+   - Answer the user's specific questions with concrete evidence
+
+5. **Gather metadata for the research document:**
+   - Run the `hack/spec_metadata.sh` script to generate all relevant metadata
+   - Filename: `thoughts/shared/research/YYYY-MM-DD-ENG-XXXX-description.md`
+     - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
+       - YYYY-MM-DD is today's date
+       - ENG-XXXX is the ticket number (omit if no ticket)
+       - description is a brief kebab-case description of the research topic
+     - Examples:
+       - With ticket: `2025-01-08-ENG-1478-parent-child-tracking.md`
+       - Without ticket: `2025-01-08-authentication-flow.md`
+
+6. **Generate research document:**
+   - Use the metadata gathered in step 4
+   - Structure the document with YAML frontmatter followed by content:
+     ```markdown
+     ---
+     date: [Current date and time with timezone in ISO format]
+     researcher: [Researcher name from thoughts status]
+     git_commit: [Current commit hash]
+     branch: [Current branch name]
+     repository: [Repository name]
+     topic: "[User's Question/Topic]"
+     tags: [research, codebase, relevant-component-names]
+     status: complete
+     last_updated: [Current date in YYYY-MM-DD format]
+     last_updated_by: [Researcher name]
+     ---
+
+     # Research: [User's Question/Topic]
+
+     **Date**: [Current date and time with timezone from step 4]
+     **Researcher**: [Researcher name from thoughts status]
+     **Git Commit**: [Current commit hash from step 4]
+     **Branch**: [Current branch name from step 4]
+     **Repository**: [Repository name]
+
+     ## Research Question
+     [Original user query]
+
+     ## Summary
+     [High-level documentation of what was found, answering the user's question by describing what exists]
+
+     ## Detailed Findings
+
+     ### [Component/Area 1]
+     - Description of what exists ([file.ext:line](link))
+     - How it connects to other components
+     - Current implementation details (without evaluation)
+
+     ### [Component/Area 2]
+     ...
+
+     ## Code References
+     - `path/to/file.py:123` - Description of what's there
+     - `another/file.ts:45-67` - Description of the code block
+
+     ## Architecture Documentation
+     [Current patterns, conventions, and design implementations found in the codebase]
+
+     ## Historical Context (from thoughts/)
+     [Relevant insights from thoughts/ directory with references]
+     - `thoughts/shared/something.md` - Historical decision about X
+     - `thoughts/local/notes.md` - Past exploration of Y
+     Note: Paths exclude "searchable/" even if found there
+
+     ## Related Research
+     [Links to other research documents in thoughts/shared/research/]
+
+     ## Open Questions
+     [Any areas that need further investigation]
+     ```
+
+7. **Add GitHub permalinks (if applicable):**
+   - Check if on main branch or if commit is pushed: `git branch --show-current` and `git status`
+   - If on main/master or pushed, generate GitHub permalinks:
+     - Get repo info: `gh repo view --json owner,name`
+     - Create permalinks: `https://github.com/{owner}/{repo}/blob/{commit}/{file}#L{line}`
+   - Replace local file references with permalinks in the document
+
+8. **Sync and present findings:**
+   - Run `humanlayer thoughts sync` to sync the thoughts directory
+   - Present a concise summary of findings to the user
+   - Include key file references for easy navigation
+   - Ask if they have follow-up questions or need clarification
+
+9. **Handle follow-up questions:**
+   - If the user has follow-up questions, append to the same research document
+   - Update the frontmatter fields `last_updated` and `last_updated_by` to reflect the update
+   - Add `last_updated_note: "Added follow-up research for [brief description]"` to frontmatter
+   - Add a new section: `## Follow-up Research [timestamp]`
+   - Spawn new sub-agents as needed for additional investigation
+   - Continue updating the document and syncing
+
+## Important notes:
+- Always use parallel Task agents to maximize efficiency and minimize context usage
+- Always run fresh codebase research - never rely solely on existing research documents
+- The thoughts/ directory provides historical context to supplement live findings
+- Focus on finding concrete file paths and line numbers for developer reference
+- Research documents should be self-contained with all necessary context
+- Each sub-agent prompt should be specific and focused on read-only documentation operations
+- Document cross-component connections and how systems interact
+- Include temporal context (when the research was conducted)
+- Link to GitHub when possible for permanent references
+- Keep the main agent focused on synthesis, not deep file reading
+- Have sub-agents document examples and usage patterns as they exist
+- Explore all of thoughts/ directory, not just research subdirectory
+- **CRITICAL**: You and all sub-agents are documentarians, not evaluators
+- **REMEMBER**: Document what IS, not what SHOULD BE
+- **NO RECOMMENDATIONS**: Only describe the current state of the codebase
+- **File reading**: Always read mentioned files FULLY (no limit/offset) before spawning sub-tasks
+- **Critical ordering**: Follow the numbered steps exactly
+  - ALWAYS read mentioned files first before spawning sub-tasks (step 1)
+  - ALWAYS wait for all sub-agents to complete before synthesizing (step 4)
+  - ALWAYS gather metadata before writing the document (step 5 before step 6)
+  - NEVER write the research document with placeholder values
+- **Path handling**: The thoughts/searchable/ directory contains hard links for searching
+  - Always document paths by removing ONLY "searchable/" - preserve all other subdirectories
+  - Examples of correct transformations:
+    - `thoughts/searchable/allison/old_stuff/notes.md` → `thoughts/allison/old_stuff/notes.md`
+    - `thoughts/searchable/shared/prs/123.md` → `thoughts/shared/prs/123.md`
+    - `thoughts/searchable/global/shared/templates.md` → `thoughts/global/shared/templates.md`
+  - NEVER change allison/ to shared/ or vice versa - preserve the exact directory structure
+  - This ensures paths are correct for editing and navigation
+- **Frontmatter consistency**:
+  - Always include frontmatter at the beginning of research documents
+  - Keep frontmatter fields consistent across all research documents
+  - Update frontmatter when adding follow-up research
+  - Use snake_case for multi-word field names (e.g., `last_updated`, `git_commit`)
+  - Tags should be relevant to the research topic and components studied
+
+
+ARGUMENTS: DUAL-62 and DUAL-63 implementation
+
+---
+
+<task-notification>
+<task-id>ac0cb53</task-id>
+<status>completed</status>
+<summary>Agent "Research project structure" completed</summary>
+<result>Excellent. Now let me document everything.
+
+## File Locations: Dual Project Structure
+
+### Overview
+The project is a Rust-based terminal workspace orchestrator with source code in `src/`, integration tests in `tests/`, and a single configuration file at the repository root.
+
+---
+
+### Main Source Files (`src/`)
+
+All paths relative to `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/`:
+
+- `src/main.rs` (1,205 lines) - Entry point and CLI command handlers
+- `src/config.rs` (783 lines) - Configuration parsing for .dual.toml and devcontainer.json
+- `src/state.rs` (669 lines) - State management and workspace persistence
+- `src/devcontainer.rs` (571 lines) - devcontainer.json schema parsing and fallback logic
+- `src/container.rs` (541 lines) - Docker container lifecycle (create, start, stop, status)
+- `src/shell.rs` (381 lines) - Command routing (host vs container) and shell interception
+- `src/proxy.rs` (358 lines) - HTTP reverse proxy for routing localhost:{port} to containers
+- `src/shared.rs` (352 lines) - Shared directory and symlink management across workspaces
+- `src/clone.rs` (262 lines) - Git clone operations and workspace initialization
+- `src/tmux_backend.rs` (257 lines) - tmux multiplexer backend implementation
+- `src/backend.rs` (56 lines) - Trait abstraction over terminal multiplexers
+- `src/cli.rs` (75 lines) - CLI argument parsing (clap)
+- `src/lib.rs` (12 lines) - Library crate root
+
+**Total source lines**: ~6,158
+
+---
+
+### TUI Module (`src/tui/`)
+
+- `src/tui/app.rs` (365 lines) - TUI application state and logic
+- `src/tui/ui.rs` (137 lines) - UI rendering with ratatui
+- `src/tui/event.rs` (129 lines) - Event handling (keyboard, terminal resize)
+- `src/tui/mod.rs` (5 lines) - Module exports
+
+---
+
+### Test Files (`tests/`)
+
+**Integration Tests**:
+- `tests/e2e.rs` (402 lines) - End-to-end integration tests
+- `tests/fixture_smoke.rs` (128 lines) - Smoke tests using fixtures
+- `tests/harness_smoke.rs` (89 lines) - Test harness smoke tests
+
+**Test Support**:
+- `tests/fixtures/mod.rs` (125 lines) - Test fixture utilities
+- `tests/harness/mod.rs` (146 lines) - Test harness infrastructure
+
+**Embedded Test Modules**: 13 source files contain `#[cfg(test)]` blocks:
+- `src/main.rs`
+- `src/proxy.rs`
+- `src/config.rs`
+- `src/shell.rs`
+- `src/tmux_backend.rs`
+- `src/container.rs`
+- `src/devcontainer.rs`
+- `src/tui/app.rs`
+- `src/tui/event.rs`
+- `src/tui/ui.rs`
+- `src/clone.rs`
+- `src/shared.rs`
+- `src/state.rs`
+
+---
+
+### Configuration Files
+
+**Build Configuration**:
+- `Cargo.toml` - Package manifest and dependencies
+
+**Config/Serialization Dependencies**:
+```toml
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+```
+
+**User Configuration**:
+- `.dual.toml` - Workspace configuration (Docker image, ports, shell setup, command routing, volumes, env vars, shared files)
+
+**Tool Configuration**:
+- `.claude/settings.json` - Claude Code hooks and environment settings
+- `.entire/settings.json` - Entire integration settings (manual-commit strategy)
+
+---
+
+### Other Project Artifacts
+
+**No .devcontainer directory exists** - The project reads devcontainer.json from individual workspace repositories but doesn't ship its own.
+
+**No example/template files** - No `.toml.example`, `example.toml`, or similar template files exist in the repository.
+
+**Build artifacts** - `target/` directory contains compiled binaries and generated code (excluded from listings above).
+
+---
+
+### File Counts Summary
+
+| Directory | Source Files | Lines |
+|-----------|--------------|-------|
+| `src/` | 13 files | ~5,522 |
+| `src/tui/` | 4 files | ~636 |
+| `tests/` | 5 files | ~890 |
+| **Total** | **22 .rs files** | **~7,048** |</result>
+<usage>total_tokens: 14927
+tool_uses: 23
+duration_ms: 71822</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/ac0cb53.output
+
+---
+
+<task-notification>
+<task-id>a50ad53</task-id>
+<status>completed</status>
+<summary>Agent "Find related thoughts docs" completed</summary>
+<result>Perfect! Now I have a comprehensive understanding of the documents. Let me compile the organized findings.
+
+## Thought Documents about Config System, CLI Changes, and Architecture
+
+### Recent Implementation Plans (2026-02-16)
+
+- `/Users/jeevanpillay/Code/@REDACTED.md` - devcontainer.json Fallback Reader implementation, adds devcontainer.json parsing to RepoHints config system
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/plans/2026-02-16-shell-interception-pane-propagation.md` - Shell interception for new tmux panes, includes shell hook installation during `dual add`
+
+### Recent Research Documents (2026-02-16)
+
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-16-web-analysis-devcontainer-adoption.md` - Research on whether Dual should adopt devcontainer.json
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-16-shell-interception-pane-propagation.md` - Research on shell interception propagation
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-16-port-routing-container-isolation.md` - Research on port routing and container isolation
+
+### v3.0 Architecture Rewrite (2026-02-15)
+
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/plans/2026-02-15-v2-to-v3-roadmap.md` - Dual v2.x → v3 Roadmap covering incremental evolution, CLI breaking changes, and v3.0.0 milestone
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/plans/2026-02-15-v3-multiplexer-trait-tui.md` - v3.0.0 Multiplexer Trait + TUI Implementation Plan
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-15-v3-architecture-rethink.md` - Research on v3 architecture rethink
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-15-architecture-rethink-bugs-tui-plugins.md` - Architecture rethink covering bugs, branch model, TUI, tmux integration, and plugin system
+
+### Config System Changes (2026-02-15)
+
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/plans/2026-02-15-shared-config-propagation.md` - Shared Config Propagation implementation, adds `[shared]` section to `.dual.toml` for file propagation across workspaces
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/plans/2026-02-15-rust-production-readiness.md` - Rust Production Readiness improvements including config handling
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-15-rust-production-readiness-audit.md` - Production readiness audit
+
+### BUILD Module Plans (2026-02-13)
+
+- `/Users/jeevanpillay/Code/@REDACTED.md` - Config Module Implementation Plan defining DualConfig and RepoConfig structs
+- `/Users/jeevanpillay/Code/@REDACTED.md` - CLI Module Implementation Plan
+- `/Users/jeevanpillay/Code/@REDACTED.md` - CLI wiring with DualConfig integration
+- `/Users/jeevanpillay/Code/@REDACTED.md` - Config module research
+- `/Users/jeevanpillay/Code/@REDACTED.md` - CLI research
+- `/Users/jeevanpillay/Code/@REDACTED.md` - CLI wiring research
+
+### Architecture Documentation
+
+- `/Users/jeevanpillay/Code/@REDACTED.md` - Core architecture decisions and spec reference
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/BUILD.md` - Build module status and iteration log
+
+### Key Findings Summary
+
+**Config System Changes:**
+- `.dual.toml` (RepoHints) supports: `image`, `ports`, `setup`, `env`, `extra_commands`, `anonymous_volumes`, `shared`
+- New `[shared]` section for config file propagation across workspaces
+- devcontainer.json fallback support being added to RepoHints
+- DualConfig and RepoConfig structs define workspace configuration
+- Config files remain backward-compatible with `#[serde(default)]`
+
+**CLI Changes:**
+- `dual add` is the primary command for workspace initialization
+- `dual add` will auto-install shell hooks in `~/.zshrc` or `~/.bashrc`
+- Shell hook installation detects and prevents duplicate entries
+- Breaking change in v2.x: `dual create` args change from `<repo> <branch>` to `<branch> [--repo REPO]`
+
+**v3.0 Milestone:**
+- Architecture rewrite with multiplexer trait abstraction
+- TUI implementation for workspace management
+- Plugin system for extensibility
+- Session layouts support
+- Not implementing Zellij backend in v3.0.0 (only tmux)
+
+**No DUAL-62 or DUAL-63 tickets found** - these ticket numbers do not appear in any thought documents.
+
+Total: 26 relevant documents found across research, plans, and architecture documentation.</result>
+<usage>total_tokens: 20255
+tool_uses: 32
+duration_ms: 92830</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a50ad53.output
+
+---
+
+<task-notification>
+<task-id>a3e7821</task-id>
+<status>completed</status>
+<summary>Agent "Research CLI add command" completed</summary>
+<result>Perfect! Now I have all the information needed. Let me compile the complete documentation.
+
+## Analysis: `dual add` Command
+
+### Overview
+
+The `dual add` command registers the current git repository as a Dual workspace. It detects git repo information from the current directory, derives a repo name (optionally from the `--name` flag), creates default configuration files (`.dual.toml` and `devcontainer.json`), initializes shared file directories if configured, and saves the workspace entry to global state (`~/.dual/workspaces.toml`).
+
+### Entry Points
+
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/cli.rs:17-21` — `Add` variant in `Command` enum
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:58` — CLI dispatch matches `Command::Add` and calls `cmd_add(name.as_deref())`
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:129-223` — `cmd_add()` function implementation
+
+---
+
+### Core Implementation
+
+#### 1. CLI Definition (`src/cli.rs:17-21`)
+
+```rust
+Add {
+    /// Short name for the repo (derived from directory name if omitted)
+    #[arg(short, long)]
+    name: Option<String>,
+}
+```
+
+The `Add` variant accepts an optional `--name` (or `-n`) flag. The doc comment states that if omitted, the name is derived from the directory name.
+
+#### 2. CLI Dispatch (`src/main.rs:58`)
+
+```rust
+Some(Command::Add { name }) => cmd_add(name.as_deref()),
+```
+
+The main function matches on `Command::Add`, extracts the optional `name` field, converts it to `Option<&str>` via `.as_deref()`, and passes it to `cmd_add()`.
+
+#### 3. `cmd_add()` Function (`src/main.rs:129-223`)
+
+**Step 1: Detect git repo info (lines 131-137)**
+- Calls `detect_git_repo()` to get `(repo_root, url, branch)` from the current directory
+- Returns exit code 1 if detection fails
+
+**Step 2: Derive repo name (lines 139-143)**
+- If `--name` flag provided, uses that value
+- Otherwise calls `derive_repo_name(&repo_root)` which extracts the directory name via `path.file_name()` (implementation at `src/main.rs:1011-1016`)
+
+**Step 3: Load or create state (lines 145-152)**
+- Calls `state::load()` to load `~/.dual/workspaces.toml`
+- Returns exit code 1 if state loading fails
+
+**Step 4: Check for duplicates (lines 154-158)**
+- Calls `st.has_workspace(&repo_name, &branch)` to check if workspace already exists
+- Prints error `"workspace {}/{} already exists"` and returns exit code 1 if duplicate found
+
+**Step 5: Create `.dual.toml` if missing (lines 160-168)**
+- Checks if `.dual.toml` exists at `repo_root.join(".dual.toml")`
+- If missing, calls `config::write_default_dual_config(&repo_root)` (defined at `src/config.rs:269-297`)
+- Prints info message `"Created .dual.toml (Dual orchestration settings)"` on success
+- Prints warning on failure but continues
+
+**Step 6: Create `devcontainer.json` if no devcontainer config exists (lines 170-178)**
+- Calls `dual::devcontainer::find_devcontainer_json(&repo_root)` to check for existing devcontainer config
+- `find_devcontainer_json()` checks two locations in order (defined at `src/devcontainer.rs:177-186`):
+  1. `.devcontainer/devcontainer.json`
+  2. `.devcontainer.json` (root)
+- If no devcontainer config found, calls `config::write_default_devcontainer(&repo_root)` (defined at `src/config.rs:301-312`)
+- Creates `.devcontainer/devcontainer.json` with default image `"node:20"`
+- Prints two info messages:
+  - `"Created .devcontainer/devcontainer.json (image: node:20)"`
+  - `"Edit it to customize image, ports, setup command, and env vars."`
+- Prints warning on failure but continues
+
+**Step 7: Initialize shared directory if configured (lines 180-198)**
+- Loads hints from `.dual.toml` via `config::load_hints(&repo_root)`
+- If `hints.shared` is configured and `files` list is non-empty:
+  - Calls `shared::ensure_shared_dir(&repo_name)` to create `~/.dual/shared/{repo_name}/`
+  - Calls `shared::init_from_main(&repo_root, &shared_dir, &shared_config.files)` to move listed files from main workspace to shared directory
+  - For each moved file, prints info message `"  shared: {f} → ~/.dual/shared/{repo_name}/"`
+  - Prints warning on failure but continues
+
+**Step 8: Add workspace entry (lines 200-211)**
+- Creates `state::WorkspaceEntry` with:
+  - `repo`: derived repo name
+  - `url`: git remote URL from step 1
+  - `branch`: current branch from step 1
+  - `path`: `Some(repo_root)` — this marks it as a main workspace (user's existing clone)
+- Calls `st.add_workspace(entry)`
+- Returns exit code 1 on failure
+
+**Step 9: Save state (lines 213-217)**
+- Calls `state::save(&st)` to write updated state to `~/.dual/workspaces.toml`
+- Prints error `"failed to save state: {e}"` and returns exit code 1 on failure
+
+**Step 10: Success output (lines 219-222)**
+- Computes workspace ID via `config::workspace_id(&repo_name, &branch)`
+- Prints info message `"Added workspace: {ws_id}"`
+- Prints info message `"Use \`dual launch {ws_id}\` to start."`
+- Returns exit code 0
+
+---
+
+#### 4. Helper Functions
+
+**`detect_git_repo()` (`src/main.rs:973-1007`)**
+- Runs `git rev-parse --show-toplevel` to get repo root
+- Runs `git remote get-url origin` to get remote URL (falls back to repo path for local-only repos)
+- Runs `git rev-parse --abbrev-ref HEAD` to get current branch
+- Returns `Result<(PathBuf, String, String), String>`
+
+**`derive_repo_name()` (`src/main.rs:1011-1016`)**
+- Extracts directory name from path via `path.file_name()`
+- Converts to string, defaults to `"repo"` if extraction fails
+- Example: `/Users/jeevan/code/lightfast` → `"lightfast"`
+
+**`config::write_default_dual_config()` (`src/config.rs:269-297`)**
+- Writes a commented template to `.dual.toml` with:
+  - Header comment explaining this is Dual-specific config
+  - Commented examples for `devcontainer`, `extra_commands`, `anonymous_volumes`, `[shared]` sections
+- Template content spans lines 270-293
+
+**`config::write_default_devcontainer()` (`src/config.rs:301-312`)**
+- Creates `.devcontainer/` directory if it doesn't exist
+- Writes minimal devcontainer.json with just `{"image": "node:20"}`
+
+---
+
+### User-Facing Messages
+
+#### Success Path Messages
+
+1. **Shell hook installation** (`src/main.rs:47`):
+   - `"Installed shell hook in ~/{rc_name} for tmux pane interception."`
+   - Displayed on first run when shell hook is added to `~/.zshrc` or `~/.bashrc`
+
+2. **`.dual.toml` creation** (`src/main.rs:166`):
+   - `"Created .dual.toml (Dual orchestration settings)"`
+
+3. **`devcontainer.json` creation** (`src/main.rs:175-176`):
+   - `"Created .devcontainer/devcontainer.json (image: node:20)"`
+   - `"Edit it to customize image, ports, setup command, and env vars."`
+
+4. **Shared file initialization** (`src/main.rs:190`):
+   - `"  shared: {f} → ~/.dual/shared/{repo_name}/"` (for each moved file)
+
+5. **Workspace added** (`src/main.rs:220-221`):
+   - `"Added workspace: {ws_id}"`
+   - `"Use \`dual launch {ws_id}\` to start."`
+
+#### Error Messages
+
+1. **Git detection failure** (`src/main.rs:134`):
+   - Error from `detect_git_repo()` (examples: `"git not found"`, `"not inside a git repository"`)
+
+2. **State loading failure** (`src/main.rs:149`):
+   - Error from `state::load()`
+
+3. **Duplicate workspace** (`src/main.rs:156`):
+   - `"workspace {}/{} already exists"` (repo/branch)
+
+4. **Config write failures** (`src/main.rs:164`, `173`):
+   - `"failed to write .dual.toml: {e}"` (warning)
+   - `"failed to write devcontainer.json: {e}"` (warning)
+
+5. **Shared directory failures** (`src/main.rs:193`, `196`):
+   - `"shared init failed: {e}"` (warning)
+   - `"could not create shared directory: {e}"` (warning)
+
+6. **Add workspace failure** (`src/main.rs:209`):
+   - Error from `st.add_workspace(entry)`
+
+7. **State save failure** (`src/main.rs:215`):
+   - `"failed to save state: {e}"`
+
+#### Guidance Messages (Other Commands)
+
+1. **Default command with no state** (`src/main.rs:91`):
+   - `"Run \`dual add\` inside a repo to get started."`
+
+2. **Default command with empty state** (`src/main.rs:97`):
+   - `"No workspaces. Run \`dual add\` in a repo to get started."`
+
+3. **TUI empty state** (`src/tui/ui.rs:34`):
+   - `"  No workspaces. Run \`dual add\` in a repo to get started."`
+
+4. **Create command repo not found** (`src/main.rs:246`, `255`):
+   - `"Or run from inside a repo that was added with \`dual add\`."`
+   - `"repo '{repo}' not found. Run \`dual add\` inside the repo first."`
+
+---
+
+### Tests
+
+#### CLI Parsing Tests (`src/main.rs:1076-1093`)
+
+**`add_subcommand()` (lines 1076-1083)**
+- Parses `["dual", "add"]`
+- Asserts command is `Command::Add { name: None }`
+
+**`add_with_name()` (lines 1086-1093)**
+- Parses `["dual", "add", "--name", "myrepo"]`
+- Asserts command is `Command::Add { name: Some("myrepo") }`
+
+#### Unit Tests
+
+**`derive_repo_name_from_path()` (`src/main.rs:1194-1204`)**
+- Tests `derive_repo_name()` with two cases:
+  - `/Users/jeevan/code/lightfast` → `"lightfast"`
+  - `/home/user/projects/my-app` → `"my-app"`
+
+**Config tests** (`src/config.rs`)
+
+**`write_default_dual_config_has_comments()` (lines 658-682)**
+- Creates temp directory
+- Calls `write_default_dual_config(&dir)`
+- Reads `.dual.toml` and asserts it contains:
+  - `"# Dual workspace configuration"`
+  - `"extra_commands"`
+  - `"anonymous_volumes"`
+  - `"[shared]"`
+  - `"# Example:"`
+
+**`write_default_devcontainer_creates_dir_and_file()` (lines 685-700)**
+- Creates temp directory
+- Calls `write_default_devcontainer(&dir)`
+- Asserts `.devcontainer/` directory exists
+- Asserts `.devcontainer/devcontainer.json` exists
+- Reads file and asserts it contains `"node:20"`
+
+---
+
+### README References
+
+**Quick Start** (`README.md:32-44`)
+```bash
+# 1. Register your repo
+cd ~/code/my-project
+dual add
+```
+Context: First step in the quick start guide, positioned before `dual create` and `dual`
+
+**CLI Commands Table** (`README.md:91`)
+```
+| `dual add [--name NAME]` | Register current git repo as a workspace |
+```
+
+**Configuration Section** (`README.md:103-127`)
+- Explains that `dual add` creates `.dual.toml` and `devcontainer.json` if they don't exist
+- Documents that devcontainer.json is the primary source for container config
+- Shows default devcontainer.json content created by the command
+
+---
+
+### State Representation
+
+**`WorkspaceEntry` field** (`src/state.rs:35-38`)
+```rust
+/// Explicit path to workspace directory (for `dual add` — user's existing clone).
+/// If None, workspace lives at {workspace_root}/{repo}/{encoded_branch}/
+/// and will be cloned on first launch.
+pub path: Option<String>,
+```
+
+Main workspaces added via `dual add` have `path: Some(...)`, which marks them as the user's existing clone that should not be removed when destroyed (unlike branch workspaces created via `dual create` which have `path: None` and are cloned into `~/.dual/workspaces/`).
+
+---
+
+### Data Flow
+
+1. User runs `dual add` from inside a git repository
+2. `cmd_add()` calls `detect_git_repo()` to extract git metadata via `git` commands
+3. Repo name derived from directory name (or `--name` flag) via `derive_repo_name()`
+4. State loaded from `~/.dual/workspaces.toml` via `state::load()`
+5. Duplicate check performed via `st.has_workspace()`
+6. `.dual.toml` created if missing via `config::write_default_dual_config()` at line 163
+7. `devcontainer.json` created if missing via `config::write_default_devcontainer()` at line 172
+8. Shared directory initialized if `[shared]` configured at lines 182-197
+9. `WorkspaceEntry` created with `path: Some(repo_root)` at lines 201-206
+10. Entry added to state via `st.add_workspace()` at line 208
+11. State saved to `~/.dual/workspaces.toml` via `state::save()` at line 214
+12. Success messages printed at lines 220-221
+
+---
+
+### Key Configuration Details
+
+**Default `.dual.toml` template** (`src/config.rs:270-293`)
+- Header explains this is Dual-specific config, container config goes in devcontainer.json
+- All fields are commented out by default (examples only)
+- Fields: `devcontainer`, `extra_commands`, `anonymous_volumes`, `[shared]`
+
+**Default `devcontainer.json`** (`src/config.rs:306-309`)
+- Minimal JSON: `{"image": "node:20"}`
+- Created in `.devcontainer/devcontainer.json`
+
+**devcontainer.json detection** (`src/devcontainer.rs:177-186`)
+- Checks `.devcontainer/devcontainer.json` first
+- Falls back to `.devcontainer.json` at project root
+- Returns `None` if neither exists</result>
+<usage>total_tokens: 44082
+tool_uses: 16
+duration_ms: 137241</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a3e7821.output
+
+---
+
+<task-notification>
+<task-id>aae07e9</task-id>
+<status>completed</status>
+<summary>Agent "Research DualConfig and config loading" completed</summary>
+<result>Perfect! Now I have a comprehensive view of the DualConfig system. Let me compile the documentation.
+
+## Analysis: DualConfig System
+
+### Overview
+
+The DualConfig system manages workspace configuration through two files: `devcontainer.json` (container settings) and `.dual.toml` (Dual-specific orchestration). Configuration is loaded by merging both sources into a `RepoHints` struct that consumers use. The system includes deprecation warnings for legacy container config fields in `.dual.toml`.
+
+### Entry Points
+
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:156` - `load_hints()` main config loading function
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:172` - `load_dual_config()` reads .dual.toml
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:269` - `write_default_dual_config()` creates template .dual.toml
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:301` - `write_default_devcontainer()` creates template devcontainer.json
+
+---
+
+## 1. DualConfig Struct
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:52-69`
+
+```rust
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct DualConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devcontainer: Option<String>,
+    
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+    
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+}
+```
+
+**Fields:**
+- `devcontainer` - Optional explicit path to devcontainer.json (relative to workspace root)
+- `extra_commands` - Additional commands to route to container (merged with defaults)
+- `anonymous_volumes` - Directories to isolate with anonymous Docker volumes
+- `shared` - Shared file configuration (see SharedConfig)
+
+**Derive Macros:**
+- `Debug` - Debug formatting
+- `Serialize, Deserialize` - TOML/JSON serialization via serde
+- `PartialEq` - Equality comparison
+- `Clone` - Deep copy support
+
+**Serde Attributes:**
+- `skip_serializing_if = "Option::is_none"` - Omits `devcontainer` and `shared` from TOML when None
+- `default` - Uses `Vec::default()` (empty vec) for `extra_commands`
+- `default = "default_anonymous_volumes"` - Calls function returning `vec!["node_modules"]` at line 125-127
+
+**Default Implementation:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:71-80`
+
+Returns:
+- `devcontainer: None`
+- `extra_commands: Vec::new()`
+- `anonymous_volumes: vec!["node_modules"]` (via `default_anonymous_volumes()`)
+- `shared: None`
+
+---
+
+## 2. SharedConfig Struct
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:39-46`
+
+```rust
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct SharedConfig {
+    #[serde(default)]
+    pub files: Vec<String>,
+}
+```
+
+**Purpose:** Specifies files/directories to share across all branch workspaces of a repo
+
+**Fields:**
+- `files` - List of file/directory paths to propagate (e.g., `[".vercel", ".env.local"]`)
+
+**Relationship to DualConfig:** Nested inside `DualConfig.shared` at line 68. When `shared` is `None`, no files are propagated. The `skip_serializing_if` attribute at line 67 ensures empty shared config doesn't appear in generated TOML.
+
+**Shared Directory Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:145-147`
+```rust
+pub fn shared_dir(repo: &str) -> Option<PathBuf> {
+    dirs::home_dir().map(|home| home.join(".dual").join("shared").join(repo))
+}
+```
+Returns `~/.dual/shared/{repo}/` for storing shared files.
+
+---
+
+## 3. RepoHints Struct
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:86-119`
+
+```rust
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct RepoHints {
+    #[serde(default = "default_image")]
+    pub image: String,
+    
+    #[serde(default)]
+    pub ports: Vec<u16>,
+    
+    pub setup: Option<String>,
+    
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+    
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dockerfile: Option<DockerfileBuild>,
+}
+```
+
+**Purpose:** Final merged configuration consumed by all runtime components (container, proxy, shell)
+
+**Data Sources:**
+- Container fields (`image`, `ports`, `setup`, `env`, `dockerfile`) - from devcontainer.json
+- Orchestration fields (`extra_commands`, `anonymous_volumes`, `shared`) - from .dual.toml
+
+**Default Image:** Line 37 defines `const DEFAULT_IMAGE: &str = "node:20"`
+**Default Volumes:** Line 125-127 defines `default_anonymous_volumes()` returning `vec!["node_modules"]`
+
+---
+
+## 4. DockerfileBuild Struct
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:9-30`
+
+```rust
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct DockerfileBuild {
+    pub path: String,
+    
+    #[serde(default = "default_build_context")]
+    pub context: String,
+    
+    #[serde(default)]
+    pub args: HashMap<String, String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+    
+    #[serde(skip)]
+    pub base_dir: Option<PathBuf>,
+}
+```
+
+**Purpose:** Dockerfile build configuration sourced from `devcontainer.json` `build` field
+
+**Fields:**
+- `path` - Path to Dockerfile (relative to base_dir)
+- `context` - Build context directory (defaults to "." via line 32-34)
+- `args` - Docker build arguments (`--build-arg`)
+- `target` - Target build stage for multi-stage builds
+- `base_dir` - Base directory for resolving relative paths (set by devcontainer loader, not serialized)
+
+**Integration:** Converted from `devcontainer.json` at `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:218-232`
+
+---
+
+## 5. Config Loading Functions
+
+### load_hints()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:156-169`
+
+**Signature:** `pub fn load_hints(workspace_dir: &Path) -> Result<RepoHints, HintsError>`
+
+**Flow:**
+1. Call `load_dual_config(workspace_dir)` at line 157 → returns `DualConfig` (defaults if missing)
+2. Call `resolve_devcontainer_path(workspace_dir, &dual_config)` at line 158 → finds devcontainer.json
+3. If devcontainer.json exists (line 161-166):
+   - Read file contents via `std::fs::read_to_string(&path)`
+   - Parse with `crate::devcontainer::parse_devcontainer(&contents)` at line 164
+   - Convert to RepoHints with `crate::devcontainer::to_repo_hints(&dc, devcontainer_dir)` at line 165
+4. Call `merge_config(&dual_config, dc_hints.as_ref())` at line 168 → merge both sources into final `RepoHints`
+
+**Error Handling:** Returns `Result<RepoHints, HintsError>` for IO/parse errors
+
+### load_dual_config()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:172-188`
+
+**Signature:** `fn load_dual_config(workspace_dir: &Path) -> Result<DualConfig, HintsError>`
+
+**Flow:**
+1. Build path: `workspace_dir.join(HINTS_FILENAME)` at line 173 (where `HINTS_FILENAME = ".dual.toml"` from line 36)
+2. If file doesn't exist (line 175-177): return `DualConfig::default()`
+3. Read file contents via `std::fs::read_to_string(&path)` at line 179-180
+4. Call `check_deprecated_fields(&contents, &path)` at line 183 (warns about legacy fields)
+5. Parse TOML via `toml::from_str(&contents)` at line 185-186
+6. Return parsed `DualConfig`
+
+**Error Types:**
+- `HintsError::ReadError(path, io_error)` - File read failure
+- `HintsError::ParseError(path, toml_error)` - TOML parse failure
+
+### resolve_devcontainer_path()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:229-243`
+
+**Signature:** `fn resolve_devcontainer_path(workspace_dir: &Path, config: &DualConfig) -> Option<PathBuf>`
+
+**Flow:**
+1. If `config.devcontainer` is `Some(explicit)` (line 230-239):
+   - Join with workspace_dir: `workspace_dir.join(explicit)`
+   - Check if exists
+   - If exists: return path
+   - If not exists: warn at line 235-238, return None
+2. If no explicit path: call `crate::devcontainer::find_devcontainer_json(workspace_dir)` at line 242
+
+**Auto-Detection:** Delegates to `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:177-186`
+- Checks `.devcontainer/devcontainer.json` first
+- Falls back to `.devcontainer.json` at root
+- Returns None if neither exists
+
+### merge_config()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:249-265`
+
+**Signature:** `fn merge_config(dual: &DualConfig, dc_hints: Option<&RepoHints>) -> RepoHints`
+
+**Merge Strategy:**
+1. Start with devcontainer RepoHints or `RepoHints::default()` at line 250
+2. Container fields from devcontainer.json (lines 254-258):
+   - `image`, `ports`, `setup`, `env`, `dockerfile`
+3. Orchestration fields from .dual.toml (lines 261-263):
+   - `extra_commands`, `anonymous_volumes`, `shared`
+
+**Priority:** Devcontainer fields win for container config; .dual.toml fields replace defaults for orchestration.
+
+### check_deprecated_fields()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:191-224`
+
+**Signature:** `fn check_deprecated_fields(contents: &str, path: &Path)`
+
+**Deprecated Fields Map (line 192-197):**
+- `image` → should be `image` in devcontainer.json
+- `ports` → should be `forwardPorts` in devcontainer.json
+- `setup` → should be `postCreateCommand` in devcontainer.json
+- `[env]` → should be `containerEnv` in devcontainer.json
+
+**Detection Logic (lines 199-223):**
+- Parses each line of TOML contents
+- Skips comment lines (starts with `#`)
+- Checks for top-level keys matching deprecated fields
+- Warns via `tracing::warn!` at line 213-219 if found
+
+---
+
+## 6. Config Writing Functions
+
+### write_default_dual_config()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:269-297`
+
+**Signature:** `pub fn write_default_dual_config(repo_root: &Path) -> Result<(), HintsError>`
+
+**Template (lines 270-293):**
+```toml
+# Dual workspace configuration
+# See: https://github.com/jeevanpillay/dual
+#
+# Container config (image, ports, setup, env) goes in devcontainer.json.
+# This file contains only Dual-specific orchestration settings.
+
+# Explicit path to devcontainer.json (auto-detected if omitted)
+# devcontainer = ".devcontainer/devcontainer.json"
+
+# Commands to route to the container (in addition to defaults)
+# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+# Example: extra_commands = ["cargo", "go", "ruby"]
+# extra_commands = []
+
+# Directories to isolate with anonymous Docker volumes
+# These directories get their own volume so they don't sync between host/container
+# Example: anonymous_volumes = ["node_modules", ".next", "target"]
+# anonymous_volumes = ["node_modules"]
+
+# Files to share across all workspaces of this repo
+# These are gitignored files that should be available in every branch workspace
+# [shared]
+# files = [".env.local", ".vercel"]
+```
+
+**Output Path:** `{repo_root}/.dual.toml` at line 294
+
+**Called From:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:163` during `dual add` command
+
+### write_default_devcontainer()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:301-312`
+
+**Signature:** `pub fn write_default_devcontainer(repo_root: &Path) -> Result<(), HintsError>`
+
+**Template (lines 306-309):**
+```json
+{
+    "image": "node:20"
+}
+```
+
+**Output Path:** `{repo_root}/.devcontainer/devcontainer.json` at line 305
+
+**Directory Creation:** Creates `.devcontainer/` dir at line 302-303 if it doesn't exist
+
+**Called From:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/main.rs:172` during `dual add` command when no devcontainer.json found
+
+### write_dual_config()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:315-320`
+
+**Signature:** `pub fn write_dual_config(workspace_dir: &Path, config: &DualConfig) -> Result<(), HintsError>`
+
+**Flow:**
+1. Build path: `workspace_dir.join(HINTS_FILENAME)` at line 316
+2. Serialize config via `toml::to_string_pretty(config)` at line 317
+3. Write to file via `std::fs::write(&path, contents)` at line 318
+
+**Usage:** Called by tests at `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/tests/fixtures/mod.rs:124` and test cases
+
+### parse_dual_config()
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:323-327`
+
+**Signature:** `pub fn parse_dual_config(toml_str: &str) -> Result<DualConfig, HintsError>`
+
+**Purpose:** Parse TOML string directly (for testing)
+
+**Flow:** Calls `toml::from_str(toml_str)` at line 324-325, wraps error as `HintsError::ParseError`
+
+---
+
+## 7. Constants
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:36-37`
+
+```rust
+const HINTS_FILENAME: &str = ".dual.toml";
+const DEFAULT_IMAGE: &str = "node:20";
+```
+
+**HINTS_FILENAME Usage:**
+- Line 173: Building .dual.toml path in `load_dual_config()`
+- Line 294: Building .dual.toml path in `write_default_dual_config()`
+- Line 316: Building .dual.toml path in `write_dual_config()`
+
+**DEFAULT_IMAGE Usage:**
+- Line 122: `default_image()` function returns this value
+- Line 132: `RepoHints::default()` uses this for image field
+
+**Additional State Constants:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/state.rs:10-12`
+```rust
+const STATE_DIR: &str = ".dual";
+const STATE_FILENAME: &str = "workspaces.toml";
+const DEFAULT_WORKSPACE_ROOT: &str = ".dual/workspaces";
+```
+- `STATE_DIR` - Directory name for Dual state (`~/.dual/`)
+- `STATE_FILENAME` - Global state file (`workspaces.toml`)
+- `DEFAULT_WORKSPACE_ROOT` - Default location for workspace clones (`~/.dual/workspaces/`)
+
+---
+
+## 8. TOML Dependencies
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/Cargo.toml:22`
+
+```toml
+toml = "0.8"
+```
+
+**Usage:**
+- `toml::from_str()` - Parse TOML strings to structs (lines 186, 324)
+- `toml::to_string_pretty()` - Serialize structs to pretty-printed TOML (line 317)
+- `toml::de::Error` - Deserialization error type in `HintsError::ParseError` (line 376)
+- `toml::ser::Error` - Serialization error type in `HintsError::SerializeError` (line 379)
+
+**Related Dependencies:**
+- `serde = { version = "1", features = ["derive"] }` at line 17 - Provides `Serialize`, `Deserialize` macros
+- `serde_json = "1"` at line 18 - Used for devcontainer.json parsing in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:189`
+
+---
+
+## 9. Example Files in Codebase
+
+### Example .dual.toml
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/.dual.toml:1-33`
+
+Contains legacy format with deprecated container fields:
+```toml
+# Dual workspace configuration
+# See: https://github.com/jeevanpillay/dual
+
+# Docker image for the container runtime
+image = "node:20"
+
+# Ports your dev server uses (for reverse proxy routing)
+# Example: ports = [3000, 3001]
+# ports = []
+
+# Shell command to run after container creation (e.g., dependency install)
+# Example: setup = "pnpm install"
+# setup = ""
+
+# Commands to route to the container (in addition to defaults)
+# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+# Example: extra_commands = ["cargo", "go", "ruby"]
+# extra_commands = []
+
+# Directories to isolate with anonymous Docker volumes
+# These directories get their own volume so they don't sync between host/container
+# Example: anonymous_volumes = ["node_modules", ".next", "target"]
+# anonymous_volumes = ["node_modules"]
+
+# Environment variables passed to the container
+# [env]
+# NODE_ENV = "development"
+
+# Files to share across all workspaces of this repo
+# These are gitignored files that should be available in every branch workspace
+# [shared]
+# files = [".env.local", ".vercel"]
+```
+
+This file would trigger deprecation warnings for `image`, `ports`, `setup`, and `[env]` when loaded.
+
+### README Documentation
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/README.md:103-155`
+
+Documents current two-file configuration approach:
+- Lines 105-128: devcontainer.json format and fields
+- Lines 130-155: .dual.toml format and fields
+- Line 103: "Dual uses two config files: `devcontainer.json` for container configuration and `.dual.toml` for Dual-specific orchestration."
+
+---
+
+## 10. Error Types
+
+**Location:** `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:367-380`
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum HintsError {
+    #[error("Failed to read {path}: {err}", path = .0.display(), err = .1)]
+    ReadError(PathBuf, std::io::Error),
+
+    #[error("Failed to write {path}: {err}", path = .0.display(), err = .1)]
+    WriteError(PathBuf, std::io::Error),
+
+    #[error("Failed to parse {path}: {err}", path = .0.display(), err = .1)]
+    ParseError(PathBuf, toml::de::Error),
+
+    #[error("Failed to serialize hints: {0}")]
+    SerializeError(toml::ser::Error),
+}
+```
+
+**Variants:**
+- `ReadError` - File read failures with path and IO error
+- `WriteError` - File write failures with path and IO error
+- `ParseError` - TOML parsing failures with path and parse error
+- `SerializeError` - TOML serialization failures
+
+**Usage:**
+- `ReadError` - Returned by `load_dual_config()` at line 180
+- `WriteError` - Returned by `write_default_dual_config()` at line 295, `write_default_devcontainer()` at line 303/310, `write_dual_config()` at line 318
+- `ParseError` - Returned by `load_dual_config()` at line 186, `parse_dual_config()` at line 325
+- `SerializeError` - Returned by `write_dual_config()` at line 317
+
+---
+
+## Data Flow
+
+### Config Loading Flow
+```
+1. load_hints(workspace_dir)
+   ↓
+2. load_dual_config(workspace_dir) → DualConfig
+   ├─ Check .dual.toml exists
+   ├─ Read file contents
+   ├─ check_deprecated_fields() [warns]
+   └─ toml::from_str() → DualConfig
+   ↓
+3. resolve_devcontainer_path(workspace_dir, dual_config)
+   ├─ Check dual_config.devcontainer explicit path
+   └─ Auto-detect via find_devcontainer_json()
+   ↓
+4. Parse devcontainer.json
+   ├─ Read file contents
+   ├─ parse_devcontainer() → DevcontainerJson
+   └─ to_repo_hints() → RepoHints
+   ↓
+5. merge_config(dual_config, dc_hints) → RepoHints
+   ├─ Container fields from devcontainer.json
+   └─ Orchestration fields from .dual.toml
+```
+
+### Config Creation Flow (`dual add`)
+```
+1. dual add command (main.rs:160-178)
+   ↓
+2. Check .dual.toml exists
+   ├─ If missing: write_default_dual_config(repo_root)
+   └─ Creates commented template
+   ↓
+3. Check devcontainer.json exists
+   ├─ If missing: write_default_devcontainer(repo_root)
+   └─ Creates .devcontainer/devcontainer.json with node:20
+   ↓
+4. load_hints(repo_root) to check [shared]
+   ↓
+5. If shared.files configured:
+   ├─ ensure_shared_dir(repo_name) → ~/.dual/shared/{repo}/
+   └─ init_from_main() copies files to shared dir
+```
+
+---
+
+## Key Patterns
+
+### Configuration Architecture
+- **Two-File System**: devcontainer.json (standard container config) + .dual.toml (Dual-specific orchestration)
+- **Merge Strategy**: Container fields from devcontainer.json, orchestration from .dual.toml
+- **Graceful Defaults**: Missing files return default configs rather than errors
+- **Auto-Detection**: devcontainer.json location auto-discovered unless explicitly specified
+
+### Deprecation Handling
+- **Non-Breaking**: Deprecated fields in .dual.toml trigger warnings but don't prevent loading
+- **Migration Path**: Warnings guide users to move container config to devcontainer.json
+- **Line-by-Line Scan**: Parses TOML as text to detect deprecated fields before deserialization
+
+### File Paths
+- `.dual.toml` - Lives at workspace root
+- `devcontainer.json` - Lives in `.devcontainer/` subdir or at root
+- `~/.dual/shared/{repo}/` - Shared files across branch workspaces
+- `~/.dual/workspaces.toml` - Global state tracking all workspaces
+- `~/.dual/rc/{container_name}.sh` - Shell interception RC files</result>
+<usage>total_tokens: 45557
+tool_uses: 22
+duration_ms: 162407</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/aae07e9.output
+
+---
+
+<task-notification>
+<task-id>a65a1b5</task-id>
+<status>completed</status>
+<summary>Agent "Research load_hints and devcontainer" completed</summary>
+<result>Perfect! Now I have a complete understanding. Let me document the findings.
+
+## Analysis: `load_hints()` and devcontainer.json Integration
+
+### Overview
+The `load_hints()` function merges DualConfig from `.dual.toml` (Dual-specific orchestration settings) with container configuration from `devcontainer.json` to produce a unified `RepoHints` struct consumed throughout the codebase. This architecture makes devcontainer.json the primary source for container settings while allowing `.dual.toml` to add Dual-specific features like command routing and shared file propagation.
+
+### Entry Points
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:156` - `load_hints()` public function
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:172` - `load_dual_config()` helper function  
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/config.rs:229` - `resolve_devcontainer_path()` helper function
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:177` - `find_devcontainer_json()` auto-detection
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:189` - `parse_devcontainer()` JSON parser
+- `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/src/devcontainer.rs:210` - `to_repo_hints()` converter
+
+### Core Implementation
+
+#### 1. The `load_hints()` Function (`src/config.rs:156-169`)
+
+```rust
+pub fn load_hints(workspace_dir: &Path) -> Result<RepoHints, HintsError> {
+    let dual_config = load_dual_config(workspace_dir)?;
+    let dc_path = resolve_devcontainer_path(workspace_dir, &dual_config);
+
+    // Load container config from devcontainer.json
+    let dc_hints = dc_path.and_then(|path| {
+        let devcontainer_dir = path.parent().unwrap_or(workspace_dir);
+        let contents = std::fs::read_to_string(&path).ok()?;
+        let dc = crate::devcontainer::parse_devcontainer(&contents).ok()?;
+        Some(crate::devcontainer::to_repo_hints(&dc, devcontainer_dir))
+    });
+
+    Ok(merge_config(&dual_config, dc_hints.as_ref()))
+}
+```
+
+**Loading Flow**:
+1. Reads `.dual.toml` at line 157 via `load_dual_config()` (returns defaults if missing)
+2. Resolves devcontainer.json path at line 158 (explicit path or auto-detect)
+3. Parses devcontainer.json at lines 161-166 if found (None if missing/invalid)
+4. Merges both sources at line 168 via `merge_config()`
+
+**Error Handling**: Returns `Result<RepoHints, HintsError>` but all callers use `.unwrap_or_default()` at lines `src/main.rs:181`, `src/main.rs:390`, `src/main.rs:766`, `src/proxy.rs:56`, `src/proxy.rs:284`. Missing config files silently fall back to defaults.
+
+#### 2. Loading DualConfig (`src/config.rs:172-188`)
+
+```rust
+fn load_dual_config(workspace_dir: &Path) -> Result<DualConfig, HintsError> {
+    let path = workspace_dir.join(HINTS_FILENAME);
+
+    if !path.exists() {
+        return Ok(DualConfig::default());
+    }
+
+    let contents =
+        std::fs::read_to_string(&path).map_err(|e| HintsError::ReadError(path.clone(), e))?;
+
+    // Check for deprecated fields and warn
+    check_deprecated_fields(&contents, &path);
+
+    let config: DualConfig =
+        toml::from_str(&contents).map_err(|e| HintsError::ParseError(path, e))?;
+    Ok(config)
+}
+```
+
+**Behavior**:
+- Returns `DualConfig::default()` at line 176 if `.dual.toml` doesn't exist (no error)
+- Checks for deprecated fields at line 183 (`image`, `ports`, `setup`, `[env]`) and emits warnings
+- Parse errors return `HintsError::ParseError` at line 186
+
+#### 3. Resolving devcontainer.json Path (`src/config.rs:229-243`)
+
+```rust
+fn resolve_devcontainer_path(workspace_dir: &Path, config: &DualConfig) -> Option<PathBuf> {
+    if let Some(ref explicit) = config.devcontainer {
+        let path = workspace_dir.join(explicit);
+        if path.exists() {
+            return Some(path);
+        }
+        warn!(
+            "devcontainer path '{}' specified in .dual.toml does not exist",
+            path.display()
+        );
+        return None;
+    }
+
+    crate::devcontainer::find_devcontainer_json(workspace_dir)
+}
+```
+
+**Resolution Order**:
+1. If `DualConfig.devcontainer` is set (line 230), validate explicit path
+2. Warn at line 235 if explicit path doesn't exist (returns None)
+3. Fall back to auto-detection at line 242 via `find_devcontainer_json()`
+
+**Auto-Detection** (`src/devcontainer.rs:177-186`):
+```rust
+pub fn find_devcontainer_json(workspace_dir: &Path) -> Option<PathBuf> {
+    let candidates = [
+        workspace_dir
+            .join(".devcontainer")
+            .join("devcontainer.json"),
+        workspace_dir.join(".devcontainer.json"),
+    ];
+
+    candidates.into_iter().find(|p| p.exists())
+}
+```
+
+Checks in order:
+1. `.devcontainer/devcontainer.json` (preferred, lines 179-181)
+2. `.devcontainer.json` at workspace root (line 182)
+3. Returns `None` if neither exists (line 185)
+
+#### 4. Parsing devcontainer.json (`src/devcontainer.rs:189-191`)
+
+```rust
+pub fn parse_devcontainer(json_str: &str) -> Result<DevcontainerJson, serde_json::Error> {
+    serde_json::from_str(json_str)
+}
+```
+
+**DevcontainerJson Struct** (`src/devcontainer.rs:11-29`):
+- `image: Option<String>` - Docker image name (line 13)
+- `build: Option<BuildConfig>` - Dockerfile build config (line 16)
+- `forward_ports: Option<Vec<PortSpec>>` - Ports to expose (line 19)
+- `container_env: Option<HashMap<String, String>>` - Environment variables (line 22)
+- `post_create_command: Option<CommandSpec>` - Setup command (line 25)
+- `mounts: Option<Vec<MountSpec>>` - Volume mounts (line 28)
+
+**Flexible Parsing**:
+- `PortSpec` enum at lines 50-62 handles integers or strings
+- `CommandSpec` enum at lines 68-97 handles string/array/object forms
+- `MountSpec` enum at lines 111-167 handles string or object forms
+- Unknown fields are ignored via serde (tested at line 458)
+
+#### 5. Converting to RepoHints (`src/devcontainer.rs:210-268`)
+
+```rust
+pub fn to_repo_hints(dc: &DevcontainerJson, devcontainer_dir: &Path) -> RepoHints {
+    let mut hints = RepoHints::default();
+
+    // Image (mutually exclusive with build)
+    if let Some(ref image) = dc.image {
+        hints.image = image.clone();
+    }
+
+    // Build → DockerfileBuild
+    if let Some(ref build) = dc.build
+        && build.dockerfile.is_some()
+    {
+        hints.dockerfile = Some(crate::config::DockerfileBuild {
+            path: build
+                .dockerfile
+                .clone()
+                .unwrap_or_else(|| "Dockerfile".to_string()),
+            context: build.context.clone().unwrap_or_else(|| ".".to_string()),
+            args: build.args.clone().unwrap_or_default(),
+            target: build.target.clone(),
+            base_dir: Some(devcontainer_dir.to_path_buf()),
+        });
+    }
+
+    // Ports
+    if let Some(ref ports) = dc.forward_ports {
+        hints.ports = ports.iter().filter_map(|p| p.to_port()).collect();
+    }
+
+    // Environment variables
+    if let Some(ref env) = dc.container_env {
+        hints.env = env.clone();
+    }
+
+    // Setup command
+    if let Some(ref cmd) = dc.post_create_command {
+        let shell_cmd = cmd.to_shell_command();
+        if !shell_cmd.is_empty() {
+            hints.setup = Some(shell_cmd);
+        }
+    }
+
+    // Anonymous volumes from mounts
+    if let Some(ref mounts) = dc.mounts {
+        let extra_volumes: Vec<String> = mounts
+            .iter()
+            .filter_map(|m| m.as_anonymous_volume())
+            .collect();
+        if !extra_volumes.is_empty() {
+            for vol in extra_volumes {
+                if !hints.anonymous_volumes.contains(&vol) {
+                    hints.anonymous_volumes.push(vol);
+                }
+            }
+        }
+    }
+
+    hints
+}
+```
+
+**Field Mapping**:
+- `image` → `hints.image` (lines 214-216)
+- `build` → `hints.dockerfile` with `base_dir` set to devcontainer.json's directory (lines 219-232)
+- `forwardPorts` → `hints.ports` after filtering/parsing (lines 235-237)
+- `containerEnv` → `hints.env` (lines 240-242)
+- `postCreateCommand` → `hints.setup` after converting to shell string (lines 245-250)
+- `mounts` (anonymous volumes only) → merged into `hints.anonymous_volumes` (lines 253-265)
+
+**Anonymous Volume Extraction** (`src/devcontainer.rs:133-167`):
+Only extracts mounts that are:
+- Type: `volume` (not `bind`)
+- No `source` specified (anonymous)
+- Target starts with `/workspace/` (line 151, 160)
+
+Returns relative path like `"node_modules"` from `/workspace/node_modules`.
+
+#### 6. Merging Configuration (`src/config.rs:249-265`)
+
+```rust
+fn merge_config(dual: &DualConfig, dc_hints: Option<&RepoHints>) -> RepoHints {
+    let base = dc_hints.cloned().unwrap_or_default();
+
+    RepoHints {
+        // Container fields come from devcontainer.json (or defaults)
+        image: base.image,
+        ports: base.ports,
+        setup: base.setup,
+        env: base.env,
+        dockerfile: base.dockerfile,
+
+        // Dual-specific fields come from .dual.toml
+        extra_commands: dual.extra_commands.clone(),
+        anonymous_volumes: dual.anonymous_volumes.clone(),
+        shared: dual.shared.clone(),
+    }
+}
+```
+
+**Merge Strategy**:
+- Uses devcontainer.json as base (line 250), falling back to `RepoHints::default()`
+- Container fields (`image`, `ports`, `setup`, `env`, `dockerfile`) from devcontainer.json (lines 254-258)
+- Orchestration fields (`extra_commands`, `anonymous_volumes`, `shared`) from `.dual.toml` (lines 261-263)
+
+**No Overriding**: `.dual.toml` cannot override container fields from devcontainer.json. The deprecated field checker at lines 191-224 warns if users try.
+
+### Data Structures
+
+#### DualConfig (`src/config.rs:53-69`)
+
+```rust
+pub struct DualConfig {
+    /// Explicit path to devcontainer.json (auto-detected if omitted)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devcontainer: Option<String>,
+
+    /// Additional commands to route to the container (merged with defaults)
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+
+    /// Directories to isolate with anonymous Docker volumes
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+
+    /// Shared files to propagate across workspaces
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+}
+```
+
+**Fields**:
+- `devcontainer: Option<String>` - Explicit path to devcontainer.json (line 56), `None` means auto-detect
+- `extra_commands: Vec<String>` - Additional commands beyond defaults at `src/shell.rs:2-4` (`npm`, `pnpm`, `node`, `python`, `curl`, etc.)
+- `anonymous_volumes: Vec<String>` - Defaults to `["node_modules"]` at line 125
+- `shared: Option<SharedConfig>` - Files to share across branch workspaces
+
+**Defaults** (lines 71-80):
+All fields empty/None except `anonymous_volumes = ["node_modules"]`.
+
+#### RepoHints (`src/config.rs:86-119`)
+
+```rust
+pub struct RepoHints {
+    /// Docker image to use for containers (default: "node:20")
+    #[serde(default = "default_image")]
+    pub image: String,
+
+    /// Ports that services bind to inside the container
+    #[serde(default)]
+    pub ports: Vec<u16>,
+
+    /// Setup command to run after container creation (e.g. "pnpm install")
+    pub setup: Option<String>,
+
+    /// Environment variables for the container
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+
+    /// Additional commands to route to the container (merged with defaults)
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+
+    /// Directories to isolate with anonymous Docker volumes
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+
+    /// Shared files to propagate across workspaces
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+
+    /// Dockerfile build config — if set, build image instead of pulling.
+    /// Sourced from devcontainer.json build field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dockerfile: Option<DockerfileBuild>,
+}
+```
+
+**Container Fields** (from devcontainer.json):
+- `image: String` - Docker image name, defaults to `"node:20"` at line 121
+- `ports: Vec<u16>` - Port numbers to expose
+- `setup: Option<String>` - Command run after container creation
+- `env: HashMap<String, String>` - Environment variables
+- `dockerfile: Option<DockerfileBuild>` - Build config if using Dockerfile
+
+**Orchestration Fields** (from `.dual.toml`):
+- `extra_commands: Vec<String>` - Additional commands to route to container
+- `anonymous_volumes: Vec<String>` - Directories to isolate, defaults to `["node_modules"]`
+- `shared: Option<SharedConfig>` - Files to propagate across workspaces
+
+#### DockerfileBuild (`src/config.rs:9-30`)
+
+```rust
+pub struct DockerfileBuild {
+    /// Path to the Dockerfile (relative to base_dir or workspace root)
+    pub path: String,
+
+    /// Build context directory (relative to base_dir or workspace root)
+    #[serde(default = "default_build_context")]
+    pub context: String,
+
+    /// Docker build arguments (--build-arg)
+    #[serde(default)]
+    pub args: HashMap<String, String>,
+
+    /// Target build stage for multi-stage builds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// Base directory for resolving relative paths (set by devcontainer loader).
+    /// When loaded from .dual.toml, this is None and paths are relative to workspace root.
+    #[serde(skip)]
+    pub base_dir: Option<PathBuf>,
+}
+```
+
+**Key Field**: `base_dir: Option<PathBuf>` (line 29) stores the devcontainer.json directory so `path` and `context` are resolved relative to it (set at `src/devcontainer.rs:230`).
+
+### Usage Throughout the Codebase
+
+#### Container Creation (`src/main.rs:426-446`)
+
+```rust
+let effective_image = if let Some(ref build) = hints.dockerfile {
+    let image_tag = format!("dual-build-{container_name}");
+    info!("Building image from Dockerfile...");
+    match container::build_image(&image_tag, &workspace_dir, build) {
+        Ok(tag) => tag,
+        Err(e) => {
+            error!("docker build failed: {e}");
+            return 1;
+        }
+    }
+} else {
+    hints.image.clone()
+};
+
+info!("Creating container {container_name}...");
+if let Err(e) = container::create(
+    &container_name,
+    &workspace_dir,
+    &effective_image,
+    &hints.env,
+    &hints.anonymous_volumes,
+) {
+```
+
+- Checks `hints.dockerfile` at line 426
+- Builds custom image via `container::build_image()` at line 429 if set
+- Falls back to `hints.image` at line 437 for standard image
+- Passes `hints.env` and `hints.anonymous_volumes` to `container::create()` at lines 445-446
+
+#### Setup Command Execution (`src/main.rs:467-473`)
+
+```rust
+if is_new_container && let Some(ref setup) = hints.setup {
+    info!("Running setup: {setup}");
+    if let Err(e) = container::exec_setup(&container_name, setup) {
+        error!("setup failed: {e}");
+        return 1;
+    }
+}
+```
+
+Runs `hints.setup` command via `docker exec` at line 469 if container was just created.
+
+#### Shell RC Generation (`src/main.rs:476`)
+
+```rust
+let rc_path = match shell::write_rc_file(&container_name, &hints.extra_commands) {
+```
+
+Passes `hints.extra_commands` to generate shell interceptor functions at `src/shell.rs:38-63`. These are merged with default commands at lines 50-53.
+
+#### Proxy Port Routing (`src/proxy.rs:56-64`)
+
+```rust
+let hints = config::load_hints(&ws_dir).unwrap_or_default();
+
+let workspace_id = config::workspace_id(&entry.repo, &entry.branch);
+for &port in &hints.ports {
+    routes
+        .entry(port)
+        .or_default()
+        .insert(workspace_id.clone(), ip.clone());
+}
+```
+
+Iterates `hints.ports` at line 59 to build routing table mapping `{workspace_id}.localhost:{port}` to container IPs.
+
+#### Shared File Management (`src/main.rs:182-198`)
+
+```rust
+if let Some(ref shared_config) = hints.shared
+    && !shared_config.files.is_empty()
+{
+    match shared::ensure_shared_dir(&repo_name) {
+        Ok(shared_dir) => {
+            match shared::init_from_main(&repo_root, &shared_dir, &shared_config.files) {
+                Ok(moved) => {
+                    for f in &moved {
+                        info!("  shared: {f} → ~/.dual/shared/{repo_name}/");
+                    }
+                }
+                Err(e) => warn!("shared init failed: {e}"),
+            }
+        }
+        Err(e) => warn!("could not create shared directory: {e}"),
+    }
+}
+```
+
+Checks `hints.shared` at line 182 and moves shared files to `~/.dual/shared/{repo}/` for propagation across branch workspaces.
+
+### devcontainer Field Usage
+
+The `DualConfig.devcontainer` field is **always `Option<String>`**, not a bare `String`:
+- Defined at `src/config.rs:56`
+- Checked at `src/config.rs:230` via `if let Some(ref explicit)`
+- None means auto-detect via `find_devcontainer_json()` at line 242
+- Some("path") means use explicit path, warn if it doesn't exist at lines 235-239
+
+**No Auto-Detection Logic in devcontainer Field**: The field only stores an optional explicit path. All auto-detection happens in `find_devcontainer_json()` at `src/devcontainer.rs:177-186`.
+
+### Error Handling
+
+#### HintsError Enum (`src/config.rs:368-380`)
+
+```rust
+pub enum HintsError {
+    #[error("Failed to read {path}: {err}", path = .0.display(), err = .1)]
+    ReadError(PathBuf, std::io::Error),
+
+    #[error("Failed to write {path}: {err}", path = .0.display(), err = .1)]
+    WriteError(PathBuf, std::io::Error),
+
+    #[error("Failed to parse {path}: {err}", path = .0.display(), err = .1)]
+    ParseError(PathBuf, toml::de::Error),
+
+    #[error("Failed to serialize hints: {0}")]
+    SerializeError(toml::ser::Error),
+}
+```
+
+**Error Sources**:
+- `ReadError` - Cannot read `.dual.toml` file (line 180)
+- `ParseError` - Invalid TOML syntax in `.dual.toml` (line 186)
+- `WriteError` - Cannot write config files (lines 295, 303, 310, 318)
+- `SerializeError` - Cannot serialize `DualConfig` to TOML (line 317)
+
+#### Graceful Degradation
+
+All consumers use `.unwrap_or_default()` when calling `load_hints()`:
+- `src/main.rs:181` - `cmd_add()` initialization
+- `src/main.rs:390` - `cmd_launch()` workspace setup
+- `src/main.rs:766` - `cmd_shared()` sync operation
+- `src/proxy.rs:56` - Proxy route table building
+- `src/proxy.rs:284` - Proxy URL listing
+
+**Missing Config Behavior**:
+- Missing `.dual.toml` → Returns `DualConfig::default()` at line 176 (no error)
+- Missing devcontainer.json → Returns `None` from `find_devcontainer_json()`, merge uses `RepoHints::default()` at line 250
+- Both missing → Full defaults: `image = "node:20"`, `anonymous_volumes = ["node_modules"]`, all other fields empty (tested at line 574)
+
+**Parse Errors**: Only `.dual.toml` parse errors propagate as `HintsError`. devcontainer.json parse errors are silently caught via `.ok()?` at lines 163-164, treated as missing file.
+
+#### Deprecated Field Warnings (`src/config.rs:191-224`)
+
+```rust
+fn check_deprecated_fields(contents: &str, path: &Path) {
+    let deprecated = [
+        ("image", "image"),
+        ("ports", "forwardPorts"),
+        ("setup", "postCreateCommand"),
+        ("[env]", "containerEnv"),
+    ];
+
+    for (old_field, new_field) in &deprecated {
+        // Check for the field as a top-level key (not in a comment)
+        for line in contents.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('#') {
+                continue;
+            }
+            let matches = if *old_field == "[env]" {
+                trimmed == "[env]"
+            } else {
+                trimmed.starts_with(&format!("{old_field} "))
+                    || trimmed.starts_with(&format!("{old_field}="))
+            };
+            if matches {
+                warn!(
+                    "{}: '{}' should be moved to devcontainer.json as '{}'. \
+                     Container config fields in .dual.toml are deprecated.",
+                    path.display(),
+                    old_field,
+                    new_field
+                );
+                break;
+            }
+        }
+    }
+}
+```
+
+Scans `.dual.toml` contents at line 201-222 and emits warnings (via `tracing::warn`) if users try to configure container fields in `.dual.toml` instead of devcontainer.json. Skips comment lines at lines 203-205.
+
+### Configuration Files
+
+#### Default .dual.toml Template (`src/config.rs:270-293`)
+
+Generated by `write_default_dual_config()` at line 269, contains only commented-out Dual-specific fields:
+
+```toml
+# Dual workspace configuration
+# See: https://github.com/jeevanpillay/dual
+#
+# Container config (image, ports, setup, env) goes in devcontainer.json.
+# This file contains only Dual-specific orchestration settings.
+
+# Explicit path to devcontainer.json (auto-detected if omitted)
+# devcontainer = ".devcontainer/devcontainer.json"
+
+# Commands to route to the container (in addition to defaults)
+# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
+# Example: extra_commands = ["cargo", "go", "ruby"]
+# extra_commands = []
+
+# Directories to isolate with anonymous Docker volumes
+# These directories get their own volume so they don't sync between host/container
+# Example: anonymous_volumes = ["node_modules", ".next", "target"]
+# anonymous_volumes = ["node_modules"]
+
+# Files to share across all workspaces of this repo
+# These are gitignored files that should be available in every branch workspace
+# [shared]
+# files = [".env.local", ".vercel"]
+```
+
+Tested at line 658-681 to verify no deprecated container fields are present.
+
+#### Default devcontainer.json Template (`src/config.rs:301-311`)
+
+Generated by `write_default_devcontainer()` at line 301:
+
+```json
+{
+    "image": "node:20"
+}
+```
+
+Creates `.devcontainer/` directory if missing (line 303).
+
+### Key Patterns
+
+**Protected Field Separation**: Container config (`image`, `ports`, `setup`, `env`) cannot be set in `.dual.toml` after commit 60ea073 (breaking change). The deprecated field checker enforces this separation.
+
+**Fallback Chain**: `.dual.toml` orchestration fields → devcontainer.json container fields → hardcoded defaults. Each layer is optional.
+
+**Base Directory Tracking**: `DockerfileBuild.base_dir` stores the devcontainer.json directory so Dockerfile paths are resolved correctly when devcontainer.json is in `.devcontainer/` subdirectory (set at `src/devcontainer.rs:230`, used at `src/container.rs:270`).
+
+**Silent Failure Philosophy**: Missing/invalid config files never abort operations. All callers use `.unwrap_or_default()` to continue with sensible defaults.
+
+**Flexible Parsing**: devcontainer.json parser handles multiple representations:
+- Ports as integers or strings (lines 50-62)
+- Commands as string/array/object (lines 68-97)
+- Mounts as string or object (lines 111-167)</result>
+<usage>total_tokens: 47802
+tool_uses: 25
+duration_ms: 186623</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a65a1b5.output

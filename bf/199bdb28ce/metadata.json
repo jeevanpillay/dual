@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "bf199bdb28ce",
+  "strategy": "manual-commit",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "thoughts/shared/research/2026-02-16-DUAL-62-63-implementation.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bf/199bdb28ce/0/metadata.json",
+      "transcript": "/bf/199bdb28ce/0/full.jsonl",
+      "context": "/bf/199bdb28ce/0/context.md",
+      "content_hash": "/bf/199bdb28ce/0/content_hash.txt",
+      "prompt": "/bf/199bdb28ce/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26015,
+    "cache_creation_tokens": 130536,
+    "cache_read_tokens": 1465270,
+    "output_tokens": 5202,
+    "api_call_count": 15
+  }
+}
