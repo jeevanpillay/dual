@@ -55,7 +55,7 @@ fn main() {
 
     let exit_code = match cli.command {
         None => cmd_default(&backend),
-        Some(Command::Init { name }) => cmd_init(name.as_deref()),
+        Some(Command::Init { name, yes }) => cmd_init(name.as_deref(), yes),
         Some(Command::Create { branch, repo }) => cmd_create(repo.as_deref(), &branch),
         Some(Command::Launch { workspace }) => cmd_launch(workspace.as_deref(), &backend),
         Some(Command::List) => cmd_list(&backend),
@@ -126,7 +126,7 @@ fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
 }
 
 /// Initialize the current repo as a dual workspace.
-fn cmd_init(name: Option<&str>) -> i32 {
+fn cmd_init(name: Option<&str>, yes: bool) -> i32 {
     // Detect git repo info from current directory
     let (repo_root, url, branch) = match detect_git_repo() {
         Ok(info) => info,
@@ -157,30 +157,39 @@ fn cmd_init(name: Option<&str>) -> i32 {
         return 1;
     }
 
-    // Determine devcontainer.json path (detect existing or create default)
-    let devcontainer_path = if let Some(dc) = dual::devcontainer::find_devcontainer_json(&repo_root)
-    {
-        dc.strip_prefix(&repo_root)
-            .unwrap_or(&dc)
-            .to_string_lossy()
-            .to_string()
+    // Run wizard or apply defaults
+    let result = if yes {
+        dual::init::apply_defaults(&repo_root)
     } else {
-        if let Err(e) = config::write_default_devcontainer(&repo_root) {
-            warn!("failed to write devcontainer.json: {e}");
-        } else {
-            info!("Created .devcontainer/devcontainer.json (image: node:20)");
-            info!("Edit it to customize image, ports, setup command, and env vars.");
+        match dual::init::run_wizard(&repo_root) {
+            Ok(r) => r,
+            Err(e) => {
+                error!("{e}");
+                return 1;
+            }
         }
-        ".devcontainer/devcontainer.json".to_string()
     };
 
-    // Create .dual/settings.json if missing
+    // Write devcontainer.json if needed
+    if result.create_devcontainer {
+        match dual::init::write_devcontainer(&repo_root, &result) {
+            Ok(_) => info!("Created .devcontainer/devcontainer.json"),
+            Err(e) => {
+                warn!("failed to write devcontainer.json: {e}");
+            }
+        }
+    } else {
+        info!("Using existing {}", result.devcontainer_path);
+    }
+
+    // Write .dual/settings.json if missing
     let settings_path = repo_root.join(".dual").join("settings.json");
     if !settings_path.exists() {
-        if let Err(e) = config::write_default_dual_config(&repo_root, &devcontainer_path) {
-            warn!("failed to write .dual/settings.json: {e}");
-        } else {
-            info!("Created .dual/settings.json (Dual orchestration settings)");
+        match dual::init::write_settings(&repo_root, &result.devcontainer_path) {
+            Ok(_) => info!("Created .dual/settings.json"),
+            Err(e) => {
+                warn!("failed to write .dual/settings.json: {e}");
+            }
         }
     }
 
@@ -1076,8 +1085,9 @@ mod tests {
     #[test]
     fn init_subcommand() {
         let cli = Cli::parse_from(["dual", "init"]);
-        if let Some(Command::Init { name }) = cli.command {
+        if let Some(Command::Init { name, yes }) = cli.command {
             assert!(name.is_none());
+            assert!(!yes);
         } else {
             panic!("expected Init command");
         }
@@ -1086,8 +1096,30 @@ mod tests {
     #[test]
     fn init_with_name() {
         let cli = Cli::parse_from(["dual", "init", "--name", "myrepo"]);
-        if let Some(Command::Init { name }) = cli.command {
+        if let Some(Command::Init { name, yes }) = cli.command {
             assert_eq!(name.as_deref(), Some("myrepo"));
+            assert!(!yes);
+        } else {
+            panic!("expected Init command");
+        }
+    }
+
+    #[test]
+    fn init_with_yes() {
+        let cli = Cli::parse_from(["dual", "init", "--yes"]);
+        if let Some(Command::Init { name, yes }) = cli.command {
+            assert!(name.is_none());
+            assert!(yes);
+        } else {
+            panic!("expected Init command");
+        }
+    }
+
+    #[test]
+    fn init_with_short_yes() {
+        let cli = Cli::parse_from(["dual", "init", "-y"]);
+        if let Some(Command::Init { yes, .. }) = cli.command {
+            assert!(yes);
         } else {
             panic!("expected Init command");
         }

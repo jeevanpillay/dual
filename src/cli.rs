@@ -18,6 +18,9 @@ pub enum Command {
         /// Short name for the repo (derived from directory name if omitted)
         #[arg(short, long)]
         name: Option<String>,
+        /// Accept all defaults without prompts
+        #[arg(short, long)]
+        yes: bool,
     },
 
     /// Create a new branch workspace for an existing repo

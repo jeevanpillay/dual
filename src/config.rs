@@ -203,42 +203,6 @@ fn merge_config(dual: &DualConfig, dc_hints: Option<&RepoHints>) -> RepoHints {
     }
 }
 
-/// Write a default .dual/settings.json with Dual-specific fields only.
-/// Container config belongs in devcontainer.json.
-/// Creates the .dual/ directory if it doesn't exist.
-pub fn write_default_dual_config(
-    repo_root: &Path,
-    devcontainer_path: &str,
-) -> Result<(), HintsError> {
-    let dual_dir = repo_root.join(DUAL_DIR);
-    std::fs::create_dir_all(&dual_dir).map_err(|e| HintsError::WriteError(dual_dir.clone(), e))?;
-
-    let config = DualConfig {
-        devcontainer: devcontainer_path.to_string(),
-        ..Default::default()
-    };
-
-    let path = dual_dir.join(SETTINGS_FILENAME);
-    let contents = serde_json::to_string_pretty(&config).map_err(HintsError::JsonSerializeError)?;
-    std::fs::write(&path, contents).map_err(|e| HintsError::WriteError(path, e))?;
-    Ok(())
-}
-
-/// Write a default devcontainer.json with minimal container config.
-/// Creates .devcontainer/ directory if it doesn't exist.
-pub fn write_default_devcontainer(repo_root: &Path) -> Result<(), HintsError> {
-    let dc_dir = repo_root.join(".devcontainer");
-    std::fs::create_dir_all(&dc_dir).map_err(|e| HintsError::WriteError(dc_dir.clone(), e))?;
-
-    let dc_path = dc_dir.join("devcontainer.json");
-    let content = r#"{
-    "image": "node:20"
-}
-"#;
-    std::fs::write(&dc_path, content).map_err(|e| HintsError::WriteError(dc_path, e))?;
-    Ok(())
-}
-
 /// Write DualConfig to a workspace directory's .dual/settings.json.
 pub fn write_dual_config(workspace_dir: &Path, config: &DualConfig) -> Result<(), HintsError> {
     let dual_dir = workspace_dir.join(DUAL_DIR);
@@ -509,7 +473,11 @@ mod tests {
         .unwrap();
 
         // Must also have .dual/settings.json
-        write_default_dual_config(&dir, ".devcontainer/devcontainer.json").unwrap();
+        let config = DualConfig {
+            devcontainer: ".devcontainer/devcontainer.json".to_string(),
+            ..Default::default()
+        };
+        write_dual_config(&dir, &config).unwrap();
 
         let hints = load_hints(&dir).unwrap();
         assert_eq!(hints.image, "python:3.12");
@@ -573,49 +541,6 @@ mod tests {
 
         let hints = load_hints(&dir).unwrap();
         assert_eq!(hints.image, "alpine:latest");
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn write_default_dual_config_creates_json() {
-        let dir = std::env::temp_dir().join("dual-test-default-dual-config");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        write_default_dual_config(&dir, ".devcontainer/devcontainer.json").unwrap();
-
-        let path = dir.join(".dual").join("settings.json");
-        assert!(path.exists());
-
-        let content = std::fs::read_to_string(&path).unwrap();
-        assert!(content.contains("devcontainer"));
-        assert!(content.contains(".devcontainer/devcontainer.json"));
-
-        // Verify it's parseable as valid DualConfig
-        let config = load_dual_config(&dir).unwrap();
-        assert_eq!(config.devcontainer, ".devcontainer/devcontainer.json");
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn write_default_devcontainer_creates_dir_and_file() {
-        let dir = std::env::temp_dir().join("dual-test-default-devcontainer");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-
-        write_default_devcontainer(&dir).unwrap();
-
-        let dc_path = dir.join(".devcontainer").join("devcontainer.json");
-        assert!(dc_path.exists());
-
-        let content = std::fs::read_to_string(&dc_path).unwrap();
-        assert!(content.contains("\"image\": \"node:20\""));
-
-        // Verify it's valid JSON
-        let dc: crate::devcontainer::DevcontainerJson = serde_json::from_str(&content).unwrap();
-        assert_eq!(dc.image.as_deref(), Some("node:20"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
