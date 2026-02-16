@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "7144373b-2df9-420a-b7a7-103367c2debc",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T00:58:39.191086Z",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "thoughts/shared/research/2026-02-16-shell-interception-pane-propagation.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f87236ea-6ba0-429c-96b0-a871f37f26e8",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 87886,
+    "cache_read_tokens": 864525,
+    "output_tokens": 143,
+    "api_call_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T00:58:38.967609Z",
+    "agent_lines": 0,
+    "human_added": 1824,
+    "human_modified": 251,
+    "human_removed": 0,
+    "total_committed": 2075,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/7144373b-2df9-420a-b7a7-103367c2debc.jsonl"
+}
