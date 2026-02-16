@@ -190,6 +190,23 @@ fn cmd_add(name: Option<&str>) -> i32 {
         return 1;
     }
 
+    // Install shell hook for pane propagation (idempotent)
+    match shell::install_shell_hook() {
+        Ok(true) => {
+            let rc_name = shell::detect_shell_rc()
+                .map(|p| {
+                    p.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .unwrap_or_default();
+            info!("Added shell hook to ~/{rc_name} for tmux pane interception.");
+        }
+        Ok(false) => {} // Already installed or unsupported shell — silent
+        Err(e) => warn!("could not install shell hook: {e}"),
+    }
+
     let ws_id = config::workspace_id(&repo_name, &branch);
     info!("Added workspace: {ws_id}");
     info!("Use `dual launch {ws_id}` to start.");
@@ -461,6 +478,18 @@ fn cmd_launch(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> 
         if let Err(e) = backend.create_session(&session_name, &workspace_dir, Some(&source_cmd)) {
             error!("session creation failed: {e}");
             return 1;
+        }
+
+        // Set session-level env vars so new panes auto-source interception
+        let rc_path_str = rc_path.to_string_lossy();
+        for (key, value) in [
+            ("DUAL_ACTIVE", "1"),
+            ("DUAL_RC_PATH", rc_path_str.as_ref()),
+            ("DUAL_CONTAINER", container_name.as_str()),
+        ] {
+            if let Err(e) = dual::tmux_backend::set_session_env(&session_name, key, value) {
+                warn!("failed to set tmux env {key}: {e}");
+            }
         }
     }
 

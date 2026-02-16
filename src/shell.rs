@@ -107,6 +107,72 @@ pub fn write_rc_file(
     Ok(rc_path)
 }
 
+/// Marker comment used to detect if the snippet is already installed.
+const RC_MARKER: &str = "# dual: shell interception (auto-generated)";
+
+/// Generate the shell RC snippet that auto-sources Dual interception.
+///
+/// This snippet is appended to ~/.bashrc or ~/.zshrc. It detects
+/// the DUAL_ACTIVE env var (set by tmux set-environment) and sources
+/// the workspace-specific RC file.
+pub fn shell_hook_snippet() -> String {
+    format!(
+        r#"
+{RC_MARKER}
+if [ -n "$DUAL_ACTIVE" ] && [ -n "$DUAL_RC_PATH" ] && [ -f "$DUAL_RC_PATH" ]; then
+    source "$DUAL_RC_PATH"
+fi
+"#
+    )
+}
+
+/// Detect the user's shell RC file path.
+///
+/// Returns the path to ~/.zshrc or ~/.bashrc based on $SHELL.
+/// Returns None if the shell is not bash or zsh.
+pub fn detect_shell_rc() -> Option<std::path::PathBuf> {
+    let home = dirs::home_dir()?;
+    let shell = std::env::var("SHELL").unwrap_or_default();
+    let base = shell.rsplit('/').next().unwrap_or("");
+
+    match base {
+        "zsh" => Some(home.join(".zshrc")),
+        "bash" => Some(home.join(".bashrc")),
+        _ => None,
+    }
+}
+
+/// Install the auto-source snippet into the user's shell RC file.
+///
+/// Idempotent: checks for the marker comment before appending.
+/// Creates the RC file if it doesn't exist.
+/// Returns Ok(true) if the snippet was newly installed, Ok(false) if
+/// already present.
+pub fn install_shell_hook() -> Result<bool, std::io::Error> {
+    let rc_path = match detect_shell_rc() {
+        Some(p) => p,
+        None => return Ok(false),
+    };
+
+    // Read existing content (or empty if file doesn't exist)
+    let existing = std::fs::read_to_string(&rc_path).unwrap_or_default();
+
+    // Check if snippet is already installed
+    if existing.contains(RC_MARKER) {
+        return Ok(false);
+    }
+
+    // Append snippet
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&rc_path)?;
+    file.write_all(shell_hook_snippet().as_bytes())?;
+
+    Ok(true)
+}
+
 /// Get the source command for an RC file path.
 pub fn source_file_command(rc_path: &std::path::Path) -> String {
     format!("source \"{}\"", rc_path.display())
@@ -247,5 +313,69 @@ mod tests {
             cmd,
             "source \"/Users/user/Library/Application Support/dual/rc/dual-test.sh\""
         );
+    }
+
+    #[test]
+    fn shell_hook_snippet_contains_guard() {
+        let snippet = shell_hook_snippet();
+        assert!(snippet.contains("DUAL_ACTIVE"));
+        assert!(snippet.contains("DUAL_RC_PATH"));
+        assert!(snippet.contains("source"));
+        assert!(snippet.contains(RC_MARKER));
+    }
+
+    #[test]
+    fn shell_hook_snippet_is_noop_without_vars() {
+        let snippet = shell_hook_snippet();
+        assert!(snippet.contains("-n \"$DUAL_ACTIVE\""));
+        assert!(snippet.contains("-f \"$DUAL_RC_PATH\""));
+    }
+
+    #[test]
+    fn detect_shell_rc_respects_shell_env() {
+        let original = std::env::var("SHELL").ok();
+
+        // SAFETY: test runs single-threaded
+        unsafe {
+            std::env::set_var("SHELL", "/bin/zsh");
+            let path = detect_shell_rc();
+            assert!(path.is_some());
+            assert!(path.unwrap().ends_with(".zshrc"));
+
+            std::env::set_var("SHELL", "/bin/bash");
+            let path = detect_shell_rc();
+            assert!(path.is_some());
+            assert!(path.unwrap().ends_with(".bashrc"));
+
+            std::env::set_var("SHELL", "/usr/bin/fish");
+            let path = detect_shell_rc();
+            assert!(path.is_none());
+
+            // Restore
+            match original {
+                Some(v) => std::env::set_var("SHELL", v),
+                None => std::env::remove_var("SHELL"),
+            }
+        }
+    }
+
+    #[test]
+    fn install_shell_hook_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let rc_path = dir.path().join(".zshrc");
+        std::fs::write(&rc_path, "# existing config\n").unwrap();
+
+        // Manually write snippet to test idempotency detection
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&rc_path)
+            .unwrap();
+        use std::io::Write;
+        f.write_all(shell_hook_snippet().as_bytes()).unwrap();
+        drop(f);
+
+        let content = std::fs::read_to_string(&rc_path).unwrap();
+        let marker_count = content.matches(RC_MARKER).count();
+        assert_eq!(marker_count, 1);
     }
 }

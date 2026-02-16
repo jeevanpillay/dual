@@ -189,6 +189,21 @@ When you select a workspace (via `dual` or `dual launch`):
 
 Your editor, git, and credentials stay on the host. The container handles all runtime processes. Claude Code never knows it's running inside a container.
 
+### Shell Hook (Pane Propagation)
+
+`dual add` automatically appends a small snippet to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+# dual: shell interception (auto-generated)
+if [ -n "$DUAL_ACTIVE" ] && [ -n "$DUAL_RC_PATH" ] && [ -f "$DUAL_RC_PATH" ]; then
+    source "$DUAL_RC_PATH"
+fi
+```
+
+This ensures that when you split a pane (`Ctrl+b %`) or create a new window (`Ctrl+b c`) inside a Dual tmux session, the new shell automatically loads command interception. Without this, new panes would run commands on the host instead of in the container.
+
+The snippet is a no-op outside Dual sessions — it only activates when `DUAL_ACTIVE` is set (which Dual configures via `tmux set-environment`).
+
 ## Architecture
 
 ```
