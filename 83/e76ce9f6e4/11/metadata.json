@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "c2ecc088-1eef-405f-92ca-59d1d7e02c76",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T01:20:28.373279Z",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    "README.md",
+    "src/config.rs",
+    "src/main.rs",
+    "src/proxy.rs",
+    "tests/fixtures/mod.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 100000,
+    "cache_read_tokens": 3937268,
+    "output_tokens": 3291,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T01:20:28.122551Z",
+    "agent_lines": 518,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 518,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/c2ecc088-1eef-405f-92ca-59d1d7e02c76.jsonl"
+}

@@ -1,0 +1,149 @@
+Implement the following plan:
+
+# devcontainer.json as Primary Config Source
+
+## Context
+
+The current implementation treats devcontainer.json as a fallback when `.dual.toml` is missing. The user wants the opposite model: devcontainer.json is the **primary source** for container configuration, and `.dual.toml` contains only Dual-specific orchestration fields. This aligns with the devcontainer ecosystem — users define their container in devcontainer.json, and `.dual.toml` handles only what devcontainer can't (command routing, shared files, volume isolation).
+
+**Breaking change**: Fields `image`, `ports`, `setup`, `env` are removed from `.dual.toml`. Users must move container config to `devcontainer.json`.
+
+## New Config Model
+
+**`.dual.toml`** (Dual-specific only):
+```toml
+# devcontainer = ".devcontainer/devcontainer.json"  # auto-detects if omitted
+extra_commands = ["cargo", "go"]
+anonymous_volumes = ["node_modules", ".next"]
+[shared]
+files = [".env.local"]
+```
+
+**`devcontainer.json`** (container config):
+```json
+{
+    "image": "node:20",
+    "forwardPorts": [3000],
+    "postCreateCommand": "pnpm install",
+    "containerEnv": { "NODE_ENV": "development" }
+}
+```
+
+**Loading flow**: `.dual.toml` (DualConfig) + `devcontainer.json` (DevcontainerJson) → merged `RepoHints`
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/config.rs` | Add `DualConfig` struct, rewrite `load_hints()` with merge, new `write_default_dual_config()`, `write_default_devcontainer()` |
+| `src/main.rs` | Update `cmd_add()` to create both files, update user-facing messages (lines 149, 627, 678, 761) |
+| `src/proxy.rs` | Update message at line 90 to reference devcontainer.json |
+| `tests/fixtures/mod.rs` | Update `create_fixture_hints()` to write devcontainer.json + DualConfig |
+| `README.md` | Update config documentation |
+
+Files that DON'T change: `src/devcontainer.rs` (parser already done), `src/container.rs`, `src/lib.rs`, consumer code in `cmd_launch`/proxy (they use `RepoHints` which stays the same).
+
+---
+
+## Phase 1: DualConfig Struct + New load_hints()
+
+### 1a. Add `DualConfig` struct to `src/config.rs`
+
+```rust
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct DualConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devcontainer: Option<String>,
+    #[serde(default)]
+    pub extra_commands: Vec<String>,
+    #[serde(default = "default_anonymous_volumes")]
+    pub anonymous_volumes: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared: Option<SharedConfig>,
+}
+```
+
+`RepoHints` stays unchanged — it's the internal merged representation all consumers use.
+
+### 1b. Rewrite `load_hints()` (config.rs:117-136)
+
+New flow:
+1. `load_dual_config()` — reads `.dual.toml` → `DualConfig` (defaults if missing)
+2. `resolve_devcontainer_path()` — uses explicit path from DualConfig or auto-detects
+3. Parse devcontainer.json → `to_repo_hints()` for container fields
+4. `merge_config()` — DualConfig fields + devcontainer RepoHints → final `RepoHints`
+
+Add migration warning: if `.dual.toml` contains `image =`, `ports =`, `setup =`, or `[env]`, log a warning telling user to move to devcontainer.json.
+
+### 1c. Update `write_default_hints()` → `write_default_dual_config()` + `write_default_devcontainer()`
+
+- `write_default_dual_config()` — writes `.dual.toml` with only extra_commands, anonymous_volumes, shared (all commented)
+- `write_default_devcontainer()` — writes `.devcontainer/devcontainer.json` with `{"image": "node:20"}` (valid JSON, no comments)
+
+### 1d. Add `write_dual_config()` and `parse_dual_config()` helpers
+
+For tests. Keep old `write_hints()`/`parse_hints()` temporarily but mark unused.
+
+### Verification
+- [ ] `cargo build` compiles
+- [ ] `cargo clippy` clean
+- [ ] `cargo fmt --check` clean
+
+---
+
+## Phase 2: Update cmd_add + User Messages
+
+### 2a. Update `cmd_add()` in `src/main.rs` (lines 143-152)
+
+- Create `.dual.toml` via `write_default_dual_config()` (Dual fields only)
+- Create `.devcontainer/devcontainer.json` via `write_default_devcontainer()` if no devcontainer.json exists
+- Update info messages
+
+### 2b. Update user-facing messages
+
+- `main.rs:627` — "Add 'ports' to .dual.toml" → "Add 'forwardPorts' to devcontainer.json"
+- `main.rs:678` — same
+- `main.rs:761` — keep as-is (shared is still in .dual.toml)
+- `proxy.rs:90-91` — update message and example
+
+### Verification
+- [ ] `cargo build` compiles
+- [ ] `cargo test` passes
+- [ ] `cargo clippy` clean
+- [ ] `cargo fmt --check` clean
+
+---
+
+## Phase 3: Update Tests + Fixtures + Docs
+
+### 3a. Update `tests/fixtures/mod.rs`
+
+`create_fixture_hints()` writes both `.devcontainer/devcontainer.json` (image + ports) and `.dual.toml` (DualConfig defaults).
+
+### 3b. Update `src/config.rs` tests
+
+- Remove/rewrite tests that parse `image`, `ports`, `setup`, `env` from TOML
+- Add tests: merge logic, explicit devcontainer path, old .dual.toml backward compat, devcontainer-only, neither-exists
+- Keep `write_and_load_hints` as roundtrip test with new model
+
+### 3c. Update `README.md`
+
+- `.dual.toml` section: remove image/ports/setup/env, add devcontainer field
+- `devcontainer.json` section: change from "fallback" to primary container config
+- Update field tables
+
+### Verification
+- [ ] `cargo test` — all pass
+- [ ] `cargo clippy` clean
+- [ ] `cargo fmt --check` clean
+- [ ] Manual: `load_hints()` merges devcontainer + dual config correctly
+- [ ] Manual: old .dual.toml with image/ports is silently ignored with warning
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jeevanpillay/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+commit this
