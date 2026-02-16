@@ -2,6 +2,46 @@
 
 All notable changes to Dual are documented in this file.
 
+## [3.0.0] - 2026-02-16
+
+v3.0 architecture rewrite — devcontainer.json as primary config, interactive init wizard, and shell interception pane propagation.
+
+### Added
+
+- **devcontainer.json support** — New `src/devcontainer.rs` parser reads `image`, `build.dockerfile`, `forwardPorts`, `containerEnv`, `postCreateCommand`, and `mounts` from `.devcontainer/devcontainer.json` (or root `devcontainer.json`). Repos with existing devcontainer configs work with zero Dual-specific setup
+- **Dockerfile build support** — `build.dockerfile` in devcontainer.json triggers `docker build` instead of `docker pull`, with support for build args, target stages, and custom context paths
+- **Interactive init wizard** — `dual init` launches a 5-step interactive wizard (image selection, ports, setup command, review/confirm) powered by `dialoguer`. Skip prompts with `dual init --yes`
+- **Shell interception pane propagation** — New tmux panes and windows auto-load command interception. `tmux set-environment` sets `DUAL_ACTIVE`, `DUAL_RC_PATH`, `DUAL_CONTAINER` at the session level; a shell RC snippet in `~/.zshrc`/`~/.bashrc` auto-sources the interception file
+- **Shell hook auto-install** — Dual automatically installs a guarded snippet in the user's shell RC file on first run (idempotent, no-op outside Dual tmux sessions)
+- **`.dual/settings.json`** — New per-repo config file for Dual-specific orchestration (`extra_commands`, `anonymous_volumes`, `shared`, `devcontainer` path override)
+
+### Changed
+
+- **`dual add` renamed to `dual init`** — The command for registering a workspace is now `dual init` (breaking)
+- **Config file format** — Per-repo config moved from `.dual.toml` (TOML) to `.dual/settings.json` (JSON) with a new schema separating container config (devcontainer.json) from orchestration config (settings.json)
+- **Two-file config architecture** — Container settings (`image`, `ports`, `env`, `setup`) now live in `devcontainer.json`; Dual-specific settings (`extra_commands`, `anonymous_volumes`, `shared`) live in `.dual/settings.json`
+- **Config load order** — `load_hints()` merges `.dual/settings.json` + `devcontainer.json` into `RepoHints`. devcontainer.json is the primary source for container config
+- **Proxy error messages** — Now reference `devcontainer.json` for port configuration instead of `.dual.toml`
+
+### Removed
+
+- **`.dual.toml`** — Replaced by `.dual/settings.json` + `devcontainer.json`
+- **`dual add` subcommand** — Replaced by `dual init`
+- **Container fields in Dual config** — `image`, `ports`, `setup`, `[env]` removed from Dual config (now in devcontainer.json)
+
+---
+
+## [2.3.1] - 2026-02-16
+
+Fix macOS shell RC source path quoting.
+
+### Fixed
+
+- **Shell RC source path** — Quoted the RC file path in `source_file_command()` to handle paths with spaces
+- **RC file location** — Moved RC files to `~/.dual/rc/` directory
+
+---
+
 ## [2.3.0] - 2026-02-16
 
 TUI workspace browser and multiplexer abstraction layer.
