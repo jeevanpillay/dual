@@ -98,10 +98,10 @@ pub fn fixture_state(
     state
 }
 
-/// Write devcontainer.json + .dual.toml for a fixture workspace.
+/// Write devcontainer.json + .dual/settings.json for a fixture workspace.
 ///
 /// Creates `.devcontainer/devcontainer.json` with image and ports,
-/// and `.dual.toml` with DualConfig defaults.
+/// and `.dual/settings.json` with DualConfig defaults.
 pub fn create_fixture_hints(repo_dir: &Path, ports: &[u16]) {
     // Write devcontainer.json with container config
     let dc_dir = repo_dir.join(".devcontainer");
@@ -119,7 +119,8 @@ pub fn create_fixture_hints(repo_dir: &Path, ports: &[u16]) {
     std::fs::write(dc_dir.join("devcontainer.json"), dc_content)
         .expect("failed to write devcontainer.json");
 
-    // Write .dual.toml with DualConfig defaults
+    // Write .dual/settings.json with DualConfig defaults
     let dual_config = dual::config::DualConfig::default();
-    dual::config::write_dual_config(repo_dir, &dual_config).expect("failed to write .dual.toml");
+    dual::config::write_dual_config(repo_dir, &dual_config)
+        .expect("failed to write .dual/settings.json");
 }

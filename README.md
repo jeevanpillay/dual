@@ -32,9 +32,9 @@ cargo install --path .
 ## Quick Start
 
 ```bash
-# 1. Register your repo
+# 1. Initialize your repo as a dual workspace
 cd ~/code/my-project
-dual add
+dual init
 
 # 2. Create a branch workspace
 dual create feat/auth
@@ -88,7 +88,7 @@ bind-key Space display-popup -E -w 60% -h 60% "dual"
 | Command | Description |
 |---------|-------------|
 | `dual` | Open TUI workspace browser |
-| `dual add [--name NAME]` | Register current git repo as a workspace |
+| `dual init [--name NAME]` | Initialize current git repo as a workspace |
 | `dual create <branch> [--repo NAME]` | Create a new branch workspace |
 | `dual launch [workspace]` | Launch a workspace (auto-detects from cwd) |
 | `dual list` | List all workspaces with status (non-interactive) |
@@ -100,7 +100,7 @@ bind-key Space display-popup -E -w 60% -h 60% "dual"
 
 ## Configuration
 
-Dual uses two config files: `devcontainer.json` for container configuration and `.dual.toml` for Dual-specific orchestration.
+Dual uses two config files: `devcontainer.json` for container configuration and `.dual/settings.json` for Dual-specific orchestration.
 
 ### `devcontainer.json` (container config)
 
@@ -126,32 +126,25 @@ Primary source for container configuration. Lives in `.devcontainer/devcontainer
 | `containerEnv` | Environment variables passed to the container | `{}` |
 | `mounts` | Volume mounts (volume type, `/workspace/*` targets become anonymous volumes) | `[]` |
 
-### `.dual.toml` (orchestration config)
+### `.dual/settings.json` (orchestration config)
 
-Dual-specific settings that the devcontainer spec can't express. Lives in your project root.
+Dual-specific settings that the devcontainer spec can't express. Lives in `.dual/settings.json` in your project root. Created automatically by `dual init`.
 
-```toml
-# Explicit path to devcontainer.json (auto-detected if omitted)
-# devcontainer = ".devcontainer/devcontainer.json"
-
-# Commands to route to the container (in addition to defaults)
-# Default: npm, npx, pnpm, node, python, python3, pip, pip3, curl, make
-extra_commands = ["cargo", "go"]
-
-# Directories to isolate with anonymous Docker volumes
-anonymous_volumes = ["node_modules", ".next"]
-
-# Files to share across all workspaces of this repo
-[shared]
-files = [".vercel", ".env.local"]
+```json
+{
+    "devcontainer": ".devcontainer/devcontainer.json",
+    "extra_commands": ["cargo", "go"],
+    "anonymous_volumes": ["node_modules", ".next"],
+    "shared": [".vercel", ".env.local"]
+}
 ```
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `devcontainer` | Explicit path to devcontainer.json | Auto-detected |
+| `devcontainer` | Path to devcontainer.json | `".devcontainer/devcontainer.json"` |
 | `extra_commands` | Additional commands to route to the container | `[]` |
 | `anonymous_volumes` | Container volumes (e.g., `node_modules`) | `["node_modules"]` |
-| `shared.files` | Files/directories to share across branch workspaces | `[]` |
+| `shared` | Files/directories to share across branch workspaces | `[]` |
 
 ### `~/.dual/workspaces.toml` (global state)
 

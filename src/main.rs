@@ -55,7 +55,7 @@ fn main() {
 
     let exit_code = match cli.command {
         None => cmd_default(&backend),
-        Some(Command::Add { name }) => cmd_add(name.as_deref()),
+        Some(Command::Init { name }) => cmd_init(name.as_deref()),
         Some(Command::Create { branch, repo }) => cmd_create(repo.as_deref(), &branch),
         Some(Command::Launch { workspace }) => cmd_launch(workspace.as_deref(), &backend),
         Some(Command::List) => cmd_list(&backend),
@@ -88,13 +88,13 @@ fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
             Ok(s) => s,
             Err(e) => {
                 error!("{e}");
-                info!("Run `dual add` inside a repo to get started.");
+                info!("Run `dual init` inside a repo to get started.");
                 return 1;
             }
         };
 
         if st.all_workspaces().is_empty() {
-            info!("No workspaces. Run `dual add` inside a repo to get started.");
+            info!("No workspaces. Run `dual init` inside a repo to get started.");
             return 0;
         }
 
@@ -125,8 +125,8 @@ fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
     }
 }
 
-/// Register the current repo as a dual workspace.
-fn cmd_add(name: Option<&str>) -> i32 {
+/// Initialize the current repo as a dual workspace.
+fn cmd_init(name: Option<&str>) -> i32 {
     // Detect git repo info from current directory
     let (repo_root, url, branch) = match detect_git_repo() {
         Ok(info) => info,
@@ -157,34 +157,39 @@ fn cmd_add(name: Option<&str>) -> i32 {
         return 1;
     }
 
-    // Create .dual.toml if missing (Dual-specific orchestration config)
-    let hints_path = repo_root.join(".dual.toml");
-    if !hints_path.exists() {
-        if let Err(e) = config::write_default_dual_config(&repo_root) {
-            warn!("failed to write .dual.toml: {e}");
-        } else {
-            info!("Created .dual.toml (Dual orchestration settings)");
-        }
-    }
-
-    // Create devcontainer.json if no devcontainer config exists (container config)
-    if dual::devcontainer::find_devcontainer_json(&repo_root).is_none() {
+    // Determine devcontainer.json path (detect existing or create default)
+    let devcontainer_path = if let Some(dc) = dual::devcontainer::find_devcontainer_json(&repo_root)
+    {
+        dc.strip_prefix(&repo_root)
+            .unwrap_or(&dc)
+            .to_string_lossy()
+            .to_string()
+    } else {
         if let Err(e) = config::write_default_devcontainer(&repo_root) {
             warn!("failed to write devcontainer.json: {e}");
         } else {
             info!("Created .devcontainer/devcontainer.json (image: node:20)");
             info!("Edit it to customize image, ports, setup command, and env vars.");
         }
+        ".devcontainer/devcontainer.json".to_string()
+    };
+
+    // Create .dual/settings.json if missing
+    let settings_path = repo_root.join(".dual").join("settings.json");
+    if !settings_path.exists() {
+        if let Err(e) = config::write_default_dual_config(&repo_root, &devcontainer_path) {
+            warn!("failed to write .dual/settings.json: {e}");
+        } else {
+            info!("Created .dual/settings.json (Dual orchestration settings)");
+        }
     }
 
-    // Initialize shared directory if [shared] is configured
+    // Initialize shared directory if shared files are configured
     let hints = config::load_hints(&repo_root).unwrap_or_default();
-    if let Some(ref shared_config) = hints.shared
-        && !shared_config.files.is_empty()
-    {
+    if !hints.shared.is_empty() {
         match shared::ensure_shared_dir(&repo_name) {
             Ok(shared_dir) => {
-                match shared::init_from_main(&repo_root, &shared_dir, &shared_config.files) {
+                match shared::init_from_main(&repo_root, &shared_dir, &hints.shared) {
                     Ok(moved) => {
                         for f in &moved {
                             info!("  shared: {f} → ~/.dual/shared/{repo_name}/");
@@ -217,7 +222,7 @@ fn cmd_add(name: Option<&str>) -> i32 {
     }
 
     let ws_id = config::workspace_id(&repo_name, &branch);
-    info!("Added workspace: {ws_id}");
+    info!("Initialized workspace: {ws_id}");
     info!("Use `dual launch {ws_id}` to start.");
     0
 }
@@ -243,7 +248,7 @@ fn cmd_create(repo_arg: Option<&str>, branch: &str) -> i32 {
             None => {
                 error!("could not detect repo from current directory");
                 info!("Usage: dual create <branch> --repo <name>");
-                info!("Or run from inside a repo that was added with `dual add`.");
+                info!("Or run from inside a repo that was initialized with `dual init`.");
                 return 1;
             }
         },
@@ -252,7 +257,7 @@ fn cmd_create(repo_arg: Option<&str>, branch: &str) -> i32 {
     // Find an existing workspace for this repo
     let existing = st.workspaces_for_repo(&repo);
     if existing.is_empty() {
-        error!("repo '{repo}' not found. Run `dual add` inside the repo first.");
+        error!("repo '{repo}' not found. Run `dual init` inside the repo first.");
         return 1;
     }
 
@@ -388,13 +393,12 @@ fn cmd_launch(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> 
 
     // Step 2: Handle shared files
     let hints = config::load_hints(&workspace_dir).unwrap_or_default();
-    if let Some(ref shared_config) = hints.shared
-        && !shared_config.files.is_empty()
+    if !hints.shared.is_empty()
         && let Ok(shared_dir) = shared::ensure_shared_dir(&entry.repo)
     {
         if entry.path.is_some() {
             // Main workspace: ensure shared files are initialized
-            match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
+            match shared::init_from_main(&workspace_dir, &shared_dir, &hints.shared) {
                 Ok(moved) => {
                     for f in &moved {
                         info!("  shared: {f} → ~/.dual/shared/{}/", entry.repo);
@@ -404,7 +408,7 @@ fn cmd_launch(workspace_arg: Option<&str>, backend: &dyn MultiplexerBackend) -> 
             }
         } else {
             // Branch workspace: copy shared files
-            match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
+            match shared::copy_to_branch(&workspace_dir, &shared_dir, &hints.shared) {
                 Ok(copied) => {
                     for f in &copied {
                         info!("  shared: copied {f}");
@@ -764,13 +768,10 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
     // Load hints
     let workspace_dir = st.workspace_dir(&entry);
     let hints = config::load_hints(&workspace_dir).unwrap_or_default();
-    let shared_config = match &hints.shared {
-        Some(s) if !s.files.is_empty() => s,
-        _ => {
-            error!("no [shared] section in .dual.toml (or files list is empty)");
-            return 1;
-        }
-    };
+    if hints.shared.is_empty() {
+        error!("no shared files configured in .dual/settings.json");
+        return 1;
+    }
 
     let shared_dir = match shared::ensure_shared_dir(&entry.repo) {
         Ok(d) => d,
@@ -784,7 +785,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
 
     if is_main {
         // Main workspace: init shared dir, then prompt to sync all branches
-        match shared::init_from_main(&workspace_dir, &shared_dir, &shared_config.files) {
+        match shared::init_from_main(&workspace_dir, &shared_dir, &hints.shared) {
             Ok(moved) => {
                 for f in &moved {
                     info!("  moved {f} → shared/");
@@ -826,7 +827,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
                 continue; // Not yet cloned
             }
             let ws_id = config::workspace_id(&branch_entry.repo, &branch_entry.branch);
-            match shared::copy_to_branch(&branch_dir, &shared_dir, &shared_config.files) {
+            match shared::copy_to_branch(&branch_dir, &shared_dir, &hints.shared) {
                 Ok(copied) => {
                     info!("{ws_id}: synced {} file(s)", copied.len());
                 }
@@ -835,7 +836,7 @@ fn cmd_sync(workspace_arg: Option<String>) -> i32 {
         }
     } else {
         // Branch workspace: copy from shared dir
-        match shared::copy_to_branch(&workspace_dir, &shared_dir, &shared_config.files) {
+        match shared::copy_to_branch(&workspace_dir, &shared_dir, &hints.shared) {
             Ok(copied) => {
                 if copied.is_empty() {
                     info!(
@@ -1073,22 +1074,22 @@ mod tests {
     }
 
     #[test]
-    fn add_subcommand() {
-        let cli = Cli::parse_from(["dual", "add"]);
-        if let Some(Command::Add { name }) = cli.command {
+    fn init_subcommand() {
+        let cli = Cli::parse_from(["dual", "init"]);
+        if let Some(Command::Init { name }) = cli.command {
             assert!(name.is_none());
         } else {
-            panic!("expected Add command");
+            panic!("expected Init command");
         }
     }
 
     #[test]
-    fn add_with_name() {
-        let cli = Cli::parse_from(["dual", "add", "--name", "myrepo"]);
-        if let Some(Command::Add { name }) = cli.command {
+    fn init_with_name() {
+        let cli = Cli::parse_from(["dual", "init", "--name", "myrepo"]);
+        if let Some(Command::Init { name }) = cli.command {
             assert_eq!(name.as_deref(), Some("myrepo"));
         } else {
-            panic!("expected Add command");
+            panic!("expected Init command");
         }
     }
 
