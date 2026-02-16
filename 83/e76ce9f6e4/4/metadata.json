@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "83e76ce9f6e4",
+  "session_id": "19d58029-cb8b-4102-977e-83865c093f86",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T00:58:38.741103Z",
+  "branch": "feature/dual-61-add-devcontainerjson-fallback-config-reader",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "thoughts/blog/twitter-thread-dual-vs-conductor-20260216-084500.md",
+    "thoughts/blog/why-dual-stays-in-the-terminal-20260216-083500.md",
+    "thoughts/shared/plans/2026-02-16-shell-interception-pane-propagation.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 74788,
+    "cache_read_tokens": 1563908,
+    "output_tokens": 1407,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T00:58:38.53568Z",
+    "agent_lines": 0,
+    "human_added": 1308,
+    "human_modified": 767,
+    "human_removed": 0,
+    "total_committed": 2075,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/19d58029-cb8b-4102-977e-83865c093f86.jsonl"
+}

@@ -1,0 +1,848 @@
+generate from a twitter post on why dual is better than conductor.build and othr similar product. we stys in terminal. solves the port problems. solves auto manage monorepo. etc etc.
+
+---
+
+# Blog Generator
+
+Generate AEO-optimized, category-aware blog posts for Lightfast.
+
+## CRITICAL: Match Category Voice
+
+- **Technology**: Technical authority, code examples, data-driven
+- **Company**: Visionary, bold, category-defining
+- **Product**: Problem-solver, benefit-oriented, customer-focused
+
+## Initial Response
+
+When this command is invoked, check if arguments were provided:
+
+**If arguments provided** (e.g., `/create_blog "How vector search works"` or `/create_blog technology "MCP integration"`):
+- Parse the input immediately
+- Detect or use provided category
+- Begin the blog generation workflow
+
+**If no arguments**, respond with:
+```
+I'll help you generate a blog post. Please provide:
+
+1. **Topic with category**: `/create_blog technology "How vector search improves code retrieval"`
+2. **Topic only** (I'll detect category): `/create_blog "Announcing our Series A"`
+3. **URL for reference**: `/create_blog https://example.com/reference-article`
+
+Categories: technology, company, product
+
+I'll research the topic, apply category styling, and generate an AEO-optimized draft.
+```
+
+Then wait for user input.
+
+## Input Parsing
+
+### Supported Formats
+
+1. **Topic only**: `"Topic description"` - category auto-detected
+2. **Category + topic**: `technology "Topic description"`
+3. **URL**: `https://...` - extract topic from URL content
+4. **Brief file**: `thoughts/briefs/topic.md` - read structured brief
+
+### Category Detection
+
+If category not specified, infer from topic:
+- Technical terms (API, SDK, architecture) -> `technology`
+- Funding, partnership, hiring -> `company`
+- Feature, update, launch -> `product`
+
+Ask user to confirm if uncertain.
+
+## Workflow Steps
+
+1. **Parse input and detect category:**
+   - Extract topic from arguments
+   - Detect or confirm category
+   - Load category style from `.claude/skills/blog-writer/resources/categories/{category}.md`
+
+2. **Create tracking plan using TodoWrite:**
+   - Research tasks
+   - Outline generation
+   - Draft writing
+   - AEO element creation
+
+3. **Research topic:**
+   - Use `web-search-researcher` agent for external context
+   - Use `codebase-locator` agent if topic involves Lightfast features
+   - Gather 5+ authoritative sources for citations
+
+4. **Generate outline based on category template:**
+   - Load template from `.claude/skills/blog-writer/resources/templates.md`
+   - Apply category-specific structure
+   - Present outline for user approval before proceeding
+
+5. **Ask for approval on outline:**
+   - Show proposed structure
+   - Confirm category selection
+   - Get go-ahead to write full draft
+
+6. **Generate full draft:**
+   - Apply category voice and tone
+   - Include all required AEO elements
+   - Add code examples (Technology)
+   - Include quotes (Company)
+   - Add use cases (Product)
+
+7. **Add SEO/AEO elements:**
+   - Generate TL;DR (80-100 words)
+   - Write excerpt (max 300 chars)
+   - Create meta description (150-160 chars)
+   - Generate 3-5 FAQ questions
+   - Compile external citations
+
+8. **Save output:**
+   - **Filename format**: `{slug}-{YYYYMMDD-HHMMSS}.md`
+   - **Output path**: `thoughts/blog/{filename}`
+   - Example: `how-vector-search-works-20251221-143022.md`
+
+9. **Present results:**
+   ```
+   ## Blog Post Generated
+
+   **File**: `thoughts/blog/{filename}`
+   **Category**: {category}
+   **Word Count**: {count} ({expected range for category})
+
+   ### Summary
+   - Title: {title}
+   - Slug: {slug}
+   - Focus Keyword: {keyword}
+
+   ### AEO Elements
+   - TL;DR: {word count} words
+   - FAQ: {count} questions
+   - External Citations: {count}
+   - Internal Links: {count}
+
+   ### Next Steps
+   1. Review the generated draft
+   2. Make any manual adjustments
+   3. Use `/validate_blog` to check for issues
+   4. Use `/publish_blog` when ready
+
+   Would you like me to open the file for review?
+   ```
+
+## Error Handling
+
+### Category Detection Failed
+```
+I couldn't determine the category for "{topic}".
+
+Please specify:
+- `/create_blog technology "{topic}"` - for technical deep-dives
+- `/create_blog company "{topic}"` - for announcements, partnerships
+- `/create_blog product "{topic}"` - for feature launches
+```
+
+### Research Failed
+```
+Warning: Limited research results for "{topic}".
+Proceeding with available sources. Consider adding more context.
+```
+
+## Important Notes
+
+- Always get outline approval before writing full draft
+- Match category word count ranges strictly
+- Include all required AEO elements
+- Verify claims using codebase agents when discussing Lightfast features
+- Output is a draft - human review required before publishing
+
+
+ARGUMENTS: Generate a blog post from a Twitter/X post angle about why Dual is better than Conductor.build and other similar AI workspace products. Key points to hit: 1) Dual stays in the terminal — no browser-based IDE, no cloud dependency, your tools your config. 2) Solves the port collision problem — multiple dev servers on the same default ports, zero conflicts. 3) Auto-manages monorepo parallel development — multiple branches of the same repo running simultaneously. 4) Transparent command routing — Claude Code doesn't even know it's in a container. 5) Compare against Conductor.build, Gitpod, Codespaces, Devpod and similar. The tone should be punchy, opinionated, developer-first — like an expanded Twitter thread turned blog post.
+
+---
+
+<task-notification>
+<task-id>a51446d</task-id>
+<status>completed</status>
+<summary>Agent "Research competitor products" completed</summary>
+<result>I notice I don't have access to web search tools in my current environment. Let me check what tools are available and provide you with a comprehensive research framework. However, based on the existing research file you have, I can provide some analysis and help structure what additional information you need.
+
+Let me create a comprehensive research document based on what I know and what needs to be researched:
+
+I apologize, but I need to clarify something important: I don't currently have access to web search tools (like the Exa tools mentioned in my system prompt) in this environment. This means I cannot conduct live web searches to gather the current, detailed information you're requesting about these products.
+
+However, I can help you in several ways:
+
+## What I Can Do Right Now
+
+1. **Analyze your existing research**: You already have excellent information about DevPod, Gitpod, GitHub Codespaces, and Daytona in `/Users/jeevanpillay/Code/@jeevanpillaystudios/dual/thoughts/shared/research/2026-02-16-web-analysis-devcontainer-adoption.md`
+
+2. **Provide a research framework**: I can create a structured template for what to look for
+
+3. **Analyze documentation if you have it**: If you have any local docs, pricing pages, or architecture diagrams saved, I can analyze those
+
+## What You Already Have
+
+From your existing research file, here's what's documented:
+
+### **DevPod** (Well-documented)
+- Open source, Go implementation
+- Client-only, no cloud dependency
+- Full devcontainer.json support
+- Provider-based: Docker, Kubernetes, SSH, cloud
+- Architecture: Full development inside container
+- Source: github.com/loft-sh/devpod
+
+### **Gitpod/Ona** (Well-documented)
+- Own config (.gitpod.yml) + devcontainer.json fallback
+- Cloud-first architecture
+- Full devcontainer spec adherence after community pressure
+
+### **GitHub Codespaces** (Mentioned)
+- Full devcontainer.json support
+- Cloud service
+- Browser-based by default
+
+### **Daytona** (Mentioned)
+- Full devcontainer.json support
+- Cloud-first, not terminal-first
+
+## What's Missing
+
+The research doesn't cover:
+1. **Conductor.build** - Not mentioned at all
+2. **Pricing details** for any of these
+3. **AI agent integration** specifics (Cursor, Claude Code, etc.)
+4. **Terminal vs browser IDE** details
+5. **Port conflict handling** mechanisms
+6. **Monorepo parallel branch** support details
+7. **Local vs cloud execution** specifics
+
+## Recommended Action
+
+Would you like me to:
+
+1. **Create a research template** with the specific questions you need answered for each tool, which you can use to conduct manual research?
+
+2. **Help you set up a research task** using the experiment framework in `.claude/` to systematically document findings?
+
+3. **Wait for you to gather the information** and then help analyze/structure it?
+
+4. **Check if there's another way to access web search** in this environment?
+
+Let me know how you'd like to proceed. I can be most helpful once you have access to current information about these products, or if you'd like me to create a structured research framework for manual investigation.</result>
+<usage>total_tokens: 16111
+tool_uses: 4
+duration_ms: 41646</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a51446d.output
+
+---
+
+<task-notification>
+<task-id>a928382</task-id>
+<status>completed</status>
+<summary>Agent "Analyze Dual architecture" completed</summary>
+<result>Perfect! Now I have enough information to provide a comprehensive analysis. Let me compile the findings into a detailed blog post-ready document.
+
+## Analysis: Dual Architecture — Technical Deep Dive
+
+### Overview
+
+Dual is a terminal workspace orchestrator built in Rust (v2.3.1, ~4,280 lines of code) that enables parallel multi-repo development by isolating workspaces in Docker containers with transparent command routing. The core architecture consists of three layers: container isolation for network namespace separation, shell interception for transparent command routing between host and container, and a reverse proxy for subdomain-based HTTP routing.
+
+---
+
+## 1. Port Routing & Collision Avoidance
+
+### Architecture: Three-Layer Port Isolation
+
+**Layer 1: Container Network Namespaces** (`src/container.rs:195-234`)
+
+Containers are created **without any port publishing flags** (`-p`). Each container gets a private IP on Docker's default bridge network (172.17.0.x range).
+
+```rust
+// src/container.rs:202-208
+let mut args = vec![
+    "create".to_string(),
+    "--name".to_string(),
+    name.to_string(),
+    "-v".to_string(),
+    format!("{}:{WORKSPACE_MOUNT}", workspace_dir.display()),
+];
+// NO -p flags — containers sit on bridge network
+```
+
+This design allows multiple containers to **simultaneously bind to the same port number** (e.g., all listening on port 3000) because they have isolated network namespaces. This is a kernel-level guarantee validated in `thoughts/ARCHITECTURE.md:32-34` — "7 containers tested successfully. Network namespace isolation is kernel-level guarantee."
+
+**Layer 2: Container IP Resolution** (`src/container.rs:109-127`)
+
+The proxy resolves each container's private bridge network IP using `docker inspect`:
+
+```rust
+pub fn get_ip(name: &str) -> Option<String> {
+    let output = Command::new("docker")
+        .args(["inspect", "--format",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}", name])
+        .output().ok()?;
+    // Returns IP like "172.17.0.2"
+}
+```
+
+**Layer 3: Reverse Proxy with Subdomain Routing** (`src/proxy.rs:84-157`)
+
+The `dual proxy` command starts HTTP listeners on **host ports** (e.g., 127.0.0.1:3000) and routes requests based on the Host header subdomain:
+
+```rust
+// src/proxy.rs:111-114
+let addr = SocketAddr::from(([127, 0, 0, 1], port));
+let listener = TcpListener::bind(addr).await?;
+```
+
+When a request arrives at `repo-branch.localhost:3000`, the proxy:
+1. Extracts subdomain from Host header (`src/proxy.rs:258-270`)
+2. Looks up container IP in routing table (`src/proxy.rs:71-76`)
+3. Opens TCP connection to `{container_ip}:{port}` (`src/proxy.rs:206`)
+4. Forwards the request using Hyper HTTP client
+
+### Configuration
+
+Ports are declared in `.dual.toml` at the workspace root (`src/config.rs:18-46`):
+
+```toml
+ports = [3000, 3001, 3002]  # All ports used by apps in the monorepo
+```
+
+The proxy builds a routing table from all workspace configurations (`src/proxy.rs:38-68`):
+
+```rust
+for entry in state.all_workspaces() {
+    let container_name = config::container_name(&entry.repo, &entry.branch);
+    let ip = container::get_ip(&container_name)?;
+    let workspace_id = config::workspace_id(&entry.repo, &entry.branch);
+    for &port in &hints.ports {
+        routes.entry(port).or_default().insert(workspace_id.clone(), ip.clone());
+    }
+}
+```
+
+This enables **multiple workspaces to share port numbers** because routing is by `(port, subdomain)` tuple.
+
+### Monorepo Support
+
+For a monorepo with 5 apps on ports 3000-3004:
+- **One workspace = one container = entire monorepo clone**
+- All 5 apps run inside the same container, binding their respective ports internally
+- `.dual.toml` lists all ports: `ports = [3000, 3001, 3002, 3003, 3004]`
+- Browser access: `repo-main.localhost:3000`, `repo-main.localhost:3001`, etc.
+
+For two branches of the same monorepo:
+- Two separate containers, each with isolated network namespace
+- Both can internally bind ports 3000-3004 without conflict
+- Proxy differentiates by subdomain: `repo-main.localhost:3000` vs `repo-feature.localhost:3000`
+
+**Reference**: Complete analysis documented in `thoughts/shared/research/2026-02-16-port-routing-container-isolation.md`.
+
+---
+
+## 2. Transparent Command Routing
+
+### Architecture: Shell Function Interception
+
+Commands are classified into two categories (`src/shell.rs:1-4`):
+
+```rust
+const CONTAINER_COMMANDS: &[&str] = &[
+    "npm", "npx", "pnpm", "node", "python", "python3", "pip", "pip3", "curl", "make",
+];
+```
+
+| Runs on Host | Runs in Container |
+|--------------|-------------------|
+| git, cat, ls, vim, nvim, ssh | npm, npx, pnpm, node, python, curl, make |
+
+**Routing Rule**: File operations stay on host (preserve credentials, git config). Runtime operations go to container (isolate dependencies, enable port binding).
+
+### Implementation: Generated Shell Functions
+
+For each intercepted command, Dual generates a shell function wrapper (`src/shell.rs:72-83`):
+
+```bash
+pnpm() {
+    if [ -t 1 ]; then
+        command docker exec -t -w /workspace dual-repo-branch pnpm "$@"
+    else
+        command docker exec -w /workspace dual-repo-branch pnpm "$@"
+    fi
+}
+```
+
+The function:
+- Detects TTY with `[ -t 1 ]` and conditionally passes `-t` flag for interactive commands
+- Sets working directory to `/workspace` (bind mount of workspace dir)
+- Preserves all arguments with `"$@"`
+- Preserves exit codes automatically (shell function returns last command's exit code)
+
+### RC File Propagation
+
+Shell functions are written to `~/.dual/rc/{container_name}.sh` (`src/shell.rs:93-108`):
+
+```rust
+pub fn write_rc_file(container_name: &str, extra_commands: &[String]) -> Result<PathBuf> {
+    let rc_dir = dirs::home_dir()?.join(".dual").join("rc");
+    let rc_path = rc_dir.join(format!("{container_name}.sh"));
+    let rc_content = generate_rc(container_name, extra_commands);
+    std::fs::write(&rc_path, rc_content)?;
+    Ok(rc_path)
+}
+```
+
+During workspace launch (`src/main.rs:434-450`), the RC file is sourced into the tmux session:
+
+```rust
+// Step 4: Write shell RC file
+let rc_path = shell::write_rc_file(&container_name, &hints.extra_commands)?;
+
+// Step 5: Create tmux session if not alive
+if !backend.is_alive(&session_name) {
+    let source_cmd = shell::source_file_command(&rc_path);
+    backend.create_session(&session_name, &workspace_dir, Some(&source_cmd))?;
+}
+```
+
+The tmux backend sends `source ~/.dual/rc/dual-repo-branch.sh` via `send-keys` (`src/tmux_backend.rs:56-59`):
+
+```rust
+if let Some(cmd) = init_cmd {
+    self.send_keys(session_name, cmd)?;
+}
+```
+
+**Critical**: Shell interception is **only active inside the Dual tmux session**. Commands run in separate terminals bypass interception (causing port conflicts).
+
+### Transparency & Leaks
+
+Shell function interception is transparent for typical dev workflows. Validated in `thoughts/shared/research/2026-02-05-ARCH-shell-interception-transparency.md:64-96`:
+
+**What does NOT leak**:
+- Command execution mechanism (no "docker exec" visible in output)
+- Command locations (`which npm` shows host binary path)
+- Exit codes (properly preserved)
+- PATH variable (appears normal)
+
+**What DOES leak** (fixable with container config):
+- Hostname (shows container ID unless `--hostname` set)
+- Platform (`linux` vs `darwin` — unfixable but acceptable)
+- User/UID (shows `root` unless `--user` set)
+- HOME path (shows `/root` unless `-e HOME` set)
+
+**Verdict from research**: "The SPEC claim holds for normal dev operations. Claude Code running typical development commands will not detect containerization."
+
+**Fundamental Limitation**: Absolute paths cannot be intercepted. If a tool calls `/usr/bin/npm` directly, it bypasses shell functions. This is acceptable because Claude Code and most dev tools use PATH resolution.
+
+---
+
+## 3. Workspace Management — One Clone Per Workspace
+
+### Architecture: Full Clone Strategy
+
+**Design Decision** (`thoughts/ARCHITECTURE.md:101-104`): Full clones instead of git worktrees to avoid lock contention on `.git` index. While research notes "lock contention risk overstated," the primary constraint is **branch uniqueness**: two worktrees cannot exist on the same branch simultaneously.
+
+### Workspace Layout
+
+```
+~/.dual/workspaces/
+  ├── lightfast/
+  │   ├── main/               # Full git clone
+  │   ├── feat__auth/          # Separate full clone
+  │   └── fix__memory-leak/    # Separate full clone
+  └── agent-os/
+      ├── main/
+      └── v2-rewrite/
+```
+
+Branch names are encoded with `__` replacing `/` (`src/config.rs:172-177`):
+```rust
+pub fn encode_branch(branch: &str) -> String {
+    branch.replace('/', "__")
+}
+```
+
+### Clone Optimization: Local Hardlinks
+
+When creating a new branch workspace, Dual clones from the **local main workspace** using `git clone --local` for speed (`src/clone.rs:85-138`):
+
+```rust
+pub fn clone_from_local(
+    main_workspace_path: &Path,
+    target_dir: &Path,
+    new_branch: &str,
+) -> Result<PathBuf, CloneError> {
+    // Step 1: git clone --local <main_workspace_path> <target_dir>
+    let clone_output = Command::new("git")
+        .args(build_local_clone_args(main_workspace_path, target_dir))
+        .output()?;
+    
+    // Step 2: git checkout -b <new_branch> in the cloned directory
+    let checkout_output = Command::new("git")
+        .args(["checkout", "-b", new_branch])
+        .current_dir(target_dir)
+        .output()?;
+}
+```
+
+The `--local` flag uses **hardlinks** for object files, making clones ~64ms average vs network clones (validated in `thoughts/ARCHITECTURE.md:152-154`).
+
+### Container Lifecycle Tied to Workspace
+
+Each workspace has a corresponding container (`src/main.rs:306-423`):
+
+```rust
+let container_name = config::container_name(&entry.repo, &entry.branch);
+// Pattern: "dual-{repo}-{encoded_branch}"
+```
+
+Container lifecycle during `dual launch`:
+
+1. **Check container status** (`src/main.rs:397-423`)
+2. **Create if missing** with bind mount to workspace dir (`src/container.rs:22-50`)
+3. **Start if stopped** (`src/container.rs:53-55`)
+4. **Run setup command** if new container (`src/main.rs:426-432`)
+
+The workspace directory is bind-mounted to `/workspace` inside container (`src/container.rs:207-208`):
+
+```rust
+"-v".to_string(),
+format!("{}:{WORKSPACE_MOUNT}", workspace_dir.display()),
+```
+
+File edits on the host are immediately visible in the container with ~200ms propagation latency on macOS via VirtioFS (`thoughts/ARCHITECTURE.md:26-29`).
+
+### Dependency Isolation: Anonymous Volumes
+
+`node_modules` and other build artifacts are isolated using anonymous Docker volumes (`src/config.rs:51-54`):
+
+```rust
+fn default_anonymous_volumes() -> Vec<String> {
+    vec!["node_modules".to_string()]
+}
+```
+
+These directories get their own volume layer that shadows the bind mount, preventing macOS vs Linux binary conflicts (`thoughts/ARCHITECTURE.md:111-114`).
+
+### State Management
+
+Workspace metadata is stored in `~/.dual/workspaces.toml` (`src/state.rs:14-39`):
+
+```rust
+pub struct WorkspaceEntry {
+    pub repo: String,      // e.g. "lightfast"
+    pub url: String,       // Git URL or local path
+    pub branch: String,    // e.g. "main", "feat/auth"
+    pub path: Option<String>,  // Explicit path for `dual add`
+}
+```
+
+State operations use atomic writes with advisory file locking (`src/state.rs:188-225`) to prevent concurrent modification.
+
+---
+
+## 4. Claude Code Integration — Transparent by Design
+
+### Core Invariant
+
+From `CLAUDE.md:9-10`:
+> **The Core Invariant**: Claude Code must never need to know that commands are routed to containers. It runs `pnpm dev`, curls `localhost:3000`, runs tests — all transparently intercepted and executed in the right place.
+
+### How It Works
+
+**1. Command Execution** — Claude Code's Bash tool runs commands like `pnpm dev`:
+- If executed inside Dual tmux session → shell function intercepts → routes to `docker exec`
+- Command executes inside container → binds port 3000 internally
+- No Docker-specific syntax required
+
+**2. Browser Access** — Claude Code references `localhost:3000`:
+- Dual proxy listens on host `127.0.0.1:3000`
+- User accesses via `repo-branch.localhost:3000` in browser
+- Proxy routes to correct container based on subdomain
+
+**3. File Operations** — Claude Code reads/writes files:
+- File operations (Read, Write, Edit tools) run on **host**
+- Workspace dir is bind-mounted to container at `/workspace`
+- Changes propagate with ~200ms latency (acceptable for hot reload)
+
+**4. Exit Codes & Output** — Shell functions preserve exit codes and stream output:
+- `docker exec` returns the command's exit code directly
+- TTY detection (`[ -t 1 ]`) ensures interactive commands work
+- Error messages show in Claude Code's Bash tool output
+
+### What Claude Code Never Sees
+
+- `docker exec` commands (abstracted by shell functions)
+- Container IPs (proxy handles routing)
+- Container names (tmux session names match workspace IDs)
+- Docker-specific errors (unless misconfigured)
+
+### Launch Flow from Claude Code's Perspective
+
+When a developer or Claude Code session runs `dual launch lightfast-main`:
+
+1. **Workspace resolved** → Clone exists or is created from local main
+2. **Container started** → Docker container created/started (hidden)
+3. **Shell RC sourced** → tmux session initialized with interception
+4. **Session attached** → User/Claude Code dropped into shell at `/workspace`
+5. **Commands work** → `pnpm dev` intercepted → runs in container → binds port 3000
+6. **Browser access** → Visit `lightfast-main.localhost:3000` → proxy routes to container
+
+---
+
+## 5. tmux/zellij Integration — Session Management
+
+### tmux Backend Implementation
+
+The `TmuxBackend` struct implements the `MultiplexerBackend` trait (`src/tmux_backend.rs:9-132`):
+
+```rust
+pub struct TmuxBackend;
+
+impl MultiplexerBackend for TmuxBackend {
+    fn is_available(&self) -> bool { /* tmux -V */ }
+    fn create_session(&self, session_name: &str, cwd: &Path, init_cmd: Option<&str>) { }
+    fn attach(&self, session_name: &str) { }
+    fn detach(&self, session_name: &str) { }
+    fn destroy(&self, session_name: &str) { }
+    fn is_alive(&self, session_name: &str) -> bool { }
+    fn list_sessions(&self) -> Vec<String> { }
+    fn send_keys(&self, session_name: &str, keys: &str) { }
+    fn is_inside(&self) -> bool { }
+}
+```
+
+### Session Creation
+
+Sessions are named `dual-{repo}-{branch}` and created in detached mode (`src/tmux_backend.rs:32-62`):
+
+```rust
+fn create_session(&self, session_name: &str, cwd: &Path, init_cmd: Option<&str>) {
+    let output = Command::new("tmux")
+        .args(build_new_session_args(session_name, cwd))
+        .output()?;
+    
+    if let Some(cmd) = init_cmd {
+        self.send_keys(session_name, cmd)?;
+    }
+}
+```
+
+The session is created with:
+- `-d` flag for detached (doesn't auto-attach)
+- `-s` flag for session name
+- `-c` flag for working directory (set to workspace clone path)
+
+### Attach Strategy
+
+Dual detects if already inside tmux (`src/tmux_backend.rs:129-131`):
+
+```rust
+fn is_inside(&self) -> bool {
+    std::env::var("TMUX").is_ok_and(|v| !v.is_empty())
+}
+```
+
+If inside tmux, it uses `switch-client` instead of `attach-session` (`src/tmux_backend.rs:64-90`):
+
+```rust
+let (cmd, op) = if self.is_inside() {
+    (["switch-client", "-t", session_name], "switch-client")
+} else {
+    (["attach-session", "-t", session_name], "attach-session")
+};
+```
+
+This enables **instant switching** between workspaces when already in tmux (non-blocking).
+
+### TUI Suspend/Resume Loop
+
+The default command (no subcommand) runs a TUI workspace browser (`src/main.rs:56-108`):
+
+```rust
+fn cmd_default(backend: &dyn MultiplexerBackend) -> i32 {
+    loop {
+        let st = state::load()?;
+        match tui::run(&st, backend) {
+            Ok(Some(workspace_id)) => {
+                // TUI suspended → terminal restored
+                let exit_code = cmd_launch(Some(&workspace_id), backend);
+                
+                if inside_tmux {
+                    return exit_code;  // switch-client is instant, exit
+                }
+                
+                // tmux attach returned (user detached) → loop back to TUI
+                continue;
+            }
+            Ok(None) => return 0,  // User quit
+        }
+    }
+}
+```
+
+**Flow**:
+1. TUI shows workspace list
+2. User selects workspace → TUI suspends (ratatui::restore)
+3. `dual launch` attaches to tmux session (blocks until detach)
+4. User detaches → control returns → loop back to TUI
+
+If inside tmux, `switch-client` is instant (non-blocking), so Dual exits instead of looping.
+
+### Session Listing
+
+Sessions are filtered by `dual-` prefix (`src/tmux_backend.rs:107-123`):
+
+```rust
+fn list_sessions(&self) -> Vec<String> {
+    let output = Command::new("tmux")
+        .args(["list-sessions", "-F", "#{session_name}"])
+        .output()?;
+    
+    stdout.lines()
+        .filter(|line| line.starts_with("dual-"))
+        .map(|s| s.to_string())
+        .collect()
+}
+```
+
+This allows Dual to manage its sessions without interfering with user's existing tmux sessions.
+
+### Progressive Enhancement
+
+From `thoughts/ARCHITECTURE.md:136-139`:
+> **progressive-enhancement** (CONFIRMED): Works without tmux (BasicBackend) — Core functionality (containers, routing, proxy) preserved. Only UI degradation (no panes).
+
+The backend is abstracted via the `MultiplexerBackend` trait, allowing future implementations for zellij or a basic fallback.
+
+---
+
+## 6. Monorepo Support — Multiple Branches Simultaneously
+
+### Architecture: One Container Per Branch
+
+For a monorepo like Turborepo with multiple apps:
+
+**Single Branch (e.g., `main`)**:
+- One workspace = `~/.dual/workspaces/mymonorepo/main/`
+- One container = `dual-mymonorepo-main`
+- All apps run inside the same container
+- Apps bind different ports internally (3000, 3001, 3002, etc.)
+- Browser access: `mymonorepo-main.localhost:3000`, `mymonorepo-main.localhost:3001`, etc.
+
+**Multiple Branches Simultaneously**:
+- Branch 1: Container `dual-mymonorepo-main` → binds 3000-3004 internally
+- Branch 2: Container `dual-mymonorepo-feature` → binds 3000-3004 internally
+- Branch 3: Container `dual-mymonorepo-fix` → binds 3000-3004 internally
+
+**No port conflicts** because each container has isolated network namespace.
+
+### Configuration Example
+
+`.dual.toml` at monorepo root:
+
+```toml
+image = "node:20"
+ports = [3000, 3001, 3002, 3003, 3004]
+setup = "pnpm install"
+anonymous_volumes = ["node_modules", ".next", "dist"]
+
+[env]
+NODE_ENV = "development"
+```
+
+The `ports` array lists all ports used by any app in the monorepo. The proxy creates listeners on the host for each port and routes based on subdomain.
+
+### Shared Files Across Branches
+
+For files like `.env.local` or `.vercel` that should be shared across all branch workspaces (`src/config.rs:8-15`):
+
+```toml
+[shared]
+files = [".env.local", ".vercel"]
+```
+
+During launch, Dual copies shared files from `~/.dual/shared/{repo}/` to each branch workspace (`src/main.rs:364-390`). This ensures environment variables and deployment configs are consistent across branches without committing them to git.
+
+### Workspace Switching
+
+With 3 branches of a monorepo:
+
+**Via TUI**:
+1. Run `dual` (no args)
+2. TUI shows 3 workspaces: `mymonorepo-main`, `mymonorepo-feature`, `mymonorepo-fix`
+3. Select workspace → instant attach/switch
+
+**Via CLI**:
+```bash
+dual launch mymonorepo-main
+dual launch mymonorepo-feature
+dual launch mymonorepo-fix
+```
+
+Each launches or attaches to the corresponding tmux session with shell interception active.
+
+---
+
+## Key File References for Blog Post
+
+### Core Implementation Files
+
+- **`src/container.rs`** (399 lines) — Container lifecycle, network isolation, docker exec
+- **`src/shell.rs`** (252 lines) — Command routing, shell function generation, RC files
+- **`src/proxy.rs`** (358 lines) — Reverse proxy, subdomain routing, WebSocket support
+- **`src/tmux_backend.rs`** (245 lines) — tmux session management, attach/detach
+- **`src/state.rs`** (670 lines) — Workspace state, atomic saves, file locking
+- **`src/config.rs`** (454 lines) — Configuration, hints, naming conventions
+- **`src/clone.rs`** (263 lines) — Git cloning, local hardlinks, branch creation
+- **`src/main.rs`** (954 lines) — CLI commands, launch flow orchestration
+
+### Architecture Validation
+
+- **`thoughts/ARCHITECTURE.md`** — 27/27 architectural claims validated via experiments
+- **`thoughts/shared/research/2026-02-16-port-routing-container-isolation.md`** — Port routing deep dive
+- **`thoughts/shared/research/2026-02-05-ARCH-shell-interception.md`** — Shell interception methods
+- **`thoughts/shared/research/2026-02-05-ARCH-shell-interception-transparency.md`** — Transparency leaks analysis
+- **`thoughts/shared/research/2026-02-13-BUILD-tmux.md`** — tmux backend design
+
+### Key Metrics
+
+- **Total Rust code**: ~4,280 lines
+- **Container creation**: No `-p` port flags (bridge network only)
+- **Clone speed**: ~64ms for local hardlink clones
+- **File propagation latency**: ~200ms (macOS VirtioFS)
+- **Supported platforms**: Linux, macOS (Intel + Apple Silicon), Windows
+
+---
+
+This analysis provides concrete technical details with exact file:line references for every architectural claim, suitable for a technical blog post about Dual's implementation.</result>
+<usage>total_tokens: 71897
+tool_uses: 19
+duration_ms: 170537</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-jeevanpillay-Code--jeevanpillaystudios-dual/tasks/a928382.output
+
+---
+
+make it twitter post bro
+
+---
+
+make it spicier
+
+---
+
+[Request interrupted by user]
+
+---
+
+does conductor actually use worktree? verify claims
+
+---
+
+delete all the fiels tyou made al good
